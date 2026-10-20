@@ -2,7 +2,6 @@ package com.plinko.bo.odds;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import com.plinko.TestFixtures;
@@ -10,12 +9,10 @@ import com.plinko.bo.bonus.BonusService;
 import com.plinko.model.BonusSettings;
 import com.plinko.model.OddsTable;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Review 5.3 #1-#2: the real draw (OddsService.pickSlot, BonusService.rollGolden / rollHot, SecureRandom) against the
- * approved odds, on every board. The measured return must match the table's RTP (with golden balls and the hot slot:
- * the approved total RTP) within a wide statistical margin, and the landing slots must follow the approved
+ * Review 5.3 #1-#2: the real draw (OddsService.pickSlot, SecureRandom) against the approved odds, on every board. The
+ * measured return must match the table's RTP within a wide statistical margin, and the landing slots must follow the approved
  * probabilities (chi-square). Margins are set so a fair game fails less than once in a million runs.
  */
 class FairnessTest {
@@ -24,20 +21,9 @@ class FairnessTest {
     /** About 5 standard deviations: a fair game is outside this less than once in a million. */
     private static final double SIGMAS = 5.0;
 
-    private static final BonusSettings GOLDEN_AND_HOT = new BonusSettings(
-            new BonusSettings.Golden(true, new BigDecimal("8"), BonusSettings.OFF.golden().boosts()),
-            new BonusSettings.Hot(true, new BigDecimal("20"), new BigDecimal("3")));
-
-    private final BonusService bonus = new BonusService(null, JsonMapper.builder().build());
-
     @Test
     void everyBoardPaysItsApprovedRtpAndLandsWhereTheOddsSay() {
         check(BonusSettings.OFF);
-    }
-
-    @Test
-    void withGoldenBallsAndTheHotSlotEveryBoardPaysTheApprovedTotalRtp() {
-        check(GOLDEN_AND_HOT);
     }
 
     private void check(BonusSettings settings) {
@@ -50,11 +36,9 @@ class FairnessTest {
                 double sum = 0;
                 double squares = 0;
                 for (int ball = 0; ball < BALLS; ball++) {
-                    int hot = bonus.rollHot(settings, rows);          // each ball as its own one-ball round
                     int slot = odds.pickSlot(table);
                     landed[slot]++;
-                    double paid = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(rows, slot)).multiplier().doubleValue()
-                            * bonus.rollGolden(settings).doubleValue() * (slot == hot ? settings.hot().boost().doubleValue() : 1);
+                    double paid = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(rows, slot)).multiplier().doubleValue();
                     sum += paid;
                     squares += paid * paid;
                 }

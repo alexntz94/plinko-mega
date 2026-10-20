@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -15,47 +14,44 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Review 3.3: bonus settings outside their limits are refused when proposed, and read as "all off" if they were stored anyway. */
+/** Review 3.3: settings outside their limits are refused when proposed, and read as "all off" if they were stored anyway. */
 class BonusValidationTest {
 
     private final BonusService bonus = new BonusService(null, JsonMapper.builder().build());
-
-    private static final BonusSettings.Golden GOLDEN = new BonusSettings.Golden(true, new BigDecimal("1"), BonusSettings.OFF.golden().boosts());
-    private static final BonusSettings.Hot HOT = new BonusSettings.Hot(true, new BigDecimal("20"), new BigDecimal("3"));
-    private static final BonusSettings.Meter METER = new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("30"));
+    private static final BonusSettings MEGA = BonusSettings.MEGA;
 
     private static BigDecimal d(String value) {
         return value == null ? null : new BigDecimal(value);
     }
 
-    private static BonusSettings hot(String chance, String boost) {
-        return new BonusSettings(GOLDEN, new BonusSettings.Hot(true, d(chance), d(boost)), METER);
-    }
-
     private static BonusSettings meter(int charges, String minMultiplier, String potShare) {
-        return new BonusSettings(GOLDEN, HOT, new BonusSettings.Meter(true, charges, d(minMultiplier), d(potShare)));
+        return new BonusSettings(new BonusSettings.Meter(true, charges, d(minMultiplier), d(potShare)), MEGA.gates(), MEGA.wheel(), MEGA.megaWheel());
     }
 
-    private static BonusSettings golden(String chance, BonusSettings.Boost... boosts) {
-        return new BonusSettings(new BonusSettings.Golden(true, d(chance), boosts == null ? null : Arrays.asList(boosts)), HOT, METER);
+    private static BonusSettings gates(String boost) {
+        return new BonusSettings(MEGA.meter(), new BonusSettings.Gates(true, d(boost)), MEGA.wheel(), MEGA.megaWheel());
     }
 
-    private static BonusSettings.Boost boost(String multiplier, String weight) {
-        return new BonusSettings.Boost(d(multiplier), d(weight));
+    private static BonusSettings wheel(BonusSettings.Segment... segments) {
+        return new BonusSettings(MEGA.meter(), MEGA.gates(), new BonusSettings.Wheel(true, segments == null ? null : List.of(segments)),
+                MEGA.megaWheel());
+    }
+
+    private static BonusSettings.Segment segment(String name, String multiplier, String weight) {
+        return new BonusSettings.Segment(name, d(multiplier), d(weight));
+    }
+
+    /** Four segments that add up to 100%, the last one as given. */
+    private static BonusSettings.Segment[] withLast(BonusSettings.Segment last) {
+        return new BonusSettings.Segment[] {segment(null, "1", "40"), segment(null, "2", "30"), segment(null, "5", "20"), last};
     }
 
     static Stream<Arguments> refused() {
-        List<BonusSettings.Boost> seven = new ArrayList<>();
-        for (int i = 0; i < 7; i++) {
-            seven.add(boost("2", i < 6 ? "14" : "16"));
+        List<BonusSettings.Segment> seventeen = new ArrayList<>();
+        for (int i = 0; i < 17; i++) {
+            seventeen.add(segment(null, "2", i < 16 ? "6" : "4"));
         }
         return Stream.of(
-                Arguments.of(hot(null, "3"), "Hot slot chance"),
-                Arguments.of(hot("-1", "3"), "Hot slot chance"),
-                Arguments.of(hot("20.123", "3"), "Hot slot chance"),
-                Arguments.of(hot("20", null), "Hot slot boost"),
-                Arguments.of(hot("20", "1"), "Hot slot boost"),
-                Arguments.of(hot("20", "3.123"), "Hot slot boost"),
                 Arguments.of(meter(2, "2", "30"), "between 3 and 100 charges"),
                 Arguments.of(meter(101, "2", "30"), "between 3 and 100 charges"),
                 Arguments.of(meter(10, null, "30"), "prize to charge it"),
@@ -66,60 +62,47 @@ class BonusValidationTest {
                 Arguments.of(meter(10, "2", "0"), "share of the bet"),
                 Arguments.of(meter(10, "2", "101"), "share of the bet"),
                 Arguments.of(meter(10, "2", "30.123"), "share of the bet"),
-                Arguments.of(golden(null, boost("2", "100")), "between 0% and 10%"),
-                Arguments.of(golden("-1", boost("2", "100")), "between 0% and 10%"),
-                Arguments.of(golden("1.123", boost("2", "100")), "at most 2 decimals"),
-                Arguments.of(golden("1", (BonusSettings.Boost[]) null), "1 to 6 boosts"),
-                Arguments.of(golden("1"), "1 to 6 boosts"),
-                Arguments.of(golden("1", seven.toArray(BonusSettings.Boost[]::new)), "1 to 6 boosts"),
-                Arguments.of(golden("1", boost(null, "100")), "a multiplier and a weight"),
-                Arguments.of(golden("1", boost("2", null)), "a multiplier and a weight"),
-                Arguments.of(golden("1", new BonusSettings.Boost[] {null}), "a multiplier and a weight"),
-                Arguments.of(golden("1", boost("2.123", "100")), "Boosts must be above 1x"),
-                Arguments.of(golden("1", boost("2", "50.123"), boost("3", "49.877")), "Boost weights must be above 0"),
-                Arguments.of(golden("1", boost("2", "0"), boost("3", "100")), "Boost weights must be above 0"),
-                Arguments.of(new BonusSettings(GOLDEN, null, METER), "incomplete"),
-                Arguments.of(new BonusSettings(null, HOT, METER), "incomplete"));
+                Arguments.of(gates(null), "gate boost"),
+                Arguments.of(gates("1"), "gate boost"),
+                Arguments.of(gates("11"), "gate boost"),
+                Arguments.of(gates("1.555"), "gate boost"),
+                Arguments.of(wheel((BonusSettings.Segment[]) null), "4 to 16 segments"),
+                Arguments.of(wheel(segment(null, "2", "50"), segment(null, "3", "50")), "4 to 16 segments"),
+                Arguments.of(wheel(seventeen.toArray(BonusSettings.Segment[]::new)), "4 to 16 segments"),
+                Arguments.of(wheel(withLast(segment(null, null, "10"))), "a multiplier and a weight"),
+                Arguments.of(wheel(withLast(segment(null, "0", "10"))), "above 0x and at most 1000x"),
+                Arguments.of(wheel(withLast(segment(null, "1001", "10"))), "above 0x and at most 1000x"),
+                Arguments.of(wheel(withLast(segment("GRAND", "100", "10"))), "MINI, MAJOR or MEGA"),
+                Arguments.of(wheel(withLast(segment(null, "3", "11"))), "add up to 100%"),
+                Arguments.of(wheel(withLast(segment(null, "3", "0"))), "weights must be above 0"));
     }
 
     @ParameterizedTest
     @MethodSource("refused")
     void settingsOutsideTheirLimitsAreRefusedAndReadAsAllOff(BonusSettings settings, String error) {
         assertThat(bonus.validate(settings)).anyMatch(e -> e.contains(error));
-        if (settings.golden() != null && settings.hot() != null) {
-            assertThat(bonus.parse(bonus.toJson(settings))).as("stored anyway: read as all off").isEqualTo(BonusSettings.OFF);
-        }
+        assertThat(bonus.parse(bonus.toJson(settings))).as("stored anyway: read as all off").isEqualTo(BonusSettings.OFF);
     }
 
     @Test
     void theSettingsWithinTheirLimitsAreKept() {
-        BonusSettings all = new BonusSettings(GOLDEN, HOT, METER);
-        assertThat(bonus.validate(all)).isEmpty();
+        assertThat(bonus.validate(MEGA)).isEmpty();
+        assertThat(bonus.validate(BonusSettings.OFF)).isEmpty();
         assertThat(bonus.validate(null)).containsExactly("Bonus settings are incomplete");
-        assertThat(bonus.parse(bonus.toJson(all))).isEqualTo(BonusService.withDefaults(all));
+        assertThat(bonus.parse(bonus.toJson(MEGA))).isEqualTo(MEGA);
     }
 
     @Test
-    void unreadableOrMissingSettingsAreAllOffAndFeaturesAddedLaterStartOff() {
-        // never saved: Plinko Mega's own starting point (gates, wheel and meter on)
-        assertThat(bonus.parse(null)).isEqualTo(BonusSettings.MEGA);
+    void unreadableSettingsAreAllOffAndMissingOnesAreTheStartingPoint() {
+        // never saved: the game's own starting point (gates, wheel and meter on)
+        assertThat(bonus.parse(null)).isEqualTo(MEGA);
         assertThat(bonus.parse("{not json")).isEqualTo(BonusSettings.OFF);
-        // saved before hot slots and the meter existed
-        BonusSettings old = bonus.parse("{\"golden\":{\"enabled\":true,\"chance\":1,\"boosts\":[{\"multiplier\":2,\"weight\":100}]}}");
-        assertThat(old.goldenOn()).isTrue();
-        assertThat(old.hot()).isEqualTo(BonusSettings.OFF.hot());
-        assertThat(old.meter()).isEqualTo(BonusSettings.OFF.meter());
+        // saved with only the meter: the gates and the wheel are off
+        BonusSettings meterOnly = bonus.parse(bonus.toJson(new BonusSettings(MEGA.meter(), null, null, null)));
+        assertThat(meterOnly.meterOn()).isTrue();
+        assertThat(meterOnly.gatesOn()).isFalse();
+        assertThat(meterOnly.wheelOn()).isFalse();
+        assertThat(meterOnly.megaWheel()).isEqualTo(BonusSettings.OFF.megaWheel());
         assertThat(BonusService.withDefaults(null)).isNull();
-    }
-
-    @Test
-    void withGoldenBallsOffNoBallIsGolden() {
-        assertThat(BonusService.maxGoldenBoost(BonusSettings.OFF)).isEqualByComparingTo("1");
-        BonusSettings never = golden("0", boost("2", "100"));
-        for (int ball = 0; ball < 100; ball++) {
-            assertThat(bonus.rollGolden(never)).isEqualByComparingTo("1");
-            assertThat(bonus.rollGolden(BonusSettings.OFF)).isEqualByComparingTo("1");
-            assertThat(bonus.rollHot(BonusSettings.OFF, 8)).isEqualTo(-1);
-        }
     }
 }

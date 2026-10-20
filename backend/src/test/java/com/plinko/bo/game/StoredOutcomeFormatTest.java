@@ -21,10 +21,8 @@ class StoredOutcomeFormatTest {
             "4    | 1     | null",
             "4    | 1     | path:15,7",
             "4    | 1     | path:x",
-            "4    | 1     | path:15;hot",
-            "4    | 1     | path:15;hot:3",
-            "4    | 1     | path:15;gold:0x2,0x3",
-            "4    | 1     | path:15;gold:0",
+            "4    | 1     | path:15;hot:3x2",
+            "4    | 1     | path:15;gold:0x2",
             "4    | 1     | path:15;free:1.00@3x1",
             "4    | 1     | path:15;meter:2:0.4",
             "4    | 1     | path:15;meter:2/3:0.4",
@@ -40,11 +38,8 @@ class StoredOutcomeFormatTest {
     @Test
     void everyBonusPartTheGameWritesIsRead() {
         RoundWin.Outcome outcome = RoundWin.parse("4,0", "1.1,26",
-                "hot:4x2;gold:1x3;path:15,0;gates:2;spin:1@3x10;mega:0.40@6x25;meter:0/3:0:m-1;capped:5.00");
+                "path:15,0;gates:2;spin:1@3x10;mega:0.40@6x25;meter:0/3:0:m-1;capped:5.00");
         assertThat(outcome.slots()).containsExactly(4, 0);
-        assertThat(outcome.hotSlot()).isEqualTo(4);
-        assertThat(outcome.hotBoost()).isEqualByComparingTo("2");
-        assertThat(outcome.golden()).containsEntry(1, new BigDecimal("3"));
         assertThat(outcome.paths()).containsExactly(15, 0);
         assertThat(outcome.gateBoost()).isEqualByComparingTo("2");
         assertThat(outcome.spins()).containsExactly(new RoundWin.Spin(1, 3, new BigDecimal("10")));

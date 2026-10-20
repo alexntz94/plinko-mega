@@ -35,16 +35,14 @@ import com.plinko.repo.GameRepository;
 import org.junit.jupiter.api.Test;
 
 /**
- * Thousands of rounds played by the real round code, with golden balls, hot slots and the bonus meter switched on
- * often and a low win limit (so caps happen too), on every board: every one of them must pass the credit check and be
+ * Thousands of rounds played by the real round code, with the gates, the wheel and a meter that fills often and a low
+ * win limit (so caps happen too), on every board: every one of them must pass the credit check and be
  * paid exactly its win. If the game and the check ever disagree, genuine wins would be blocked.
  */
 class RealRoundsPassWinCheckTest {
 
-    private static final BonusSettings BONUSES = new BonusSettings(
-            new BonusSettings.Golden(true, new BigDecimal("25"), BonusSettings.OFF.golden().boosts()),
-            new BonusSettings.Hot(true, new BigDecimal("40"), new BigDecimal("3")),
-            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")));
+    private static final BonusSettings BONUSES = new BonusSettings(new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")),
+            BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
 
     private final PlinkoProperties base = TestFixtures.properties();
     /** A low win limit per round (40), so caps happen; maxRtp as given (the forced-cap run needs bonuses no real odds allow). */
@@ -65,10 +63,9 @@ class RealRoundsPassWinCheckTest {
     private final String[] meterPointer = {null};
     private final GameRepository.Player player = new GameRepository.Player(7, "pam-7", "alice", "EUR", null, false, Instant.now(), Instant.now());
 
-    /** Every ball golden x10: most rounds go over the limit and are capped. */
-    private static final BonusSettings ALWAYS_GOLDEN = new BonusSettings(
-            new BonusSettings.Golden(true, new BigDecimal("100"), List.of(new BonusSettings.Boost(new BigDecimal("10"), new BigDecimal("100")))),
-            BonusSettings.OFF.hot());
+    /** Gates of x10: a ball through them pays 10, 100 or 1000 times its prize, so many rounds go over the limit and are capped. */
+    private static final BonusSettings BIG_GATES = new BonusSettings(BonusSettings.OFF.meter(), new BonusSettings.Gates(true, BigDecimal.TEN),
+            BonusSettings.OFF.wheel(), BonusSettings.OFF.megaWheel());
 
     @Test
     void plinkoMegaRoundsWithGatesWheelAndMegaSpinPassTheCheck() {
@@ -87,60 +84,31 @@ class RealRoundsPassWinCheckTest {
     @Test
     void cappedRealRoundsPassTheCheckToo() {
         properties = properties("10000");
-        int[] stats = play(ALWAYS_GOLDEN, 1000, 4000);
+        int[] stats = play(BIG_GATES, 1000, 4000);
         assertThat(stats[1]).as("rounds capped at the limit").isGreaterThan(20);
     }
 
-    /** Review 5.3 #3: every ball on the top prize, golden at the biggest boost, on the hot slot, at the biggest bet allowed. */
+    /** Review 5.3 #3: every ball on the top prize at the biggest bet allowed stays within the limit; a cent more is refused. */
     @Test
-    void theLargestPossibleWinIsExactlyTheLimit() {
+    void theBiggestBetOnTheTopPrizeStaysWithinTheLimit() {
         properties = properties("10000");
-        BonusSettings everything = new BonusSettings(
-                new BonusSettings.Golden(true, new BigDecimal("100"), List.of(new BonusSettings.Boost(new BigDecimal("10"), new BigDecimal("100")))),
-                new BonusSettings.Hot(true, new BigDecimal("100"), new BigDecimal("3")));
-        GameService game = game(everything, true);
-        // the biggest bet the game takes on this board: its top prize times the bet stays within the limit
-        BigDecimal top = com.plinko.bo.odds.TestOdds.with(everything, properties).get(8, 2).maxMultiplier();
-        BigDecimal bet = new BigDecimal("40").divide(top.multiply(BigDecimal.TEN), 2, java.math.RoundingMode.DOWN);
-        GameService.PlayResponse response = game.play("s", new GameService.PlayRequest(8, 2, bet, 10));
-        GameRepository.Round round = rounds.get(response.roundId());
-        BigDecimal uncapped = RoundWin.ball(bet, top.multiply(new BigDecimal("30"))).multiply(BigDecimal.TEN);
-        assertThat(round.bonus()).contains("capped:" + uncapped.toPlainString());
-        assertThat(response.totalWin()).isEqualByComparingTo("40.00");
-        assertThat(round.status()).isEqualTo(RoundStatus.COMPLETED);
-        assertThat(paid).last().isEqualTo(round.id() + "=40.00");
-        assertThatThrownBy(() -> game.play("s", new GameService.PlayRequest(8, 2, bet.add(new BigDecimal("0.01")).multiply(BigDecimal.TEN), 10)))
-                .isInstanceOf(ApiException.class).extracting("code").isEqualTo("BET_TOO_HIGH");
-    }
-
-    /**
-     * Review 5.3 #3 with the most balls a round takes (100): every ball on the top prize, golden and hot, at the biggest
-     * bet allowed. The uncapped sum is exact to the cent, the win is exactly the limit, and one cent more is refused.
-     */
-    @Test
-    void theLargestPossibleWinOfAHundredBallsIsExactlyTheLimit() {
-        properties = properties("10000");
-        BonusSettings everything = new BonusSettings(
-                new BonusSettings.Golden(true, new BigDecimal("100"), List.of(new BonusSettings.Boost(new BigDecimal("10"), new BigDecimal("100")))),
-                new BonusSettings.Hot(true, new BigDecimal("100"), new BigDecimal("3")));
-        GameService game = game(everything, true);
-        BigDecimal top = com.plinko.bo.odds.TestOdds.with(everything, properties).get(8, 2).maxMultiplier();
-        BigDecimal hundred = BigDecimal.valueOf(100);
-        BigDecimal bet = new BigDecimal("40").divide(top.multiply(hundred), 2, java.math.RoundingMode.DOWN);
-        assertThat(bet).as("a bet the game takes").isGreaterThanOrEqualTo(new BigDecimal("0.01"));
-        GameService.PlayResponse response = game.play("s", new GameService.PlayRequest(8, 2, bet, 100));
-        GameRepository.Round round = rounds.get(response.roundId());
-        assertThat(response.slots()).hasSize(100);
-        assertThat(response.boosts()).allSatisfy(b -> assertThat(b).isEqualByComparingTo("10"));
-        BigDecimal perBall = RoundWin.ball(bet, top.multiply(new BigDecimal("30")));
-        assertThat(response.wins()).allSatisfy(w -> assertThat(w).isEqualByComparingTo(perBall));
-        assertThat(round.bonus()).contains("capped:" + perBall.multiply(hundred).toPlainString());
-        assertThat(response.totalWin()).isEqualByComparingTo("40.00");
-        assertThat(round.status()).isEqualTo(RoundStatus.COMPLETED);
-        assertThat(paid).last().isEqualTo(round.id() + "=40.00");
-        // one cent more per ball could pay above the limit: refused
-        assertThatThrownBy(() -> game.play("s", new GameService.PlayRequest(8, 2, bet.add(new BigDecimal("0.01")), 100)))
-                .isInstanceOf(ApiException.class).extracting("code").isEqualTo("BET_TOO_HIGH");
+        for (int balls : new int[] {10, 100}) {
+            GameService game = game(BonusSettings.OFF, true);
+            // the biggest bet the game takes on this board: its top prize times the bet stays within the limit
+            BigDecimal top = com.plinko.bo.odds.TestOdds.with(BonusSettings.OFF, properties).get(8, 2).maxMultiplier();
+            BigDecimal bet = new BigDecimal("40").divide(top.multiply(BigDecimal.valueOf(balls)), 2, java.math.RoundingMode.DOWN);
+            assertThat(bet).as("a bet the game takes").isGreaterThanOrEqualTo(new BigDecimal("0.01"));
+            GameService.PlayResponse response = game.play("s", new GameService.PlayRequest(8, 2, bet, balls));
+            GameRepository.Round round = rounds.get(response.roundId());
+            BigDecimal perBall = RoundWin.ball(bet, top);
+            assertThat(response.slots()).hasSize(balls);
+            assertThat(response.wins()).allSatisfy(w -> assertThat(w).isEqualByComparingTo(perBall));
+            assertThat(response.totalWin()).isEqualByComparingTo(perBall.multiply(BigDecimal.valueOf(balls))).isLessThanOrEqualTo(new BigDecimal("40.00"));
+            assertThat(round.status()).isEqualTo(RoundStatus.COMPLETED);
+            BigDecimal oneCentMore = bet.add(new BigDecimal("0.01"));
+            assertThatThrownBy(() -> game.play("s", new GameService.PlayRequest(8, 2, oneCentMore, balls)))
+                    .isInstanceOf(ApiException.class).extracting("code").isEqualTo("BET_TOO_HIGH");
+        }
     }
 
     /** Review 5.3 #4: requests the game must refuse before anything happens. */
@@ -286,10 +254,6 @@ class RealRoundsPassWinCheckTest {
                 return bonuses;
             }
 
-            @Override
-            public int rollHot(BonusSettings settings, int rows) {
-                return topPrizeOnly ? com.plinko.bo.odds.PlinkoBoard.rightSlot(rows, rows / 2) : super.rollHot(settings, rows);
-            }
         };
         com.plinko.TestFixtures.snapshotFromStubs(settings, () -> "test-bonus");    // what TestOdds holds as the stored bonus
         return new GameService(repository, pam, odds, settings, signer, walletSigner, properties, mock(ThemeService.class), bonus,
@@ -327,7 +291,7 @@ class RealRoundsPassWinCheckTest {
         java.util.Set<String> played = new java.util.HashSet<>();
         java.util.Map<String, GameService.PlayResponse> byId = new java.util.HashMap<>();
         for (int n = 0; n < 3; n++) {
-            GameService.PlayResponse r = game.play("s", new GameService.PlayRequest(12, 2, new BigDecimal("0.20"), 3, null));
+            GameService.PlayResponse r = game.play("s", new GameService.PlayRequest(12, 2, new BigDecimal("0.05"), 3, null));
             played.add(r.roundId());
             byId.put(r.roundId(), r);
         }

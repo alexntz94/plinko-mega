@@ -20,7 +20,14 @@
     "win",
     "lose",
     "bigWin",
-    "result"
+    "result",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "jackpot"
   ],
   "font": {
     "family": "Barlow Condensed",
@@ -100,5 +107,6 @@
     "style": "ink",
     "ink": "#1f1512",
     "panel": "#3a2160"
-  }
+  },
+  "music": "music.mp3"
 }

@@ -8,6 +8,7 @@ import { BigWin, winLevel } from './effects';
 import { FortuneWheel } from './fortuneWheel';
 import { MegaControls } from './megaControls';
 import { WinTicker } from './ticker';
+import { Ambient, Screen, WinBanner } from './juice';
 import { Meter } from './meter';
 import { betLadder, nextBet, RISKS, round2 } from './rules';
 import { ExitDialog, Menu, Options, ResultScreen, type MotionSwitch } from './screens';
@@ -22,9 +23,9 @@ const random = (min: number, max: number) => min + Math.random() * (max - min);
 const pegSound = (peg: PegHit) => sound('hit', {
   volume: 0.6, rate: 0.9 + 0.32 * peg.row / Math.max(1, peg.rows - 1) + random(-0.025, 0.025), pan: peg.pan * 0.7 });
 
-/** A landing, by what it paid: nothing, a little, 2x and up, 10x and up (a golden ball has its own). */
-function landSound(multiplier: number, boost: number, landing: Landing): void {
-  const name = boost > 1 ? 'golden' : multiplier >= 10 ? 'huge' : multiplier >= 2 ? 'big' : multiplier > 1 ? 'score' : 'noScore';
+/** A landing, by what it paid: nothing, a little, 2x and up, 10x and up. */
+function landSound(multiplier: number, landing: Landing): void {
+  const name = multiplier >= 10 ? 'huge' : multiplier >= 2 ? 'big' : multiplier > 1 ? 'score' : 'noScore';
   sound(name, { pan: landing.pan * 0.6 });
 }
 /** A win the way the server pays it: whole cents, rounded down. */
@@ -53,6 +54,12 @@ export class Game extends Container {
   private readonly wheel: FortuneWheel;
   private readonly bar: MegaControls;
   private readonly ticker: WinTicker;
+  /** The slot-machine feel: petals always drifting, the WIN banner, the screen's flash and slow motion. */
+  private readonly ambient: Ambient;
+  private readonly banner = new WinBanner();
+  private readonly screen = new Screen();
+  private turbo = false;
+  private slowMotion: number | null = null;
   private ballsLeft = 0;          // balls dropped and not landed yet (PLAY shows them)
   private readonly meter: Meter;
 
@@ -105,7 +112,7 @@ export class Game extends Container {
     this.board.onClack = () => sound('clack', { volume: 0.5 });
     const mega = config.mega;
     this.board.setMega(mega?.gates ?? {}, mega?.gateBoost ?? null, mega?.wheel ? mega.spinSlots ?? {} : {});
-    this.board.onGate = () => sound('golden', { volume: 0.7 });
+    this.board.onGate = () => sound('gate', { volume: 0.8 });
     this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
       value => this.money(value));
     this.wheel.onTick = () => sound('hit', { volume: 0.35 });
@@ -114,7 +121,7 @@ export class Game extends Container {
     this.bar = new MegaControls({ gold: theme.wheel.title, ink: theme.wheel.ink, panel: theme.ui.panel, text: theme.text }, {
       play: () => this.play(),
       auto: () => { if (this.holding) this.stopHolding(); else if (this.page === 'game') void this.autoplay(); },
-      turbo: on => { this.board.speed = on ? 2 : 1; this.wheel.setHurry(on); },
+      turbo: on => { this.turbo = on; this.board.speed = on ? 2 : 1; this.wheel.setHurry(on); },
       bump: () => { sound('clack'); this.board.bump(); },
       bet: up => this.changeBet(up),
       risk: step => this.changeRisk(step),
@@ -122,7 +129,9 @@ export class Game extends Container {
       rows: step => this.changeRows(this.rowOptions.indexOf(this.rows) + step),
     });
     this.ticker = new WinTicker(theme.wheel.title);
-    this.table.addChild(this.board, this.ticker, this.wheel, this.meter, this.bar);
+    this.ambient = new Ambient([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? []), theme.wheel.title]);
+    this.banner.onTick = () => sound('tick', { volume: 0.6 });
+    this.table.addChild(this.ambient, this.board, this.ticker, this.wheel, this.banner, this.meter, this.bar);
 
     this.result = new ResultScreen(tex('item_result.png'), tex('item_result_p.png'), tex('button_continue.png'), () => this.go('menu'));
     this.options = new Options({ settings: tex('button_settings.png'), soundOn: tex('button_sound_on.png'),
@@ -133,7 +142,7 @@ export class Game extends Container {
     () => { if (!this.busy()) this.historyPanel.show(); });
     this.options.on('pointertap', () => sound('click'));
 
-    this.addChild(this.menu, this.table, this.bigWin, this.result, this.exitDialog, this.options);
+    this.addChild(this.menu, this.table, this.screen, this.bigWin, this.result, this.exitDialog, this.options);
     this.historyPanel = new HistoryPanel(value => this.money(value), entry => void this.replay(entry));
     this.responsible = new ResponsiblePlay(config, session.sessionId, value => this.money(value), () => { this.stopHolding(); this.go('menu'); });
     this.go('menu');
@@ -154,11 +163,16 @@ export class Game extends Container {
     this.exitDialog.layout(view);
     this.result.layout(view);
     this.bigWin.layout(view);
-    // portrait: board, wheel, bar from top to bottom; landscape: the board in the middle, the wheel on the right
+    // the board with the wheel right under it, as one column; portrait: the bar below them, landscape: beside them
     const visibleH = view.stageH - 2 * view.offsetY;
-    if (view.landscape) this.wheel.place(view.stageW * 0.82 - view.offsetX * 0.5, view.stageH * 0.62, Math.min(140, visibleH * 0.23));
+    if (view.landscape) this.wheel.place(view.stageW * 0.4, view.stageH - view.offsetY - Math.min(115, visibleH * 0.2) * 0.45, Math.min(115, visibleH * 0.2));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.735, Math.min(150, visibleH * 0.16));
-    this.bar.layout(view, view.landscape ? view.stageW * 0.45 : view.stageW / 2);
+    this.bar.layout(view, view.landscape ? view.stageW * 0.79 : view.stageW / 2);
+    this.ambient.layout(view);
+    this.screen.layout(view);
+    // the WIN banner over the top of the board
+    if (view.landscape) this.banner.position.set(view.stageW * 0.4, view.offsetY + (view.stageH - 2 * view.offsetY) * 0.2);
+    else this.banner.position.set(view.stageW / 2, view.stageH * 0.17);
     this.ticker.layout(view);
     this.meter.layout(view);
     this.options.layout(view);
@@ -166,7 +180,7 @@ export class Game extends Container {
 
   /** The board's place: room for the wheel and the control bar. */
   private layoutBoard(view: Viewport): void {
-    this.board.layout(view, view.landscape ? { x: view.stageW * 0.45, y: view.stageH * 0.43, fit: 0.8 }
+    this.board.layout(view, view.landscape ? { x: view.stageW * 0.4, y: view.offsetY + (view.stageH - 2 * view.offsetY) * 0.34, fit: 0.66 }
       : { x: view.stageW / 2, y: view.stageH * 0.3, fit: 0.84 });
   }
 
@@ -421,14 +435,12 @@ export class Game extends Container {
       this.lastWin = win;
       this.refreshPanel();
     };
-    if (round.hotSlot != null && round.hotBoost != null) {
-      this.board.setHot(round.hotSlot, round.hotBoost);
-      if (!this.holding) this.board.setStatus(`HOT SLOT ×${round.hotBoost}!`);
-      sound('change');
-      await wait(1);
-    }
     const count = round.slots.length;
     const drops: Promise<void>[] = [];
+    // one ball a round (the first worth it) gets slow motion: one heading for 10x or more, or for a SPIN slot
+    const spinBalls = new Set((round.spins ?? []).map(spin => spin.ball));
+    const dramaBall = this.holding || this.turbo || count > 30 ? -1
+      : round.multipliers.findIndex((m, i) => m >= 10 || spinBalls.has(i));
     for (let i = 0; i < count; i++) {
       if (i > 0) await wait((this.holding ? 0.18 : 0.4) * random(0.6, 1.3));
       if (!this.holding) {
@@ -436,20 +448,22 @@ export class Game extends Container {
         this.board.setStatus(left > 0 ? `PLAYING... (${left} BALLS)` : 'PLAYING...');
       }
       const multiplier = round.multipliers[i] ?? 0;
-      const boost = round.boosts?.[i] ?? 1;
       drops.push(this.board.dropBall(round.slots[i], {
         onPeg: pegSound,
+        onDrama: i === dramaBall ? () => this.slowDown() : undefined,
         onLand: landing => {
+          if (i === dramaBall) this.speedUp(true);
+          else if (multiplier >= 5) this.screen.flash(0.3);
           const win = round.wins?.[i] ?? cents(bet * multiplier);
           land(win);
           this.board.showAmount(landing.slot, this.money(win), multiplier > 1);
           this.ticker.add(this.money(win), multiplier);
           if (charging.includes(landing.prizeIndex)) this.meter.charge();
-          landSound(multiplier, boost, landing);
+          landSound(multiplier, landing);
           this.ballsLeft = Math.max(0, this.ballsLeft - 1);
           this.bar.setPlaying(true, this.holding, this.ballsLeft);
         },
-      }, boost, null, round.paths?.[i] ?? null));
+      }, round.paths?.[i] ?? null));
     }
     await Promise.all(drops);
 
@@ -460,11 +474,11 @@ export class Game extends Container {
     for (let i = 0; i < spins.length; i++) {
       const spin = spins[i];
       if (!config?.wheel?.[spin.segment]) { land(spin.win); continue; }
-      sound('big');
+      sound('spin');
       await this.wheel.turn(config.wheel, spin.segment, spin.win, { gold: false, title: 'SPIN' });
       this.wheel.setSpins(spins.length - i - 1);
       land(spin.win);
-      sound(config.wheel[spin.segment].name ? 'bigWin' : 'score');
+      sound(config.wheel[spin.segment].name ? 'jackpot' : 'coins');
     }
     for (const mega of round.megaSpins ?? []) {
       if (!config?.megaWheel?.[mega.segment]) { land(mega.win); continue; }
@@ -472,17 +486,21 @@ export class Game extends Container {
       sound('huge');
       await this.wheel.turn(config.megaWheel, mega.segment, mega.win, { gold: true, title: 'MEGA SPIN ' + this.money(mega.stake) });
       land(mega.win);
-      sound(config.megaWheel[mega.segment].name ? 'bigWin' : 'win');
+      sound(config.megaWheel[mega.segment].name ? 'jackpot' : 'coins');
     }
 
     // the server's meter count is the one that counts
     if (round.meter) this.applyMeter(round.meter);
-    if (round.hotSlot != null) this.board.clearHot();
     this.lastWin = round.totalWin;
     this.refreshPanel();
+    // every round that pays back its bet or more: the win counted up in gold over the board (10x and more: the big win)
+    const lessThanBet = this.session.config.quietSmallWins && round.totalWin < round.totalBet;
+    if (round.totalWin >= round.totalBet && round.totalWin > 0 && !lessThanBet && !winLevel(round.totalWin, round.totalBet) && this.inAir <= 1) {
+      sound('coins', { volume: 0.7 });
+      await this.banner.show(round.totalWin, round.totalWin / round.totalBet, value => this.money(value), this.holding || this.turbo);
+    }
     if (!this.holding && this.inAir <= 1) {
       // where the market says so, a round that pays back less than its bet is not shown as a win (review 7.4)
-      const lessThanBet = this.session.config.quietSmallWins && round.totalWin < round.totalBet;
       if (round.totalWin > 0 && !lessThanBet) {
         this.flashStatus('YOU WON ' + this.money(round.totalWin), 3);
         sound('win');
@@ -550,17 +568,16 @@ export class Game extends Container {
       if (this.view) this.layoutBoard(this.view);
       this.board.setStatus('REPLAY · ROUND ' + round.roundId.slice(0, 8).toUpperCase());
       await wait(1.2);
-      const all = round.slots.map((slot, i) => ({ slot, boost: round.boosts?.[i] ?? 1, win: round.wins?.[i] ?? 0,
+      const all = round.slots.map((slot, i) => ({ slot, win: round.wins?.[i] ?? 0,
         paid: (round.multipliers[i] ?? 0) > 1, multiplier: round.multipliers[i] ?? 0, path: round.paths?.[i] ?? null }));
-      if (round.hotSlot != null && round.hotBoost != null) this.board.setHot(round.hotSlot, round.hotBoost);
       const drops: Promise<void>[] = [];
       for (let i = 0; i < all.length; i++) {
         if (i > 0) await wait(0.4);
         const ball = all[i];
         drops.push(this.board.dropBall(ball.slot, {
           onPeg: pegSound,
-          onLand: landing => { this.board.showAmount(landing.slot, this.money(ball.win), ball.paid); landSound(ball.multiplier, ball.boost, landing); },
-        }, ball.boost, null, ball.path));
+          onLand: landing => { this.board.showAmount(landing.slot, this.money(ball.win), ball.paid); landSound(ball.multiplier, landing); },
+        }, ball.path));
       }
       await Promise.all(drops);
       const config = this.session.config.mega;
@@ -573,7 +590,6 @@ export class Game extends Container {
       this.board.setStatus('REPLAY · WON ' + this.money(round.totalWin));
       await wait(2.5);
     } finally {
-      this.board.clearHot();
       this.board.clearAmounts();
       this.applyRows();
       this.replaying = false;
@@ -592,6 +608,30 @@ export class Game extends Container {
   /** Called every frame: balls knocking into each other. */
   tick(deltaMs: number): void {
     this.board.update(deltaMs);
+    this.ambient.update(deltaMs);
+    this.wheel.update(deltaMs);
+  }
+
+  /**
+   * Slow motion: everything on the clock slows to a third while a ball falls its last rows towards something big, the
+   * screen's edges darken; the landing ends it with a flash. Looks only: where the ball lands was decided before.
+   */
+  private slowDown(): void {
+    if (this.slowMotion !== null) return;
+    gsap.globalTimeline.timeScale(0.3);
+    this.screen.dim(true);
+    sound('heart');
+    // never stuck slow, whatever happens to the ball
+    this.slowMotion = window.setTimeout(() => this.speedUp(false), 3500);
+  }
+
+  private speedUp(hit: boolean): void {
+    if (this.slowMotion === null) return;
+    window.clearTimeout(this.slowMotion);
+    this.slowMotion = null;
+    gsap.globalTimeline.timeScale(1);
+    this.screen.dim(false);
+    if (hit) this.screen.flash(0.75);
   }
 
   private openExit(): void {

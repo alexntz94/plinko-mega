@@ -16,54 +16,6 @@
         <div class="card">
             <div class="card-head">
                 <div>
-                    <h2>Golden ball</h2>
-                    <p class="muted">Any ball can turn golden. Its slot then pays its multiplier times a boost, drawn from the list below.</p>
-                </div>
-                <span class="status" th:classappend="${bonus.goldenOn()} ? 'COMPLETED' : 'CANCELLED'" th:text="${bonus.goldenOn()} ? 'On' : 'Off'">Off</span>
-            </div>
-            <div class="form-row">
-                <label class="check-row"><input type="checkbox" name="goldenEnabled" value="true" th:checked="${bonus.goldenOn()}"> Golden ball on</label>
-                <label>Chance per ball
-                    <span class="input-suffix"><input name="goldenChance" th:value="${form.chance().stripTrailingZeros().toPlainString()}" inputmode="decimal" required aria-label="Chance per ball"><span>%</span></span>
-                </label>
-            </div>
-            <table class="compact narrow-table">
-                <thead><tr><th>Boost</th><th>How often (of golden balls)</th></tr></thead>
-                <tbody>
-                <tr th:each="i : ${#numbers.sequence(0, 5)}">
-                    <td><span class="input-suffix"><input name="boostMultiplier" inputmode="decimal" aria-label="Boost"
-                             th:value="${i < form.boosts().size()} ? ${form.boosts().get(i).multiplier().stripTrailingZeros().toPlainString()} : ''"><span>x</span></span></td>
-                    <td><span class="input-suffix"><input name="boostWeight" inputmode="decimal" aria-label="How often"
-                             th:value="${i < form.boosts().size()} ? ${form.boosts().get(i).weight().stripTrailingZeros().toPlainString()} : ''"><span>%</span></span></td>
-                </tr>
-                </tbody>
-            </table>
-            <p class="muted small" th:text="|With the values shown, golden balls add ${goldenShare} on top of the odds tables. Weights must add up to 100%.|"></p>
-        </div>
-
-        <div class="card">
-            <div class="card-head">
-                <div>
-                    <h2>Hot slot</h2>
-                    <p class="muted">In some rounds one slot, picked at random before the balls drop, lights up. Every ball that lands in it pays its multiplier times the boost.</p>
-                </div>
-                <span class="status" th:classappend="${bonus.hotOn()} ? 'COMPLETED' : 'CANCELLED'" th:text="${bonus.hotOn()} ? 'On' : 'Off'">Off</span>
-            </div>
-            <div class="form-row">
-                <label class="check-row"><input type="checkbox" name="hotEnabled" value="true" th:checked="${bonus.hotOn()}"> Hot slot on</label>
-                <label>Rounds with a hot slot
-                    <span class="input-suffix"><input name="hotChance" th:value="${hotForm.chance().stripTrailingZeros().toPlainString()}" inputmode="decimal" required aria-label="Rounds with a hot slot"><span>%</span></span>
-                </label>
-                <label>Boost
-                    <span class="input-suffix"><input name="hotBoost" th:value="${hotForm.boost().stripTrailingZeros().toPlainString()}" inputmode="decimal" required aria-label="Hot slot boost"><span>x</span></span>
-                </label>
-            </div>
-            <p class="muted small" th:text="|With the values shown, hot slots add ${hotShare} on top of the odds tables (more on small boards, which have fewer slots).|"></p>
-        </div>
-
-        <div class="card">
-            <div class="card-head">
-                <div>
                     <h2>Bonus meter</h2>
                     <p class="muted">Every paid ball that lands on a big prize charges the player's meter and puts part of its bet into a pot. A full meter pays the pot as a MEGA SPIN of the gold wheel, straight away in the same round: the pot times the segment it stops on. The meter is kept per player between sessions.</p>
                 </div>
@@ -103,7 +55,7 @@
             <div class="card-head">
                 <div>
                     <h2>Gates</h2>
-                    <p class="muted">Three gates stand on every board. The server decides each ball's path; every gate the path goes through multiplies the ball's prize by the boost, so a ball through all three pays the boost cubed.</p>
+                    <p class="muted">Three gate bars, each three pegs wide, stand on every board. The server decides each ball's path; every bar the path crosses multiplies the ball's prize by the boost, so a ball through all three pays the boost cubed.</p>
                 </div>
                 <span class="status" th:classappend="${bonus.gatesOn()} ? 'COMPLETED' : 'CANCELLED'" th:text="${bonus.gatesOn()} ? 'On' : 'Off'">Off</span>
             </div>
@@ -145,7 +97,7 @@
         </div>
 
         <div class="card-actions" sec:authorize="hasRole('OPERATOR')">
-            <span class="muted small" th:text="|Golden balls and hot slots together can add at most ${maxShare}%. Proposing rebuilds all 21 odds tables so each keeps its total RTP, gates and wheels included.|"></span>
+            <span class="muted small">Proposing rebuilds all 21 odds tables so each keeps its total RTP, gates and wheels included.</span>
             <button type="submit" th:disabled="${pending != null}" data-confirm="Propose these bonus settings? They apply only after another admin approves.">Propose change</button>
         </div>
     </form>

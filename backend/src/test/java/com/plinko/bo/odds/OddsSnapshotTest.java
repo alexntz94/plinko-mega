@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -22,8 +21,9 @@ import tools.jackson.databind.json.JsonMapper;
 /** A bonus change approved on another server: rounds must never pair the old tables with the new bonuses. */
 class OddsSnapshotTest {
 
-    private static final BonusSettings GOLDEN = new BonusSettings(new BonusSettings.Golden(true, new BigDecimal("8"),
-            List.of(new BonusSettings.Boost(new BigDecimal("2"), new BigDecimal("100")))), BonusSettings.OFF.hot());
+    /** A change approved elsewhere: the gates switched on. */
+    private static final BonusSettings GATES = new BonusSettings(BonusSettings.OFF.meter(), BonusSettings.MEGA.gates(),
+            BonusSettings.OFF.wheel(), BonusSettings.OFF.megaWheel());
 
     /** What is in the database: the bonus text and the tables, changed together like an approval does. */
     private String storedBonus;
@@ -71,9 +71,9 @@ class OddsSnapshotTest {
         return out;
     }
 
-    private void approveGoldenElsewhere() {
-        storedBonus = bonus.toJson(GOLDEN);
-        storedTables = tables(GOLDEN);
+    private void approveGatesElsewhere() {
+        storedBonus = bonus.toJson(GATES);
+        storedTables = tables(GATES);
     }
 
     @Test
@@ -83,9 +83,9 @@ class OddsSnapshotTest {
         odds.check();
         assertThat(odds.forRound().bonus().anyOn()).isFalse();
 
-        approveGoldenElsewhere();                       // no reload on this server yet
+        approveGatesElsewhere();                       // no reload on this server yet
         OddsService.Snapshot round = odds.forRound();
-        assertThat(round.bonus().goldenOn()).isTrue();
+        assertThat(round.bonus().gatesOn()).isTrue();
         assertThat(round.get(8, 0)).isEqualTo(storedTables.get("08:0"));
         assertThat(BonusService.totalRtp(round.get(8, 0), round.bonus())).isLessThan(new BigDecimal("96.01"));
         assertThat(odds.healthy()).isTrue();
@@ -95,10 +95,10 @@ class OddsSnapshotTest {
     void anApprovalCommittedDuringAReloadIsReadAgain() {
         storedBonus = bonus.toJson(BonusSettings.OFF);
         storedTables = tables(BonusSettings.OFF);
-        duringRead = this::approveGoldenElsewhere;      // the old tables are read, then the approval commits
+        duringRead = this::approveGatesElsewhere;      // the old tables are read, then the approval commits
         odds.check();
         OddsService.Snapshot loaded = odds.forRound();
-        assertThat(loaded.bonus().goldenOn()).isTrue();
+        assertThat(loaded.bonus().gatesOn()).isTrue();
         assertThat(loaded.get(8, 0)).isEqualTo(storedTables.get("08:0"));
     }
 }

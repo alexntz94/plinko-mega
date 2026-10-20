@@ -46,6 +46,8 @@ export class WinTicker extends Container {
 
   private drop(row: Container): void {
     gsap.killTweensOf([row, row.scale]);
-    row.destroy({ children: true });
+    row.visible = false;
+    // destroyed a moment later, never in the frame its tweens were made in
+    gsap.delayedCall(0.1, () => row.destroy({ children: true }));
   }
 }

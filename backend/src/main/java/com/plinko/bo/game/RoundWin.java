@@ -3,9 +3,7 @@ package com.plinko.bo.game;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * How a round's win is worked out, in one place: {@link GameService} pays with it, {@link WinCheck} recomputes stored
@@ -16,8 +14,6 @@ import java.util.Map;
  * A stored round keeps its outcome as text (written in {@code GameService.playRound}): {@code slots} and
  * {@code multipliers} hold one entry per paid ball, and {@code bonus} the bonus parts, separated by ';':
  * <ul>
- * <li>{@code hot:<slot>x<boost>}: the round's hot slot;</li>
- * <li>{@code gold:<ball>x<boost>,...}: the paid balls that were golden;</li>
  * <li>{@code path:<path>,...}: every ball's path (see {@code MegaBoard}), one per ball;</li>
  * <li>{@code gates:<boost>}: what each gate a path goes through multiplies the prize by;</li>
  * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: balls in a SPIN slot and what their wheel spin paid (times the
@@ -63,29 +59,16 @@ public final class RoundWin {
     }
 
     /**
-     * Writes a round's bonus parts in the stored format, always in the same order (hot, gold, path, gates, spin, mega,
-     * meter, capped),
+     * Writes a round's bonus parts in the stored format, always in the same order (path, gates, spin, mega, meter, capped),
      * whatever order they are added in; null when the round had none.
      */
     public static final class Text {
-        private String hot;
-        private final List<String> gold = new ArrayList<>();
         private final List<String> paths = new ArrayList<>();
         private String gates;
         private final List<String> spins = new ArrayList<>();
         private final List<String> megas = new ArrayList<>();
         private String meter;
         private String capped;
-
-        public Text hot(int slot, BigDecimal boost) {
-            hot = "hot:" + slot + "x" + boost.stripTrailingZeros().toPlainString();
-            return this;
-        }
-
-        public Text gold(int ball, BigDecimal boost) {
-            gold.add(ball + "x" + boost.stripTrailingZeros().toPlainString());
-            return this;
-        }
 
         public Text path(int path) {
             paths.add(String.valueOf(path));
@@ -120,12 +103,6 @@ public final class RoundWin {
 
         public String text() {
             List<String> parts = new ArrayList<>();
-            if (hot != null) {
-                parts.add(hot);
-            }
-            if (!gold.isEmpty()) {
-                parts.add("gold:" + String.join(",", gold));
-            }
             if (!paths.isEmpty()) {
                 parts.add("path:" + String.join(",", paths));
             }
@@ -149,12 +126,11 @@ public final class RoundWin {
     }
 
     /**
-     * A stored outcome read back. golden: paid ball index to its boost; meter: the meter after the round (or null);
+     * A stored outcome read back. meter: the meter after the round (or null);
      * capped: the win before the cap (or null); paths: every ball's path; gateBoost:
      * what a gate multiplied by (null: no gates); spins and megaSpins: the wheel spins the round paid.
      */
-    public record Outcome(List<Integer> slots, List<BigDecimal> multipliers, Integer hotSlot, BigDecimal hotBoost,
-                          Map<Integer, BigDecimal> golden, Meter meter, BigDecimal capped,
+    public record Outcome(List<Integer> slots, List<BigDecimal> multipliers, Meter meter, BigDecimal capped,
                           List<Integer> paths, BigDecimal gateBoost, List<Spin> spins, List<MegaSpin> megaSpins) {
 
         /** The win before any cap: every ball and wheel spin at the bet, every MEGA SPIN at its own stake. */
@@ -192,9 +168,6 @@ public final class RoundWin {
         if (slots.size() != multipliers.size()) {
             throw new IllegalArgumentException(slots.size() + " slots but " + multipliers.size() + " multipliers");
         }
-        Integer hotSlot = null;
-        BigDecimal hotBoost = null;
-        Map<Integer, BigDecimal> golden = new HashMap<>();
         BigDecimal capped = null;
         Meter meter = null;
         List<Integer> paths = null;
@@ -209,22 +182,6 @@ public final class RoundWin {
                 }
                 String value = part.substring(colon + 1);
                 switch (part.substring(0, colon)) {
-                    case "hot" -> {
-                        String[] hot = value.split("x", -1);
-                        if (hot.length != 2) {
-                            throw new IllegalArgumentException("hot: " + value);
-                        }
-                        hotSlot = Integer.parseInt(hot[0]);
-                        hotBoost = new BigDecimal(hot[1]);
-                    }
-                    case "gold" -> {
-                        for (String entry : value.split(",", -1)) {
-                            String[] gold = entry.split("x", -1);
-                            if (gold.length != 2 || golden.put(Integer.parseInt(gold[0]), new BigDecimal(gold[1])) != null) {
-                                throw new IllegalArgumentException("gold: " + entry);
-                            }
-                        }
-                    }
                     case "path" -> {
                         if (paths != null) {
                             throw new IllegalArgumentException("two path parts");
@@ -274,7 +231,7 @@ public final class RoundWin {
         if (paths == null || paths.size() != slots.size()) {
             throw new IllegalArgumentException("every ball needs its path");
         }
-        return new Outcome(List.copyOf(slots), List.copyOf(multipliers), hotSlot, hotBoost, Map.copyOf(golden), meter, capped,
+        return new Outcome(List.copyOf(slots), List.copyOf(multipliers), meter, capped,
                 List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins));
     }
 }

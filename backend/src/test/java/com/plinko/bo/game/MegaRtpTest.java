@@ -41,7 +41,10 @@ class MegaRtpTest {
             Set<Integer> steps = new HashSet<>();
             for (MegaBoard.Gate gate : gates) {
                 assertThat(gate.step()).isBetween(1, rows - 1);
-                assertThat(gate.rights()).isBetween(0, gate.step());
+                assertThat(gate.from()).isBetween(0, gate.to());
+                assertThat(gate.to()).isLessThanOrEqualTo(gate.step());
+                // three pegs wide, fewer where the board's edge cuts it short
+                assertThat(gate.to() - gate.from()).as("%d rows: a bar up to three pegs wide", rows).isBetween(1, 2);
                 steps.add(gate.step());
             }
             assertThat(steps).as("%d rows: three gate rows", rows).hasSize(3);
@@ -107,16 +110,8 @@ class MegaRtpTest {
     void wholeRoundsReturnTheApprovedTotalRtp() {
         OddsService odds = TestOdds.with(MEGA, TestFixtures.properties());
         RoundDraw.Dice dice = new RoundDraw.Dice() {
-            public int hotSlot(BonusSettings b, int rows) {
-                return bonus.rollHot(b, rows);
-            }
-
             public int slot(OddsTable t) {
                 return odds.pickSlot(t);
-            }
-
-            public BigDecimal golden(BonusSettings b) {
-                return bonus.rollGolden(b);
             }
 
             public int path(int rows, int slot) {

@@ -4,7 +4,7 @@ import { assetUrl } from './version';
 // Sound effects. Every theme can bring its own (theme.json "sounds": the names it ships as sfx_<name>.ogg with an
 // .mp3 for Safari, in its folder); anything it leaves out comes from the shared set (/assets/sounds).
 export const SOUND_NAMES = ['click', 'change', 'ball', 'hit', 'clack', 'noScore', 'score', 'big', 'huge', 'golden', 'win',
-  'lose', 'bigWin', 'result'] as const;
+  'lose', 'bigWin', 'result', 'gate', 'riser', 'heart', 'coins', 'tick', 'spin', 'jackpot'] as const;
 export type SoundName = typeof SOUND_NAMES[number];
 
 const SHARED: Partial<Record<SoundName, string>> = {
@@ -12,7 +12,8 @@ const SHARED: Partial<Record<SoundName, string>> = {
   score: 'sound_score', noScore: 'sound_noscore', win: 'sound_win', lose: 'sound_nowin', result: 'sound_result',
 };
 /** What plays when neither the theme nor the shared set has a sound (none: silent). */
-const STANDS_IN: Partial<Record<SoundName, SoundName>> = { clack: 'hit', big: 'score', huge: 'score', golden: 'win' };
+const STANDS_IN: Partial<Record<SoundName, SoundName>> = { clack: 'hit', big: 'score', huge: 'score', golden: 'win', gate: 'score',
+  coins: 'win', tick: 'hit', spin: 'change', jackpot: 'bigWin' };
 
 const MUTE_KEY = 'plinkoMuted';
 const sounds = new Map<SoundName, Howl>();
@@ -38,7 +39,7 @@ function applyMute(): void {
 
 /** Plays a sound; rate changes its pitch (1 = as recorded), pan places it left (-1) or right (1). */
 export function play(name: SoundName, { volume = 1, rate = 1, pan = 0 }: { volume?: number; rate?: number; pan?: number } = {}): void {
-  if (name === 'hit' || name === 'clack') {
+  if (name === 'hit' || name === 'clack' || name === 'tick') {
     // many balls touch pegs at once: one tick per 30 ms is enough and keeps it from crackling
     const now = performance.now();
     if (now - lastHit < 30) return;

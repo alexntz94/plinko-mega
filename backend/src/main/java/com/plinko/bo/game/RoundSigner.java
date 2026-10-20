@@ -27,7 +27,7 @@ public class RoundSigner {
     }
 
     /**
-     * The bonus part (golden balls and the like) is appended only when the round had one, and the odds version and
+     * The bonus part (paths, gates, wheel spins, the meter) is appended only when the round had one, and the odds version and
      * win limit only when they were recorded, so rounds signed before either existed still verify exactly as they did.
      */
     public String sign(String roundId, long playerId, int rows, int risk, BigDecimal bet, int balls, BigDecimal totalBet,

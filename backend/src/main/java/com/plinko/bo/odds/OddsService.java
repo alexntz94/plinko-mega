@@ -126,18 +126,72 @@ public class OddsService implements ApplicationRunner {
         // would move what the wheels add as well, and the passes would never settle)
         java.util.function.IntPredicate fixed = prize -> (bonusSettings.wheelOn() && prize == MegaBoard.spinPrizeIndex(rows))
                 || BonusService.chargesMeter(bonusSettings, rows, risk, prize);
-        OddsTable table = buildForBase(rows, risk, target / BonusService.factor(bonusSettings, rows).doubleValue(), fixed);
+        OddsTable table = buildForBase(rows, risk, target, fixed);
         boolean dependsOnTable = bonusSettings.meterOn() || bonusSettings.gatesOn() || bonusSettings.wheelOn();
         for (int pass = 0; pass < 12 && dependsOnTable; pass++) {
             double base = (target - BonusService.extra(bonusSettings, table).doubleValue())
-                    / (BonusService.factor(bonusSettings, table).doubleValue() * BonusService.gateFactor(bonusSettings, table).doubleValue());
+                    / BonusService.gateFactor(bonusSettings, table).doubleValue();
             OddsTable next = buildForBase(rows, risk, base, fixed);
             if (fingerprint(next).equals(fingerprint(table))) {
                 break;
             }
             table = next;
         }
-        return table;
+        return dependsOnTable ? onTotal(table, target, bonusSettings) : table;
+    }
+
+    /**
+     * The last step to the exact total: a table's total return is linear in its probabilities (each position pays its
+     * multiplier times its gates' average, plus what its wheel spin or meter charge adds), so the error left by rounding
+     * the multipliers is removed by moving the smallest sliver of probability between the centre and one inner
+     * position. The edge (jackpot) position keeps its natural frequency.
+     */
+    private static OddsTable onTotal(OddsTable table, double target, BonusSettings bonus) {
+        int rows = table.rows();
+        int n = table.prizes().size();
+        double[] p = new double[n];
+        double[] value = new double[n];
+        double boost = bonus.gatesOn() ? bonus.gates().boost().doubleValue() : 1;
+        double wheel = bonus.wheelOn() ? BonusService.expected(bonus.wheel()).doubleValue() : 0;
+        double gold = bonus.meterOn() ? bonus.meter().potShare().doubleValue() / 100 * BonusService.expected(bonus.megaWheel()).doubleValue() : 0;
+        for (int i = 0; i < n; i++) {
+            p[i] = table.prizes().get(i).probability().doubleValue() / 100;
+            int left = PlinkoBoard.leftSlot(rows, i), right = PlinkoBoard.rightSlot(rows, i);
+            double gates = bonus.gatesOn() ? (MegaBoard.gateFactor(rows, left, boost) + MegaBoard.gateFactor(rows, right, boost)) / 2 : 1;
+            value[i] = table.prizes().get(i).multiplier().doubleValue() * gates
+                    + (bonus.wheelOn() && i == MegaBoard.spinPrizeIndex(rows) ? wheel : 0)
+                    + (BonusService.chargesMeter(bonus, rows, table.risk(), i) ? gold : 0);
+        }
+        double total = 0;
+        for (int i = 0; i < n; i++) {
+            total += p[i] * value[i];
+        }
+        double residual = target - total;
+        int bestJ = -1;
+        double bestShift = 0;
+        for (int j = 1; j < n - 1; j++) {
+            if (value[j] == value[0]) {
+                continue;
+            }
+            double shift = residual / (value[j] - value[0]);
+            if (p[0] - shift >= 0 && p[j] + shift >= 0 && (bestJ < 0 || Math.abs(shift) < Math.abs(bestShift))) {
+                bestJ = j;
+                bestShift = shift;
+            }
+        }
+        if (bestJ < 0) {
+            return table;
+        }
+        p[0] -= bestShift;
+        p[bestJ] += bestShift;
+        List<OddsTable.Prize> prizes = new ArrayList<>();
+        BigDecimal others = BigDecimal.ZERO;
+        for (int i = n - 1; i >= 0; i--) {
+            BigDecimal probability = i == 0 ? OddsTable.HUNDRED.subtract(others) : BigDecimal.valueOf(p[i] * 100).setScale(8, RoundingMode.HALF_EVEN);
+            others = others.add(probability);
+            prizes.add(0, new OddsTable.Prize(i, table.prizes().get(i).multiplier(), probability));
+        }
+        return new OddsTable(rows, table.risk(), prizes);
     }
 
     /** The table with exactly this RTP of its own (a fraction, e.g. 0.96), from the standard shape. */

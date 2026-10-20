@@ -207,7 +207,17 @@ export class MegaControls extends Container {
    * busy: balls are falling (the settings lock); auto: autoplay is on; left: balls still to land. PLAY shows PLAY,
    * the balls left (a tap hurries them), or STOP during autoplay.
    */
+  private pulse: gsap.core.Tween | null = null;
+
   setPlaying(busy: boolean, auto: boolean, left: number): void {
+    // PLAY breathes while it waits for a tap
+    if (!busy && !this.pulse) {
+      this.pulse = gsap.to(this.playButton.scale, { x: 1.08, y: 1.08, duration: 0.6, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+    } else if (busy && this.pulse) {
+      this.pulse.kill();
+      this.pulse = null;
+      this.playButton.scale.set(1);
+    }
     this.playButton.set(auto ? 'stop' : busy && left > 0 ? 'skip' : 'play', busy && left > 0 && !auto ? String(left) : '');
     this.autoButton.setOn(auto);
     this.bumpButton.setEnabled(left > 0);

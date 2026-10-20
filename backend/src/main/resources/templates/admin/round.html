@@ -41,7 +41,7 @@
                                       th:classappend="${signatureValid != null and !signatureValid} ? 'bad-text' : (${signatureValid != null} ? 'good-text' : '')"></dd>
                 <dt>Landing slots</dt><dd class="mono wrap" th:text="${round.slots() ?: '–'}"></dd>
                 <dt>Multipliers</dt><dd class="mono wrap" th:text="${round.multipliers() ?: '–'}"></dd>
-                <dt>Bonus</dt><dd class="mono wrap" th:text="${round.bonus() ?: '–'}" title="gold:2x3 = ball 2 (counting from 0) was golden and paid 3x its slot"></dd>
+                <dt>Bonus</dt><dd class="mono wrap" th:text="${round.bonus() ?: '–'}" title="path: each ball's route (bits: right turns); gates: the boost per gate bar crossed; spin: ball@segment x what the wheel paid; mega: stake@segment x what the gold wheel paid"></dd>
             </dl>
         </div>
     </div>

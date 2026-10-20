@@ -33,10 +33,8 @@ export interface Session {
 
 /** The player's bonus meter, and per board ("rows:risk") the prize positions that charge it. */
 export interface MeterInfo { enabled: boolean; charges: number; of: number; positions: Record<string, number[]> }
-/** multipliers: what each ball paid (golden boost included); boosts: 1 for a normal ball, the golden boost otherwise. */
-export interface Round { roundId: string; slots: number[]; multipliers: number[]; totalBet: number; totalWin: number; balance: number; boosts?: number[];
-  /** the slot lit up for this round, and what it multiplies by (both null when the round has none) */
-  hotSlot?: number | null; hotBoost?: number | null;
+/** multipliers: what each ball paid (its gates included). */
+export interface Round { roundId: string; slots: number[]; multipliers: number[]; totalBet: number; totalWin: number; balance: number;
   meter?: MeterInfo;
   /** what each ball paid, exactly as the server added them up */
   wins?: number[];

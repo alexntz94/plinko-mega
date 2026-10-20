@@ -1,6 +1,11 @@
 import 'pixi.js/unsafe-eval'; // PixiJS without eval/new Function, required by the strict Content-Security-Policy
 import { Application, Assets, Container, Sprite, Spritesheet, Texture, type SpritesheetData } from 'pixi.js';
 import { gsap } from 'gsap';
+
+// No deferred first render: a tween killed before it starts is gone for good. (GSAP otherwise queues a tween's first
+// render for the next tick, and a target destroyed in between, like a ticker row dropped while two balls land at once,
+// is then read after it is gone.)
+gsap.defaults({ lazy: false });
 import './style.css';
 import { errorText, openSession, type ApiError } from './api';
 import { loadTheme, loadThemeFont, neonLayers, type Theme } from './theme';

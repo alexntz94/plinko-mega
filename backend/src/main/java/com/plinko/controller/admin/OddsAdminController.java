@@ -59,7 +59,7 @@ public class OddsAdminController {
         model.addAttribute("bulkPending", changes.pendingFor(ChangeRequestService.ODDS_BULK, "bulk").orElse(null));
         // with bonuses on, every RTP on this page is the total (table plus bonuses), which the hard limits apply to
         BonusSettings bonusSettings = bonus.current();
-        model.addAttribute("bonusShare", bonusSettings.anyOn() ? BonusService.shareText(bonusSettings) : null);
+        model.addAttribute("bonusShare", bonusSettings.anyOn() ? BonusService.shareText(bonusSettings, odds.all()) : null);
         if (targetRtp != null) {
             try {
                 List<OddsTable> tables = tablesForTarget(new BigDecimal(targetRtp.trim()), scope, selected);

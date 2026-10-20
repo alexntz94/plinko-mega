@@ -21,6 +21,10 @@ export function segmentText(segment: Segment): string {
 export class FortuneWheel extends Container {
   private readonly glow = new Graphics();
   private readonly base = new Graphics();
+  /** Marquee lights round the rim, chasing all the time (faster while the wheel turns). */
+  private readonly lights = new Container();
+  private chase = 0;
+  private chaseSpeed = 6;
   private readonly rainbow = new Graphics();
   private readonly disc = new Container();
   private readonly mask_ = new Graphics();
@@ -52,7 +56,7 @@ export class FortuneWheel extends Container {
     this.rainbow.alpha = 0;
     // the glow and the rainbow ring are cut off where the disc is, and a base hides the cut
     const back = new Container();
-    back.addChild(this.glow, this.rainbow, this.disc);
+    back.addChild(this.glow, this.rainbow, this.disc, this.lights);
     this.addChild(back, this.mask_, this.base, this.pointer, this.header, this.sparks, this.burst);
     back.mask = this.mask_;
     // a tap hurries a turning wheel along (the segment is already decided)
@@ -72,6 +76,20 @@ export class FortuneWheel extends Container {
       .moveTo(-r * 1.2, r * 0.07).lineTo(r * 1.2, r * 0.07).stroke({ color: '#ffffff', width: 1, alpha: 0.25 });
     this.drawHeader();
     this.draw();
+  }
+
+  /** Every frame: the marquee lights chase round the rim, and the glow breathes. */
+  update(deltaMs: number): void {
+    if (calm || this.lights.children.length === 0) return;
+    this.chase += Math.min(deltaMs, 50) / 1000 * this.chaseSpeed;
+    const n = this.lights.children.length;
+    this.lights.children.forEach((light, i) => {
+      const on = (Math.floor(this.chase) + i) % 3 === 0;
+      light.alpha = on ? 1 : 0.25;
+      light.scale.set(on ? 1.25 : 1);
+    });
+    this.glow.alpha = 0.75 + 0.25 * Math.sin(this.chase * 0.8);
+    void n;
   }
 
   /** The segments of the normal wheel, and the stake its jackpots are shown for (the bet per ball). */
@@ -117,6 +135,7 @@ export class FortuneWheel extends Container {
     let lastTick = Math.floor(this.disc.rotation / step);
     // the rainbow ring lights up behind the wheel while it turns
     gsap.to(this.rainbow, { alpha: 0.9, duration: 0.3 });
+    this.chaseSpeed = 22;
     const glowSpin = gsap.to(this.rainbow, { rotation: '+=' + Math.PI * 2, duration: 1.2, repeat: -1, ease: 'none' });
     await new Promise<void>(resolve => {
       this.spin = gsap.to(this.disc, {
@@ -133,6 +152,7 @@ export class FortuneWheel extends Container {
       });
     });
     glowSpin.kill();
+    this.chaseSpeed = 6;
     gsap.to(this.rainbow, { alpha: 0, duration: 0.6 });
     const segment = segments[index];
     this.jackpotName.text = segment.name ? `${segment.name} JACKPOT` : options.title;
@@ -244,6 +264,15 @@ export class FortuneWheel extends Container {
     const step = Math.PI * 2 / segments.length;
     this.disc.addChild(new Graphics().circle(0, 0, r * 1.09).fill(look.rim).stroke({ color: this.style.ink, width: 5 })
       .circle(0, 0, r * 1.03).stroke({ color: this.gold ? '#fff0b8' : this.style.title, width: 2 }));
+    this.lights.removeChildren().forEach(child => child.destroy());
+    for (let i = 0; i < 30; i++) {
+      const a = i / 30 * Math.PI * 2;
+      const bulb = new Graphics().circle(0, 0, r * 0.045).fill({ color: this.gold ? '#fff3b0' : this.style.title, alpha: 0.5 })
+        .circle(0, 0, r * 0.026).fill('#ffffff');
+      bulb.blendMode = 'add';
+      bulb.position.set(Math.cos(a) * r * 1.165, Math.sin(a) * r * 1.165);
+      this.lights.addChild(bulb);
+    }
     segments.forEach((segment, i) => {
       const a0 = -Math.PI / 2 + (i - 0.5) * step;
       const face = segment.name ? (segment.name === 'MEGA' ? '#c41a1f' : this.style.title) : look.faces[i % look.faces.length];

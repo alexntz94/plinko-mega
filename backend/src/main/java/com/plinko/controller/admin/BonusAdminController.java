@@ -42,8 +42,6 @@ public class BonusAdminController {
     public String page(Model model) {
         BonusSettings current = bonus.current();
         // the form shows the current values, or the suggested ones while the feature is off
-        BonusSettings.Golden form = current.goldenOn() ? current.golden() : BonusSettings.OFF.golden();
-        BonusSettings.Hot hotForm = current.hotOn() ? current.hot() : BonusSettings.OFF.hot();
         BonusSettings.Meter meterForm = current.meterOn() ? current.meter() : BonusSettings.OFF.meter();
         List<RtpRow> rows = new ArrayList<>();
         for (int r = PlinkoBoard.MIN_ROWS; r <= PlinkoBoard.MAX_ROWS; r++) {
@@ -57,15 +55,11 @@ public class BonusAdminController {
             rows.add(new RtpRow(r, base, total));
         }
         model.addAttribute("bonus", current);
-        model.addAttribute("form", form);
-        model.addAttribute("hotForm", hotForm);
         model.addAttribute("meterForm", meterForm);
         model.addAttribute("share", BonusService.shareText(current, odds.all()));
-        model.addAttribute("meterShare", BonusService.shareText(new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
+        model.addAttribute("meterShare", BonusService.shareText(new BonusSettings(
                 new BonusSettings.Meter(true, meterForm.charges(), meterForm.minMultiplier(), meterForm.potShare())), odds.all()));
-        model.addAttribute("goldenShare", BonusService.shareText(new BonusSettings(new BonusSettings.Golden(true, form.chance(), form.boosts()), BonusSettings.OFF.hot())));
-        model.addAttribute("hotShare", BonusService.shareText(new BonusSettings(BonusSettings.OFF.golden(), new BonusSettings.Hot(true, hotForm.chance(), hotForm.boost()))));
-        // Plinko Mega: the gates, the wheel and the gold wheel (shown with the values in force, or the suggested ones)
+        // the gates, the wheel and the gold wheel (shown with the values in force, or the suggested ones)
         BonusSettings.Gates gatesForm = current.gates() != null ? current.gates() : BonusSettings.MEGA.gates();
         BonusSettings.Wheel wheelForm = current.wheel() != null ? current.wheel() : BonusSettings.MEGA.wheel();
         BonusSettings.Wheel goldForm = current.megaWheel() != null ? current.megaWheel() : BonusSettings.MEGA.megaWheel();
@@ -75,7 +69,6 @@ public class BonusAdminController {
         model.addAttribute("jackpots", List.of("MINI", "MAJOR", "MEGA"));
         model.addAttribute("wheelPays", BonusService.expected(wheelForm).setScale(2, RoundingMode.HALF_UP).toPlainString());
         model.addAttribute("goldPays", BonusService.expected(goldForm).setScale(2, RoundingMode.HALF_UP).toPlainString());
-        model.addAttribute("maxShare", BonusService.MAX_FACTOR.subtract(BigDecimal.ONE).movePointRight(2).stripTrailingZeros().toPlainString());
         model.addAttribute("rtpRows", rows);
         model.addAttribute("riskNames", PlinkoBoard.RISK_NAMES);
         model.addAttribute("pending", changes.pendingFor(ChangeRequestService.BONUS, "bonus").orElse(null));
@@ -84,10 +77,7 @@ public class BonusAdminController {
 
     @PostMapping("/admin/bonus/propose")
     @PreAuthorize("hasRole('OPERATOR')")
-    public String propose(@RequestParam(defaultValue = "false") boolean goldenEnabled, @RequestParam String goldenChance,
-                          @RequestParam List<String> boostMultiplier, @RequestParam List<String> boostWeight,
-                          @RequestParam(defaultValue = "false") boolean hotEnabled, @RequestParam String hotChance, @RequestParam String hotBoost,
-                          @RequestParam(defaultValue = "false") boolean meterEnabled, @RequestParam String meterCharges,
+    public String propose(@RequestParam(defaultValue = "false") boolean meterEnabled, @RequestParam String meterCharges,
                           @RequestParam String meterMin, @RequestParam String meterShare,
                           @RequestParam(required = false) Boolean gatesEnabled, @RequestParam(required = false) String gateBoost,
                           @RequestParam(required = false) Boolean wheelEnabled, @RequestParam(required = false) List<String> wheelName,
@@ -96,19 +86,7 @@ public class BonusAdminController {
                           @RequestParam(required = false) List<String> goldWeight,
                           Principal principal, RedirectAttributes redirect) {
         try {
-            if (boostMultiplier.size() != boostWeight.size()) {
-                throw new IllegalArgumentException("Invalid form");
-            }
-            List<BonusSettings.Boost> boosts = new ArrayList<>();
-            for (int i = 0; i < boostMultiplier.size(); i++) {
-                String m = boostMultiplier.get(i).trim();
-                String w = boostWeight.get(i).trim();
-                if (m.isEmpty() && w.isEmpty()) {
-                    continue;   // unused line
-                }
-                boosts.add(new BonusSettings.Boost(new BigDecimal(m), new BigDecimal(w)));
-            }
-            // a form without Plinko Mega's fields (gateBoost absent) keeps the gates and wheels in force
+            // a form without the gates' or wheels' fields keeps the ones in force
             BonusSettings current = bonus.current();
             BonusSettings.Gates gates = gateBoost == null ? current.gates()
                     : new BonusSettings.Gates(Boolean.TRUE.equals(gatesEnabled), new BigDecimal(gateBoost.trim()));
@@ -116,14 +94,12 @@ public class BonusAdminController {
                     : new BonusSettings.Wheel(Boolean.TRUE.equals(wheelEnabled), segments(wheelName, wheelMultiplier, wheelWeight));
             BonusSettings.Wheel gold = goldMultiplier == null ? current.megaWheel()
                     : new BonusSettings.Wheel(false, segments(goldName, goldMultiplier, goldWeight));
-            BonusSettings next = new BonusSettings(new BonusSettings.Golden(goldenEnabled, new BigDecimal(goldenChance.trim()), boosts),
-                    new BonusSettings.Hot(hotEnabled, new BigDecimal(hotChance.trim()), new BigDecimal(hotBoost.trim())),
-                    new BonusSettings.Meter(meterEnabled, Integer.parseInt(meterCharges.trim()), new BigDecimal(meterMin.trim()),
+            BonusSettings next = new BonusSettings(new BonusSettings.Meter(meterEnabled, Integer.parseInt(meterCharges.trim()), new BigDecimal(meterMin.trim()),
                             new BigDecimal(meterShare.trim())), gates, wheel, gold);
             long id = changes.proposeBonus(next, principal.getName());
             redirect.addFlashAttribute("message", "Change #" + id + " proposed. It takes effect after another admin approves it.");
         } catch (NumberFormatException e) {
-            redirect.addFlashAttribute("error", "Chance, boosts and weights must be numbers");
+            redirect.addFlashAttribute("error", "Charges, prizes, shares, boosts and weights must be numbers");
         } catch (IllegalArgumentException | ChangeRequestService.ChangeException e) {
             redirect.addFlashAttribute("error", e.getMessage());
         }

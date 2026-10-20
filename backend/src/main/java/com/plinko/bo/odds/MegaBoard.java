@@ -9,17 +9,24 @@ import java.util.List;
  * <p>
  * A ball's path is {@code rows} steps, left or right; it is kept as a number whose bit {@code i} is set when step
  * {@code i + 1} goes right, so the slot it ends in is the number of bits set. After {@code step} steps a ball has gone
- * right {@code rights} times; a gate stands in exactly one such place, and a ball whose path goes through it has its
- * prize multiplied by the gate boost (once per gate, so up to three times).
+ * right {@code rights} times. A gate is a bar across one row of pegs, from {@code from} to {@code to} rights: a ball
+ * whose path crosses it there has its prize multiplied by the gate boost (once per gate, so up to three times).
  * <p>
- * The gates stand two steps off the centre at about a third, three fifths and five sixths of the way down, on the
- * left, the right and the left again. The two SPIN slots are the pair whose natural chance is closest to 1%.
+ * The bars are three pegs wide, starting next to the centre, at about a third, three fifths and five sixths of the way
+ * down, on the left, the right and the left again. The two SPIN slots are the pair whose natural chance is closest to
+ * 1%.
  */
 public final class MegaBoard {
 
-    /** A gate: after {@code step} steps (1..rows-1), the ball has gone right {@code rights} times. */
-    public record Gate(int step, int rights) {
+    /** A gate: a bar across the pegs a ball reaches after {@code step} steps (1..rows-1) with {@code from}..{@code to} rights. */
+    public record Gate(int step, int from, int to) {
+        public boolean covers(int rights) {
+            return rights >= from && rights <= to;
+        }
     }
+
+    /** How many pegs a gate's bar spans. */
+    private static final int BAR = 3;
 
     private static final double[][] GATE_ROWS = {{.35, -1}, {.6, 1}, {.85, -1}};
     private static final double SPIN_CHANCE = .01;
@@ -32,10 +39,14 @@ public final class MegaBoard {
         List<Gate> gates = new ArrayList<>();
         for (double[] row : GATE_ROWS) {
             int step = Math.max(2, Math.min(rows - 1, (int) Math.round(rows * row[0])));
-            // two half-steps past the gap next to the centre, on this gate's side
-            int off = Math.max(0, (step - 3) / 2);
-            int rights = row[1] < 0 ? off : step - off;
-            gates.add(new Gate(step, rights));
+            // the peg next to the centre on this gate's side, and the next two outwards
+            if (row[1] < 0) {
+                int to = (step - 1) / 2;
+                gates.add(new Gate(step, Math.max(0, to - BAR + 1), to));
+            } else {
+                int from = step / 2 + 1;
+                gates.add(new Gate(step, from, Math.min(step, from + BAR - 1)));
+            }
         }
         return List.copyOf(gates);
     }
@@ -71,7 +82,7 @@ public final class MegaBoard {
         int passed = 0;
         for (Gate gate : gates(rows)) {
             int mask = (1 << gate.step()) - 1;
-            if (Integer.bitCount(path & mask) == gate.rights()) {
+            if (gate.covers(Integer.bitCount(path & mask))) {
                 passed++;
             }
         }
@@ -100,7 +111,9 @@ public final class MegaBoard {
             }
             for (Gate gate : gates) {
                 if (gate.step() == step) {
-                    nextWeight[gate.rights()] *= boost;
+                    for (int k = gate.from(); k <= gate.to(); k++) {
+                        nextWeight[k] *= boost;
+                    }
                 }
             }
             count = nextCount;

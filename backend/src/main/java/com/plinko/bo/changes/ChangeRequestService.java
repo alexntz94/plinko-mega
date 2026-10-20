@@ -273,11 +273,6 @@ public class ChangeRequestService {
                 java.math.BigDecimal total = BonusService.totalRtp(current, now).setScale(2, RoundingMode.HALF_UP);
                 OddsTable rebuilt = odds.forTargetRtp(rows, risk, total, next);
                 List<String> problems = new java.util.ArrayList<>(odds.validate(rebuilt, next));
-                if (BonusService.factor(next, rebuilt).compareTo(BonusService.MAX_FACTOR) > 0) {
-                    problems.add("bonuses would add " + BonusService.factor(next, rebuilt).subtract(java.math.BigDecimal.ONE).movePointRight(2)
-                            .setScale(2, RoundingMode.HALF_UP) + "% on top of this table, more than the "
-                            + BonusService.MAX_FACTOR.subtract(java.math.BigDecimal.ONE).movePointRight(2).stripTrailingZeros().toPlainString() + "% allowed");
-                }
                 if (!problems.isEmpty()) {
                     throw new ChangeException(rows + " rows / " + PlinkoBoard.RISK_NAMES[risk] + ": " + String.join("; ", problems));
                 }
@@ -290,21 +285,13 @@ public class ChangeRequestService {
     }
 
     private static String describe(BonusSettings settings) {
-        String golden = !settings.goldenOn() ? "golden ball off"
-                : "golden ball " + settings.golden().chance().stripTrailingZeros().toPlainString() + "% per ball, boosts "
-                + settings.golden().boosts().stream()
-                .map(b -> b.multiplier().stripTrailingZeros().toPlainString() + "x " + b.weight().stripTrailingZeros().toPlainString() + "%")
-                .collect(Collectors.joining(", "));
-        String hot = !settings.hotOn() ? "hot slot off"
-                : "hot slot in " + settings.hot().chance().stripTrailingZeros().toPlainString() + "% of rounds, x"
-                + settings.hot().boost().stripTrailingZeros().toPlainString();
         String meter = !settings.meterOn() ? "meter off"
                 : "meter: " + settings.meter().charges() + " charges from " + settings.meter().minMultiplier().stripTrailingZeros().toPlainString()
                 + "x prizes, " + settings.meter().potShare().stripTrailingZeros().toPlainString() + "% of the bet to the pot, "
                 + "gold wheel " + segments(settings.megaWheel());
         String gates = !settings.gatesOn() ? "gates off" : "gates x" + settings.gates().boost().stripTrailingZeros().toPlainString();
         String wheel = !settings.wheelOn() ? "wheel off" : "wheel " + segments(settings.wheel());
-        return golden + "; " + hot + "; " + meter + "; " + gates + "; " + wheel;
+        return meter + "; " + gates + "; " + wheel;
     }
 
     /** A wheel's segments for the change's description: "2x 26%, MEGA 1000x 0.25%, ...". */

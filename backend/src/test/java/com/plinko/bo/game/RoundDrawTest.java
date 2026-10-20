@@ -6,9 +6,9 @@ import java.math.BigDecimal;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import java.util.TreeMap;
 
 import com.plinko.TestFixtures;
+import com.plinko.bo.odds.MegaBoard;
 import com.plinko.bo.odds.OddsService;
 import com.plinko.bo.odds.PlinkoBoard;
 import com.plinko.bo.odds.TestOdds;
@@ -19,11 +19,13 @@ import org.junit.jupiter.api.Test;
 /** Review 7.8: the round's draw on its own, with fixed dice; the stored text written and read by one class. */
 class RoundDrawTest {
 
-    private static final BonusSettings BONUSES = new BonusSettings(
-            new BonusSettings.Golden(true, new BigDecimal("25"), BonusSettings.OFF.golden().boosts()),
-            new BonusSettings.Hot(true, new BigDecimal("40"), new BigDecimal("3")),
-            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")),
+    /** Every feature on, and a meter that fills after 3 charges (so MEGA SPINs come often). */
+    private static final BonusSettings ALL = new BonusSettings(new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")),
             BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
+    /** Only the gates (no meter, no wheel). */
+    private static final BonusSettings GATES = new BonusSettings(BonusSettings.OFF.meter(), BonusSettings.MEGA.gates(), BonusSettings.OFF.wheel(),
+            BonusSettings.OFF.megaWheel());
+    private final OddsService odds = TestOdds.with(BonusSettings.MEGA, TestFixtures.properties());
 
     /** A random path to this slot. */
     static int pathTo(java.util.Random random, int rows, int slot) {
@@ -37,24 +39,13 @@ class RoundDrawTest {
         }
         return path;
     }
-    // tables built without the gates and wheel (these test settings are far too generous for a valid table with them)
-    private final OddsService odds = TestOdds.with(new BonusSettings(BONUSES.golden(), BONUSES.hot(), BONUSES.meter()), TestFixtures.properties());
 
-    /** Dice that give exactly these values, in order. */
-    private static RoundDraw.Dice fixed(int hot, List<Integer> slots, List<String> golden) {
+    /** Dice that land the balls in these slots, each on the path that goes right first, and stop wheels on segment 0. */
+    private static RoundDraw.Dice fixed(List<Integer> slots) {
         Deque<Integer> s = new ArrayDeque<>(slots);
-        Deque<String> g = new ArrayDeque<>(golden);
         return new RoundDraw.Dice() {
-            public int hotSlot(BonusSettings bonus, int rows) {
-                return hot;
-            }
-
             public int slot(OddsTable table) {
                 return s.removeFirst();
-            }
-
-            public BigDecimal golden(BonusSettings bonus) {
-                return new BigDecimal(g.removeFirst());
             }
 
             public int path(int rows, int slot) {
@@ -70,24 +61,20 @@ class RoundDrawTest {
     @Test
     void fixedDiceGiveAnExactRound() {
         OddsTable table = odds.get(8, 0);
-        BonusSettings noMeter = new BonusSettings(BONUSES.golden(), BONUSES.hot());
-        RoundDraw.Result r = RoundDraw.draw(table, noMeter, new BigDecimal("1.00"), 2, null, new BigDecimal("1000.00"),
-                fixed(3, List.of(3, 0), List.of("1", "10")));
-        BigDecimal prize3 = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(8, 3)).multiplier();
-        BigDecimal prize0 = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(8, 0)).multiplier();
+        BigDecimal boost = GATES.gates().boost();
+        RoundDraw.Result r = RoundDraw.draw(table, GATES, new BigDecimal("1.00"), 2, null, new BigDecimal("1000.00"), fixed(List.of(3, 0)));
+        BigDecimal prize3 = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(8, 3)).multiplier().multiply(boost.pow(MegaBoard.gatesPassed(8, 7)));
+        BigDecimal prize0 = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(8, 0)).multiplier().multiply(boost.pow(MegaBoard.gatesPassed(8, 0)));
         assertThat(r.slotText()).isEqualTo("3,0");
-        assertThat(r.multipliers()).containsExactly(prize3.multiply(new BigDecimal("3")).stripTrailingZeros(),
-                prize0.multiply(BigDecimal.TEN).stripTrailingZeros());
-        assertThat(r.bonusText()).isEqualTo("hot:3x3;gold:1x10;path:7,0");
-        assertThat(r.totalWin()).isEqualByComparingTo(RoundWin.ball(BigDecimal.ONE, prize3.multiply(new BigDecimal("3")))
-                .add(RoundWin.ball(BigDecimal.ONE, prize0.multiply(BigDecimal.TEN))));
+        assertThat(r.multipliers()).containsExactly(prize3.stripTrailingZeros(), prize0.stripTrailingZeros());
+        assertThat(r.bonusText()).isEqualTo("path:7,0;gates:" + boost.toPlainString());
+        assertThat(r.totalWin()).isEqualByComparingTo(RoundWin.ball(BigDecimal.ONE, prize3).add(RoundWin.ball(BigDecimal.ONE, prize0)));
         // the same round over a low win limit: cut to it, the uncut win recorded last
-        RoundDraw.Result capped = RoundDraw.draw(table, noMeter, new BigDecimal("1.00"), 2, null, new BigDecimal("0.50"),
-                fixed(3, List.of(3, 0), List.of("1", "10")));
-        assertThat(capped.totalWin()).isEqualByComparingTo("0.50");
-        assertThat(capped.bonusText()).isEqualTo("hot:3x3;gold:1x10;path:7,0;capped:" + r.totalWin().toPlainString());
-        // no bonus at all: only the path
-        assertThat(RoundDraw.draw(table, BonusSettings.OFF, BigDecimal.ONE, 1, null, BigDecimal.TEN, fixed(-1, List.of(4), List.of("1"))).bonusText())
+        RoundDraw.Result capped = RoundDraw.draw(table, GATES, new BigDecimal("1.00"), 2, null, new BigDecimal("0.10"), fixed(List.of(3, 0)));
+        assertThat(capped.totalWin()).isEqualByComparingTo("0.10");
+        assertThat(capped.bonusText()).isEqualTo("path:7,0;gates:" + boost.toPlainString() + ";capped:" + r.totalWin().toPlainString());
+        // no feature on: only the paths
+        assertThat(RoundDraw.draw(table, BonusSettings.OFF, BigDecimal.ONE, 1, null, BigDecimal.TEN, fixed(List.of(4))).bonusText())
                 .isEqualTo("path:15");
     }
 
@@ -95,21 +82,14 @@ class RoundDrawTest {
     void everyStoredTextReadsBackToTheSameRoundAndIsWrittenTheSameWay() {
         java.util.Random random = new java.util.Random(7);
         RoundDraw.MeterBefore meter = new RoundDraw.MeterBefore(0, BigDecimal.ZERO, "start-7");
+        int spins = 0, megas = 0;
         for (int round = 0; round < 3000; round++) {
             int rows = PlinkoBoard.MIN_ROWS + random.nextInt(PlinkoBoard.MAX_ROWS - PlinkoBoard.MIN_ROWS + 1);
             OddsTable table = odds.get(rows, random.nextInt(3));
             int balls = 1 + random.nextInt(10);
-            RoundDraw.Result r = RoundDraw.draw(table, BONUSES, new BigDecimal("0.20"), balls, meter, new BigDecimal("40.00"), new RoundDraw.Dice() {
-                public int hotSlot(BonusSettings bonus, int rows) {
-                    return random.nextInt(4) == 0 ? random.nextInt(rows + 1) : -1;
-                }
-
+            RoundDraw.Result r = RoundDraw.draw(table, ALL, new BigDecimal("0.20"), balls, meter, new BigDecimal("40.00"), new RoundDraw.Dice() {
                 public int slot(OddsTable t) {
                     return random.nextInt(t.rows() + 1);
-                }
-
-                public BigDecimal golden(BonusSettings bonus) {
-                    return random.nextInt(5) == 0 ? new BigDecimal(List.of("2", "3", "5", "10").get(random.nextInt(4))) : BigDecimal.ONE;
                 }
 
                 public int path(int rows, int slot) {
@@ -130,10 +110,6 @@ class RoundDrawTest {
             assertThat(read.capped() == null ? raw : new BigDecimal("40.00")).isEqualByComparingTo(r.totalWin());
             // written again from what was read: byte for byte the same text (what the signature covers)
             RoundWin.Text again = new RoundWin.Text();
-            if (read.hotSlot() != null) {
-                again.hot(read.hotSlot(), read.hotBoost());
-            }
-            new TreeMap<>(read.golden()).forEach(again::gold);
             read.paths().forEach(again::path);
             if (read.gateBoost() != null) {
                 again.gates(read.gateBoost());
@@ -145,27 +121,31 @@ class RoundDrawTest {
                 again.capped(read.capped());
             }
             assertThat(again.text()).isEqualTo(r.bonusText());
+            spins += r.spins().size();
+            megas += r.megaSpins().size();
             meter = new RoundDraw.MeterBefore(r.chargesAfter(), r.potAfter(), "round-" + round);
         }
+        assertThat(spins).as("wheel spins written and read").isPositive();
+        assertThat(megas).as("MEGA SPINs written and read").isPositive();
     }
 
     @Test
     void gatesMultiplyThePrizeAndSpinSlotsSpinTheWheel() {
         OddsTable table = odds.get(8, 0);
-        BonusSettings mega = new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(), null,
-                BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
-        int spinSlot = com.plinko.bo.odds.PlinkoBoard.leftSlot(8, com.plinko.bo.odds.MegaBoard.spinPrizeIndex(8));
-        // the fixed dice send a ball right first, then left: slot 2's path is 0b11, through the gates it passes
-        int gates = com.plinko.bo.odds.MegaBoard.gatesPassed(8, 3);
-        RoundDraw.Result r = RoundDraw.draw(table, mega, new BigDecimal("1.00"), 2, null, new BigDecimal("100000.00"),
-                fixed(-1, List.of(2, spinSlot), List.of("1", "1")));
+        BonusSettings mega = new BonusSettings(null, BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
+        BigDecimal boost = mega.gates().boost();
+        int spinSlot = PlinkoBoard.leftSlot(8, MegaBoard.spinPrizeIndex(8));
+        // the fixed dice send a ball right first, then left: slot 2's path is 0b11, through the gates it crosses
+        int gates = MegaBoard.gatesPassed(8, 3);
+        RoundDraw.Result r = RoundDraw.draw(table, mega, new BigDecimal("1.00"), 2, null, new BigDecimal("100000.00"), fixed(List.of(2, spinSlot)));
         BigDecimal prize2 = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(8, 2)).multiplier();
         assertThat(r.gates().get(0)).isEqualTo(gates);
-        assertThat(r.multipliers().get(0)).isEqualByComparingTo(prize2.multiply(new BigDecimal("2").pow(gates)));
+        assertThat(r.multipliers().get(0)).isEqualByComparingTo(prize2.multiply(boost.pow(gates)));
         assertThat(r.spins()).hasSize(1);
         assertThat(r.spins().get(0).ball()).isEqualTo(1);
         BigDecimal firstSegment = mega.wheel().segments().get(0).multiplier();
-        assertThat(r.bonusText()).isEqualTo("path:3," + ((1 << spinSlot) - 1) + ";gates:2;spin:1@0x" + firstSegment.toPlainString());
+        assertThat(r.bonusText()).isEqualTo("path:3," + ((1 << spinSlot) - 1) + ";gates:" + boost.toPlainString() + ";spin:1@0x"
+                + firstSegment.toPlainString());
         assertThat(r.totalWin()).isEqualByComparingTo(r.wins().get(0).add(r.wins().get(1)).add(RoundWin.ball(BigDecimal.ONE, firstSegment)));
     }
 }

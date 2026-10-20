@@ -95,18 +95,6 @@ class WinCheckTest {
     }
 
     @Test
-    void goldenBallsPass() {
-        // ball 2 golden x2: 5.6 x 2 = 11.2
-        assertThat(problem(round("4,3,0", "0.5,1,11.2", "gold:2x2", "12.70"))).isNull();
-    }
-
-    @Test
-    void aHotSlotPasses() {
-        // hot slot 3 x3: ball 1 pays 1 x 3
-        assertThat(problem(round("4,3,0", "0.5,3,5.6", "hot:3x3", "9.10"))).isNull();
-    }
-
-    @Test
     void aMegaSpinPasses() {
         // the balls pay 7.10, a MEGA SPIN for 0.40 stops on x25: 10.00
         assertThat(problem(round("4,3,0", "0.5,1,5.6", "mega:0.40@6x25;meter:0/10:0.000000:start-7", "17.10"))).isNull();
@@ -279,7 +267,9 @@ class WinCheckTest {
     void malformedTextIsCaught() {
         assertThat(problem(round("4,3,x", "0.5,1,5.6", null, "7.10"))).startsWith("C5: the stored outcome is malformed");
         assertThat(problem(round("4,3,0", "0.5,1,5.6", "jackpot:1000", "7.10"))).startsWith("C5: the stored outcome is malformed");
-        assertThat(problem(round("4,3,0", "0.5,1,5.6", "gold:7x2", "7.10"))).startsWith("C5: golden ball 7");
+        // a golden ball or a hot slot is not part of this game
+        assertThat(problem(round("4,3,0", "0.5,1,11.2", "gold:2x2", "12.70"))).startsWith("C5: the stored outcome is malformed");
+        assertThat(problem(round("4,3,0", "0.5,3,5.6", "hot:3x3", "9.10"))).startsWith("C5: the stored outcome is malformed");
     }
 
     @Test

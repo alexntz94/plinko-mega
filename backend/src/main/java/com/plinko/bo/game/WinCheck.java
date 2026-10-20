@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
  * <li>C3: exactly one debit, accepted by the wallet, for exactly the round's total bet;</li>
  * <li>C4: the total bet is the bet times the balls;</li>
  * <li>C5: the win worked out again from the stored balls is exactly the round's win; each multiplier is the prize of
- *     its slot in the odds version the round was played on, times its recorded boosts and the gates its path goes
+ *     its slot in the odds version the round was played on, times the boost of the gates its path goes
  *     through; every path ends in its ball's slot, every wheel spin belongs to a ball in a SPIN slot;</li>
  * <li>C6: the credit is the round's own (signed by the game for this round, player and amount) and pays its win;</li>
  * <li>C7: exactly one credit, and no rollback;</li>
@@ -166,7 +166,7 @@ public class WinCheck {
         return null;
     }
 
-    /** Every slot on the board, every multiplier the prize of its slot in the round's odds version times its boosts. */
+    /** Every slot on the board, every multiplier the prize of its slot in the round's odds version times its gates. */
     private String ballsProblem(GameRepository.Round round, RoundWin.Outcome outcome) {
         Optional<List<BigDecimal>> prizes = round.oddsRef() == null ? Optional.empty()
                 : odds.playedOn(round.oddsRef(), round.rows(), round.risk());
@@ -188,15 +188,9 @@ public class WinCheck {
             if (outcome.gateBoost() != null) {
                 gates = outcome.gateBoost().pow(MegaBoard.gatesPassed(round.rows(), outcome.paths().get(ball)));
             }
-            String problem = ballProblem(round, outcome, "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball),
-                    outcome.golden().getOrDefault(ball, BigDecimal.ONE).multiply(gates), prizes);
+            String problem = ballProblem(round, "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball), gates, prizes);
             if (problem != null) {
                 return problem;
-            }
-        }
-        for (Integer ball : outcome.golden().keySet()) {
-            if (ball < 0 || ball >= outcome.slots().size()) {
-                return "C5: golden ball " + ball + " does not exist";
             }
         }
         return null;
@@ -241,8 +235,8 @@ public class WinCheck {
         return null;
     }
 
-    private static String ballProblem(GameRepository.Round round, RoundWin.Outcome outcome, String name, int slot, BigDecimal multiplier,
-                                      BigDecimal boost, Optional<List<BigDecimal>> prizes) {
+    private static String ballProblem(GameRepository.Round round, String name, int slot, BigDecimal multiplier, BigDecimal boost,
+                                      Optional<List<BigDecimal>> prizes) {
         if (slot < 0 || slot > round.rows()) {
             return "C5: " + name + " landed in slot " + slot + ", outside a board of " + round.rows() + " rows";
         }
@@ -251,9 +245,6 @@ public class WinCheck {
         }
         if (prizes.isPresent()) {
             BigDecimal expected = prizes.get().get(PlinkoBoard.prizeIndexOfSlot(round.rows(), slot)).multiply(boost);
-            if (outcome.hotSlot() != null && outcome.hotSlot() == slot) {
-                expected = expected.multiply(outcome.hotBoost());
-            }
             if (expected.compareTo(multiplier) != 0) {
                 return "C5: " + name + " in slot " + slot + " paid " + multiplier + "x, the odds it was played on give " + expected.stripTrailingZeros() + "x";
             }

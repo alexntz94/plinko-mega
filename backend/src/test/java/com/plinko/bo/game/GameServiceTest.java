@@ -29,8 +29,7 @@ import org.springframework.http.HttpStatus;
  */
 class GameServiceTest {
 
-    private static final BonusSettings METER = new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
-            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")));
+    private static final BonusSettings METER = new BonusSettings(new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")));
 
     private final TestGame game = new TestGame(BonusSettings.OFF);
 

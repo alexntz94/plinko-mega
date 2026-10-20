@@ -38,6 +38,11 @@ vi.mock('../src/ticker', async () => {
   const { Stub } = await import('./stubs');
   return { WinTicker: class WinTicker extends Stub {} };
 });
+vi.mock('../src/juice', async () => {
+  const { Stub } = await import('./stubs');
+  return { Ambient: class Ambient extends Stub {}, Screen: class Screen extends Stub {},
+    WinBanner: class WinBanner extends Stub { show() { return Promise.resolve(); } } };
+});
 vi.mock('../src/megaControls', async () => {
   const { Stub } = await import('./stubs');
   return { MegaControls: class MegaControls extends Stub {} };

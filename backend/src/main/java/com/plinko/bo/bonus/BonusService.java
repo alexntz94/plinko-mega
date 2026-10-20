@@ -7,6 +7,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.plinko.bo.odds.MegaBoard;
 import com.plinko.bo.odds.PlinkoBoard;
 import com.plinko.bo.settings.SettingsService;
 import com.plinko.model.BonusSettings;
@@ -28,6 +29,14 @@ import tools.jackson.databind.ObjectMapper;
  * {@code 1 + f * s}. The total RTP of a table is its own RTP times the factor; the hard RTP limits apply to the total,
  * and base tables are rebuilt so the total stays on target. (A pot a player never fills is never paid, so over time
  * players get very slightly less than the total, never more.)
+ * <p>
+ * Plinko Mega: the meter's pot is money (a share of the bet of every charging ball) and a full meter pays it as one
+ * MEGA SPIN of the gold wheel, worth pot * segment: every paid ball adds {@code f * s * E[gold wheel]} to the return,
+ * whatever the table it is later paid on. A ball through g gates pays its prize times boost^g; every path to a slot is
+ * equally likely, so the gates multiply a slot's prize by a known average (see {@link MegaBoard#gateFactor}) and the
+ * table's return by the probability-weighted mean of those. A ball in a SPIN slot also spins the wheel for bet *
+ * segment: it adds {@code P(SPIN slot) * E[wheel]}. Total RTP = table RTP * golden/hot factor * gate factor + what the
+ * wheels add.
  */
 @Service
 public class BonusService {
@@ -63,7 +72,7 @@ public class BonusService {
     /** Reads stored bonus settings; anything unreadable or invalid counts as "all off". */
     public BonusSettings parse(String stored) {
         if (stored == null) {
-            return BonusSettings.OFF;
+            return BonusSettings.MEGA;
         }
         try {
             BonusSettings parsed = withDefaults(json.readValue(stored, BonusSettings.class));
@@ -80,7 +89,10 @@ public class BonusService {
         }
         return new BonusSettings(bonus.golden() == null ? BonusSettings.OFF.golden() : bonus.golden(),
                 bonus.hot() == null ? BonusSettings.OFF.hot() : bonus.hot(),
-                bonus.meter() == null ? BonusSettings.OFF.meter() : bonus.meter());
+                bonus.meter() == null ? BonusSettings.OFF.meter() : bonus.meter(),
+                bonus.gates() == null ? BonusSettings.OFF.gates() : bonus.gates(),
+                bonus.wheel() == null ? BonusSettings.OFF.wheel() : bonus.wheel(),
+                bonus.megaWheel() == null ? BonusSettings.OFF.megaWheel() : bonus.megaWheel());
     }
 
     public String toJson(BonusSettings bonus) {
@@ -118,6 +130,17 @@ public class BonusService {
             if (meter.freeBalls() < 1 || meter.freeBalls() > 50) {
                 errors.add("A full meter pays between 1 and 50 free balls");
             }
+        }
+        BonusSettings.Gates gates = bonus.gates();
+        if (gates != null && (gates.boost() == null || gates.boost().compareTo(BigDecimal.ONE) <= 0
+                || gates.boost().compareTo(BigDecimal.TEN) > 0 || gates.boost().stripTrailingZeros().scale() > 2)) {
+            errors.add("The gate boost must be above 1x and at most 10x, with at most 2 decimals");
+        }
+        if (bonus.wheel() != null) {
+            wheelErrors("The wheel", bonus.wheel(), errors);
+        }
+        if (bonus.megaWheel() != null) {
+            wheelErrors("The gold wheel", bonus.megaWheel(), errors);
         }
         if (!errors.isEmpty()) {
             return errors;
@@ -157,6 +180,78 @@ public class BonusService {
                     + "% on top of the base game (these settings add " + share(bonus, PlinkoBoard.MIN_ROWS) + "% on " + PlinkoBoard.MIN_ROWS + " rows)");
         }
         return errors;
+    }
+
+    private static final java.util.Set<String> JACKPOTS = java.util.Set.of("MINI", "MAJOR", "MEGA");
+
+    private static void wheelErrors(String what, BonusSettings.Wheel wheel, List<String> errors) {
+        List<BonusSettings.Segment> segments = wheel.segments();
+        if (segments == null || segments.size() < 4 || segments.size() > 16) {
+            errors.add(what + " needs 4 to 16 segments");
+            return;
+        }
+        BigDecimal weights = BigDecimal.ZERO;
+        for (BonusSettings.Segment segment : segments) {
+            if (segment == null || segment.multiplier() == null || segment.weight() == null) {
+                errors.add(what + ": every segment needs a multiplier and a weight");
+                return;
+            }
+            if (segment.multiplier().signum() <= 0 || segment.multiplier().compareTo(BigDecimal.valueOf(1000)) > 0
+                    || segment.multiplier().stripTrailingZeros().scale() > 2) {
+                errors.add(what + ": segments pay above 0x and at most 1000x, with at most 2 decimals");
+            }
+            if (segment.weight().signum() <= 0 || segment.weight().stripTrailingZeros().scale() > 2) {
+                errors.add(what + ": segment weights must be above 0, with at most 2 decimals");
+            }
+            if (segment.name() != null && !JACKPOTS.contains(segment.name())) {
+                errors.add(what + ": a jackpot segment is MINI, MAJOR or MEGA");
+            }
+            weights = weights.add(segment.weight());
+        }
+        if (weights.compareTo(OddsTable.HUNDRED) != 0) {
+            errors.add(what + ": segment weights must add up to 100% (now " + weights.stripTrailingZeros().toPlainString() + "%)");
+        }
+    }
+
+    /** What a spin of this wheel pays on average, times its stake. */
+    public static BigDecimal expected(BonusSettings.Wheel wheel) {
+        return wheel.segments().stream().map(s -> s.multiplier().multiply(s.weight())).reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
+    }
+
+    /**
+     * How much the gates multiply this table's own return: each slot's prize times the average gate boost of a ball
+     * landing there, weighted by how often balls land there (1 when the gates are off).
+     */
+    public static BigDecimal gateFactor(BonusSettings bonus, OddsTable table) {
+        if (!bonus.gatesOn()) {
+            return BigDecimal.ONE;
+        }
+        double boost = bonus.gates().boost().doubleValue();
+        double plain = 0, gated = 0;
+        for (int slot = 0; slot <= table.rows(); slot++) {
+            int index = PlinkoBoard.prizeIndexOfSlot(table.rows(), slot);
+            OddsTable.Prize prize = table.prizes().get(index);
+            int slotsOfPrize = PlinkoBoard.leftSlot(table.rows(), index) == PlinkoBoard.rightSlot(table.rows(), index) ? 1 : 2;
+            double value = prize.probability().doubleValue() / slotsOfPrize * prize.multiplier().doubleValue();
+            plain += value;
+            gated += value * MegaBoard.gateFactor(table.rows(), slot, boost);
+        }
+        return plain == 0 ? BigDecimal.ONE : new BigDecimal(gated / plain, MathContext.DECIMAL64);
+    }
+
+    /** What the wheel and the gold wheel add on this table, per unit of bet (0.05 = 5% RTP), on top of the balls' prizes. */
+    public static BigDecimal extra(BonusSettings bonus, OddsTable table) {
+        BigDecimal extra = BigDecimal.ZERO;
+        if (bonus.wheelOn()) {
+            BigDecimal spin = table.prizes().get(MegaBoard.spinPrizeIndex(table.rows())).probability().divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
+            extra = extra.add(spin.multiply(expected(bonus.wheel())));
+        }
+        if (bonus.meterOn()) {
+            BigDecimal share = bonus.meter().potShare().divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
+            extra = extra.add(meterFill(bonus, table).multiply(share).multiply(expected(bonus.megaWheel())));
+        }
+        return extra.round(MathContext.DECIMAL64);
     }
 
     /** How much more every ball pays on average with these bonuses on a board with this many rows (1 = no bonus). */
@@ -222,56 +317,39 @@ public class BonusService {
                 .divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
     }
 
+    /** What one charging paid ball with this bet adds to the pot (money, 6 decimals, rounded down). */
+    public static BigDecimal potCharge(BonusSettings bonus, BigDecimal bet) {
+        return bet.multiply(bonus.meter().potShare()).divide(OddsTable.HUNDRED, 6, RoundingMode.DOWN);
+    }
+
     /**
-     * The meter's pot holds value, not money: a charge from a ball on this table adds bet * share / conversion, and a
-     * payout on this table turns value back into stake with * conversion, where conversion = 1 + fill * share. A pot
-     * then pays the same on average whichever board it is filled or paid on, so switching board just before the meter
-     * fills gains nothing, and every table's total RTP stays exact.
+     * What one full meter's MEGA SPIN is played for, when the player has {@code charges} charges (at least one full
+     * meter): its own share of the pot, in whole cents rounded down (the fractions stay in the pot).
      */
-    public static BigDecimal potConversion(BonusSettings bonus, OddsTable table) {
-        if (!bonus.meterOn()) {
+    public static BigDecimal megaStake(BonusSettings bonus, BigDecimal pot, int charges) {
+        return pot.multiply(BigDecimal.valueOf(bonus.meter().charges())).divide(BigDecimal.valueOf(Math.max(charges, 1)), 2, RoundingMode.DOWN);
+    }
+
+    /** What golden balls and the hot slot multiply this table's return by (the share held to MAX_FACTOR). */
+    public static BigDecimal factor(BonusSettings bonus, OddsTable table) {
+        return factor(bonus, table.rows());
+    }
+
+    /** Total RTP of a table as a multiple of its own RTP: everything the bonuses and Plinko Mega's features add. */
+    public static BigDecimal totalFactor(BonusSettings bonus, OddsTable table) {
+        if (table.rtp().signum() == 0) {
             return BigDecimal.ONE;
         }
-        return BigDecimal.ONE.add(meterFill(bonus, table).multiply(bonus.meter().potShare().divide(OddsTable.HUNDRED, MathContext.DECIMAL64)));
-    }
-
-    /** What one charging paid ball with this bet adds to the pot (in value). */
-    public static BigDecimal potCharge(BonusSettings bonus, OddsTable table, BigDecimal bet) {
-        return bet.multiply(bonus.meter().potShare()).divide(OddsTable.HUNDRED.multiply(potConversion(bonus, table)), 6, RoundingMode.DOWN);
-    }
-
-    /** The stake of each free ball when a pot of this value pays out on this table (whole cents, rounded down). */
-    public static BigDecimal freeStake(BonusSettings bonus, OddsTable table, BigDecimal pot) {
-        return pot.multiply(potConversion(bonus, table)).divide(BigDecimal.valueOf(bonus.meter().freeBalls()), 2, RoundingMode.DOWN);
-    }
-
-    /**
-     * The stake of each free ball for one full meter, when the player has {@code charges} charges (at least one full
-     * meter): a full meter pays its own share of the pot, so a round that fills the meter twice pays both alike.
-     */
-    public static BigDecimal awardStake(BonusSettings bonus, OddsTable table, BigDecimal pot, int charges) {
-        BigDecimal share = pot.multiply(BigDecimal.valueOf(bonus.meter().charges())).divide(BigDecimal.valueOf(Math.max(charges, 1)), 6, RoundingMode.DOWN);
-        return freeStake(bonus, table, share);
-    }
-
-    /** The pot left after paying free balls with this stake: the fractions of a cent stay in it. */
-    public static BigDecimal potAfterPayout(BonusSettings bonus, OddsTable table, BigDecimal pot, BigDecimal stake) {
-        BigDecimal used = stake.multiply(BigDecimal.valueOf(bonus.meter().freeBalls())).divide(potConversion(bonus, table), 6, RoundingMode.UP);
-        return pot.subtract(used).max(BigDecimal.ZERO);
-    }
-
-    /** Everything the bonuses add on this table: golden ball and hot slot (by board size) and the meter (by table). */
-    public static BigDecimal factor(BonusSettings bonus, OddsTable table) {
-        return factor(bonus, table.rows()).multiply(potConversion(bonus, table), MathContext.DECIMAL64);
+        return totalRtp(table, bonus).divide(table.rtp(), MathContext.DECIMAL64);
     }
 
     /** "+x%" for these tables: the range from the table where the bonuses add least to the one where they add most. */
     public static String shareText(BonusSettings bonus, java.util.Collection<OddsTable> tables) {
-        if (!bonus.meterOn() || tables.isEmpty()) {
+        if (tables.isEmpty()) {
             return shareText(bonus);
         }
         List<BigDecimal> shares = tables.stream()
-                .map(t -> factor(bonus, t).subtract(BigDecimal.ONE).movePointRight(2).setScale(2, RoundingMode.HALF_UP)).sorted().toList();
+                .map(t -> totalFactor(bonus, t).subtract(BigDecimal.ONE).movePointRight(2).setScale(2, RoundingMode.HALF_UP)).sorted().toList();
         BigDecimal low = shares.get(0);
         BigDecimal high = shares.get(shares.size() - 1);
         return low.compareTo(high) == 0 ? high.toPlainString() + "%" : low.toPlainString() + "% to " + high.toPlainString() + "% depending on the table";
@@ -291,7 +369,8 @@ public class BonusService {
 
     /** Total return to player of a table with these bonuses, in percent. */
     public static BigDecimal totalRtp(OddsTable table, BonusSettings bonus) {
-        return table.rtp().multiply(factor(bonus, table)).round(MathContext.DECIMAL64);
+        return table.rtp().multiply(factor(bonus, table)).multiply(gateFactor(bonus, table))
+                .add(extra(bonus, table).multiply(OddsTable.HUNDRED)).round(MathContext.DECIMAL64);
     }
 
     public BigDecimal totalRtp(OddsTable table) {
@@ -311,6 +390,44 @@ public class BonusService {
             return -1;
         }
         return random.nextInt(PlinkoBoard.slotCount(rows));
+    }
+
+    /**
+     * The path of a ball that lands in this slot: one of the paths to it, every one equally likely (the slot's own
+     * chance comes from the odds table; only the way there is drawn here).
+     */
+    public int rollPath(int rows, int slot) {
+        int path = 0;
+        int rightsLeft = slot;
+        for (int step = 0; step < rows; step++) {
+            // right with the chance that a uniformly drawn arrangement of the remaining steps starts with a right
+            if (random.nextInt(rows - step) < rightsLeft) {
+                path |= 1 << step;
+                rightsLeft--;
+            }
+        }
+        return path;
+    }
+
+    /** Draws a segment of a wheel by its weights; returns its index. */
+    public int rollSegment(BonusSettings.Wheel wheel) {
+        double pick = random.nextDouble() * 100;
+        double cumulative = 0;
+        List<BonusSettings.Segment> segments = wheel.segments();
+        for (int i = 0; i < segments.size(); i++) {
+            cumulative += segments.get(i).weight().doubleValue();
+            if (pick < cumulative) {
+                return i;
+            }
+        }
+        // rounding at the very end of the range: the segment that pays least, never a jackpot
+        int least = 0;
+        for (int i = 1; i < segments.size(); i++) {
+            if (segments.get(i).multiplier().compareTo(segments.get(least).multiplier()) < 0) {
+                least = i;
+            }
+        }
+        return least;
     }
 
     /** Draws whether one ball is golden, and its boost: 1 for a normal ball. */

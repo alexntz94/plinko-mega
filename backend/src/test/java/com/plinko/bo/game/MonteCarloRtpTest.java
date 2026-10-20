@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Review 5.3 #1: whole rounds played by the real round calculation ({@link RoundDraw}, with the server's own draws), the
- * bonus meter and its free balls included, on every board and once per bonus (none, golden balls, hot slot, meter, all):
- * the measured return must be the approved total RTP.
+ * Review 5.3 #1: whole rounds played by the real round calculation ({@link RoundDraw}, with the server's own draws), on
+ * every board and once per bonus (none, golden balls, hot slot, both): the measured return must be the approved total
+ * RTP. Plinko Mega's gates, wheel and MEGA SPIN are measured in MegaRtpTest.
  * <p>
  * The tolerance is tight (about 0.1 point at the default size, on every board) because the noise of the draws is taken
  * out: where the balls landed, which were golden and which slot was hot are controls whose exact mean is known, weighted
@@ -46,7 +46,6 @@ class MonteCarloRtpTest {
             new BonusSettings.Boost(new BigDecimal("2"), new BigDecimal("60")), new BonusSettings.Boost(new BigDecimal("3"), new BigDecimal("25")),
             new BonusSettings.Boost(new BigDecimal("5"), new BigDecimal("12")), new BonusSettings.Boost(new BigDecimal("10"), new BigDecimal("3"))));
     private static final BonusSettings.Hot HOT = new BonusSettings.Hot(true, new BigDecimal("20"), new BigDecimal("3"));
-    private static final BonusSettings.Meter METER = new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("30"), 10);
 
     private static final Map<String, BonusSettings> BONUSES = new LinkedHashMap<>();
 
@@ -54,8 +53,7 @@ class MonteCarloRtpTest {
         BONUSES.put("no bonus", BonusSettings.OFF);
         BONUSES.put("golden balls", new BonusSettings(GOLDEN, BonusSettings.OFF.hot()));
         BONUSES.put("hot slot", new BonusSettings(BonusSettings.OFF.golden(), HOT));
-        BONUSES.put("meter", new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(), METER));
-        BONUSES.put("all", new BonusSettings(GOLDEN, HOT, METER));
+        BONUSES.put("all", new BonusSettings(GOLDEN, HOT));
     }
 
     static int rounds() {
@@ -92,7 +90,6 @@ class MonteCarloRtpTest {
             }
         }
         System.out.println("Monte Carlo RTP, " + rounds + " rounds of " + BALLS + " balls per board and bonus:\n" + String.join("\n", report));
-        assertThat(freeBalls).as("the meter paid free balls").isPositive();
         if (rounds >= DEFAULT_ROUNDS) {
             assertThat(widest).as("the widest tolerance, in RTP (1 point = 0.01)").isLessThan(0.002);
         }
@@ -172,6 +169,16 @@ class MonteCarloRtpTest {
             @Override
             public BigDecimal golden(BonusSettings b) {
                 return bonus.rollGolden(b);
+            }
+
+            @Override
+            public int path(int rows, int slot) {
+                return bonus.rollPath(rows, slot);
+            }
+
+            @Override
+            public int segment(BonusSettings.Wheel wheel) {
+                return bonus.rollSegment(wheel);
             }
         };
         double base = table.rtp().doubleValue() / 100;

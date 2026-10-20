@@ -98,12 +98,13 @@ class BonusValidationTest {
         BonusSettings all = new BonusSettings(GOLDEN, HOT, METER);
         assertThat(bonus.validate(all)).isEmpty();
         assertThat(bonus.validate(null)).containsExactly("Bonus settings are incomplete");
-        assertThat(bonus.parse(bonus.toJson(all))).isEqualTo(all);
+        assertThat(bonus.parse(bonus.toJson(all))).isEqualTo(BonusService.withDefaults(all));
     }
 
     @Test
     void unreadableOrMissingSettingsAreAllOffAndFeaturesAddedLaterStartOff() {
-        assertThat(bonus.parse(null)).isEqualTo(BonusSettings.OFF);
+        // never saved: Plinko Mega's own starting point (gates, wheel and meter on)
+        assertThat(bonus.parse(null)).isEqualTo(BonusSettings.MEGA);
         assertThat(bonus.parse("{not json")).isEqualTo(BonusSettings.OFF);
         // saved before hot slots and the meter existed
         BonusSettings old = bonus.parse("{\"golden\":{\"enabled\":true,\"chance\":1,\"boosts\":[{\"multiplier\":2,\"weight\":100}]}}");

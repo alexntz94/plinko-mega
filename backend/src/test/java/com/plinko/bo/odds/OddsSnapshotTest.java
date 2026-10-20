@@ -78,7 +78,7 @@ class OddsSnapshotTest {
 
     @Test
     void roundAfterABonusApprovedElsewhereUsesTheNewTablesWithIt() {
-        storedBonus = null;
+        storedBonus = bonus.toJson(BonusSettings.OFF);
         storedTables = tables(BonusSettings.OFF);
         odds.check();
         assertThat(odds.forRound().bonus().anyOn()).isFalse();
@@ -93,7 +93,7 @@ class OddsSnapshotTest {
 
     @Test
     void anApprovalCommittedDuringAReloadIsReadAgain() {
-        storedBonus = null;
+        storedBonus = bonus.toJson(BonusSettings.OFF);
         storedTables = tables(BonusSettings.OFF);
         duringRead = this::approveGoldenElsewhere;      // the old tables are read, then the approval commits
         odds.check();

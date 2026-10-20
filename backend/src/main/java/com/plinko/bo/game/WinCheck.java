@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 
+import com.plinko.bo.odds.MegaBoard;
 import com.plinko.bo.odds.OddsService;
 import com.plinko.bo.odds.PlinkoBoard;
 import com.plinko.config.PlinkoProperties;
@@ -22,7 +23,8 @@ import org.springframework.stereotype.Component;
  * <li>C3: exactly one debit, accepted by the wallet, for exactly the round's total bet;</li>
  * <li>C4: the total bet is the bet times the balls;</li>
  * <li>C5: the win worked out again from the stored balls is exactly the round's win; each multiplier is the prize of
- *     its slot in the odds version the round was played on, times its recorded boosts;</li>
+ *     its slot in the odds version the round was played on, times its recorded boosts and the gates its path goes
+ *     through; every path ends in its ball's slot, every wheel spin belongs to a ball in a SPIN slot;</li>
  * <li>C6: the credit is the round's own (signed by the game for this round, player and amount) and pays its win;</li>
  * <li>C7: exactly one credit, and no rollback;</li>
  * <li>C8: the win is within the hard limit per round in force when the round was played;</li>
@@ -177,9 +179,17 @@ public class WinCheck {
         if (round.oddsRef() != null && (prizes.isEmpty() || prizes.get().size() != PlinkoBoard.prizeCount(round.rows()))) {
             return "C5: the round's odds version " + round.oddsRef() + " was changed or is not for " + round.rows() + " rows, risk " + round.risk();
         }
+        String mega = megaProblem(round, outcome);
+        if (mega != null) {
+            return mega;
+        }
         for (int ball = 0; ball < outcome.slots().size(); ball++) {
+            BigDecimal gates = BigDecimal.ONE;
+            if (outcome.gateBoost() != null) {
+                gates = outcome.gateBoost().pow(MegaBoard.gatesPassed(round.rows(), outcome.paths().get(ball)));
+            }
             String problem = ballProblem(round, outcome, "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball),
-                    outcome.golden().getOrDefault(ball, BigDecimal.ONE), prizes);
+                    outcome.golden().getOrDefault(ball, BigDecimal.ONE).multiply(gates), prizes);
             if (problem != null) {
                 return problem;
             }
@@ -197,6 +207,45 @@ public class WinCheck {
             String problem = ballProblem(round, outcome, "free ball " + ball, free.slot(), free.multiplier(), free.boost(), prizes);
             if (problem != null) {
                 return problem;
+            }
+        }
+        return null;
+    }
+
+    /** Plinko Mega's parts: paths to the balls' own slots, gates only with paths, wheel spins on SPIN slots only. */
+    private static String megaProblem(GameRepository.Round round, RoundWin.Outcome outcome) {
+        if (outcome.paths() != null) {
+            if (outcome.paths().size() != outcome.slots().size()) {
+                return "C5: " + outcome.paths().size() + " paths for " + outcome.slots().size() + " balls";
+            }
+            for (int ball = 0; ball < outcome.paths().size(); ball++) {
+                int path = outcome.paths().get(ball);
+                if (!MegaBoard.isPath(round.rows(), path) || MegaBoard.slotOf(path) != outcome.slots().get(ball)) {
+                    return "C5: ball " + ball + "'s path " + path + " does not end in its slot " + outcome.slots().get(ball);
+                }
+            }
+        }
+        if (outcome.gateBoost() != null && (outcome.paths() == null || outcome.gateBoost().compareTo(BigDecimal.ONE) <= 0)) {
+            return "C5: gates boost " + outcome.gateBoost() + " without paths, or not above 1";
+        }
+        java.util.Set<Integer> spun = new java.util.HashSet<>();
+        for (RoundWin.Spin spin : outcome.spins()) {
+            if (spin.ball() < 0 || spin.ball() >= outcome.slots().size() || !spun.add(spin.ball())) {
+                return "C5: wheel spin of ball " + spin.ball() + " does not exist or is repeated";
+            }
+            if (!MegaBoard.isSpinSlot(round.rows(), outcome.slots().get(spin.ball()))) {
+                return "C5: ball " + spin.ball() + " spun the wheel from slot " + outcome.slots().get(spin.ball()) + ", not a SPIN slot";
+            }
+            if (spin.segment() < 0 || spin.multiplier().signum() <= 0) {
+                return "C5: wheel spin of ball " + spin.ball() + " has segment " + spin.segment() + " and pays " + spin.multiplier();
+            }
+        }
+        if (outcome.megaSpins().size() > 3) {
+            return "C5: " + outcome.megaSpins().size() + " MEGA SPINs in one round";
+        }
+        for (RoundWin.MegaSpin mega : outcome.megaSpins()) {
+            if (mega.stake().signum() < 0 || mega.segment() < 0 || mega.multiplier().signum() <= 0) {
+                return "C5: MEGA SPIN for " + mega.stake() + " has segment " + mega.segment() + " and pays " + mega.multiplier();
             }
         }
         return null;

@@ -92,8 +92,11 @@ class BonusServiceTest {
         assertThat(BonusService.meterPositions(new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(), METER)).get("8:0")).containsExactly(3, 4);
         BonusSettings meterOnly = new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(), METER);
         assertThat(BonusService.meterFill(meterOnly, table).doubleValue()).isCloseTo(fill, within(1e-12));
-        assertThat(BonusService.factor(meterOnly, table).doubleValue()).isCloseTo(1 + fill * 0.3, within(1e-12));
-        assertThat(BonusService.factor(ALL, table).doubleValue()).isCloseTo(1.0185 * (1 + 0.4 / 9) * (1 + fill * 0.3), within(1e-12));
+        // Plinko Mega: the pot is money, paid as a MEGA SPIN of the gold wheel: it adds fill x share x E[gold wheel]
+        double gold = BonusService.expected(meterOnly.megaWheel()).doubleValue();
+        assertThat(BonusService.extra(meterOnly, table).doubleValue()).isCloseTo(fill * 0.3 * gold, within(1e-12));
+        assertThat(BonusService.factor(meterOnly, table).doubleValue()).isEqualTo(1.0);
+        assertThat(BonusService.factor(ALL, table).doubleValue()).isCloseTo(1.0185 * (1 + 0.4 / 9), within(1e-12));
         assertThat(bonus.validate(ALL)).isEmpty();
         assertThat(bonus.validate(new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
                 new BonusSettings.Meter(true, 2, new BigDecimal("2"), new BigDecimal("50"), 10)))).anyMatch(e -> e.contains("between 3 and 100 charges"));
@@ -118,7 +121,7 @@ class BonusServiceTest {
 
     /**
      * Plays one player's rounds with all three bonuses exactly as the game server does (hot slot per round; per paid
-     * ball slot, golden boost, meter charge; full meter pays free balls), choosing boards with the given strategy.
+     * ball slot, golden boost, meter charge; full meter pays a MEGA SPIN), choosing boards with the given strategy.
      */
     private double playWithMeter(boolean switchBeforeFull, long seed) {
         java.util.Random pick = new java.util.Random(seed);
@@ -147,21 +150,17 @@ class BonusServiceTest {
                 double m = prize.multiply(bonus.rollGolden(ALL)).doubleValue() * (slot == hot ? 3 : 1);
                 if (BonusService.chargesMeter(ALL, table.rows(), table.risk(), PlinkoBoard.prizeIndexOfSlot(table.rows(), slot))) {
                     charges++;
-                    pot = pot.add(BonusService.potCharge(ALL, table, bet));
+                    pot = pot.add(BonusService.potCharge(ALL, bet));
                 }
                 paid += 1;
                 won += Math.floor(m * 100) / 100;
             }
             for (int award = 0; charges >= METER.charges() && award < 3; award++) {
-                BigDecimal stake = BonusService.awardStake(ALL, table, pot, charges);
+                BigDecimal stake = BonusService.megaStake(ALL, pot, charges);
                 charges -= METER.charges();
-                pot = BonusService.potAfterPayout(ALL, table, pot, stake);
-                for (int ball = 0; ball < METER.freeBalls(); ball++) {
-                    int slot = odds.pickSlot(table);
-                    double m = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(table.rows(), slot)).multiplier()
-                            .multiply(bonus.rollGolden(ALL)).doubleValue() * (slot == hot ? 3 : 1);
-                    won += Math.floor(stake.doubleValue() * m * 100) / 100;
-                }
+                pot = pot.subtract(stake);
+                double m = ALL.megaWheel().segments().get(bonus.rollSegment(ALL.megaWheel())).multiplier().doubleValue();
+                won += Math.floor(stake.doubleValue() * m * 100) / 100;
             }
         }
         return won / paid;
@@ -172,13 +171,13 @@ class BonusServiceTest {
         OddsTable table = odds.forTargetRtp(8, 0, new BigDecimal("96"), ALL);
         BigDecimal pot = BigDecimal.ZERO;
         for (int i = 0; i < 20; i++) {
-            pot = pot.add(BonusService.potCharge(ALL, table, new BigDecimal("1.00")));
+            pot = pot.add(BonusService.potCharge(ALL, new BigDecimal("1.00")));
         }
         int charges = 20;
-        BigDecimal first = BonusService.awardStake(ALL, table, pot, charges);
-        pot = BonusService.potAfterPayout(ALL, table, pot, first);
+        BigDecimal first = BonusService.megaStake(ALL, pot, charges);
+        pot = pot.subtract(first);
         charges -= 10;
-        BigDecimal second = BonusService.awardStake(ALL, table, pot, charges);
+        BigDecimal second = BonusService.megaStake(ALL, pot, charges);
         assertThat(first).isPositive();
         // the same, give or take the cent carried over from the first payout's rounding
         assertThat(second).isBetween(first, first.add(new BigDecimal("0.01")));

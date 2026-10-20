@@ -119,11 +119,19 @@ public class OddsService implements ApplicationRunner {
      * target / bonus factor, so table and bonuses together return exactly the target.
      */
     public OddsTable forTargetRtp(int rows, int risk, BigDecimal targetPercent, BonusSettings bonusSettings) {
-        // The meter's share depends on the table (how often it pays enough to charge the meter), so build, measure
-        // the factor of what was built, and rebuild until the two agree (a couple of passes; stops when stable).
-        OddsTable table = buildForBase(rows, risk, targetPercent.doubleValue() / 100 / BonusService.factor(bonusSettings, rows).doubleValue());
-        for (int pass = 0; pass < 8 && bonusSettings.meterOn(); pass++) {
-            OddsTable next = buildForBase(rows, risk, targetPercent.doubleValue() / 100 / BonusService.factor(bonusSettings, table).doubleValue());
+        // The meter, the gates and the wheel add a share that depends on the table (how often it lands where they pay),
+        // so build, measure what the built table adds, and rebuild until the two agree (a few passes; stops when stable).
+        double target = targetPercent.doubleValue() / 100;
+        // positions that also pay through the wheel or the meter keep their natural chance (a sliver moved onto them
+        // would move what the wheels add as well, and the passes would never settle)
+        java.util.function.IntPredicate fixed = prize -> (bonusSettings.wheelOn() && prize == MegaBoard.spinPrizeIndex(rows))
+                || BonusService.chargesMeter(bonusSettings, rows, risk, prize);
+        OddsTable table = buildForBase(rows, risk, target / BonusService.factor(bonusSettings, rows).doubleValue(), fixed);
+        boolean dependsOnTable = bonusSettings.meterOn() || bonusSettings.gatesOn() || bonusSettings.wheelOn();
+        for (int pass = 0; pass < 12 && dependsOnTable; pass++) {
+            double base = (target - BonusService.extra(bonusSettings, table).doubleValue())
+                    / (BonusService.factor(bonusSettings, table).doubleValue() * BonusService.gateFactor(bonusSettings, table).doubleValue());
+            OddsTable next = buildForBase(rows, risk, base, fixed);
             if (fingerprint(next).equals(fingerprint(table))) {
                 break;
             }
@@ -133,7 +141,7 @@ public class OddsService implements ApplicationRunner {
     }
 
     /** The table with exactly this RTP of its own (a fraction, e.g. 0.96), from the standard shape. */
-    private OddsTable buildForBase(int rows, int risk, double target) {
+    private OddsTable buildForBase(int rows, int risk, double target, java.util.function.IntPredicate fixed) {
         double[] p = PlinkoBoard.naturalProbabilities(rows);
         double[] base = defaultMultipliers(rows, risk).stream().mapToDouble(BigDecimal::doubleValue).toArray();
 
@@ -169,7 +177,7 @@ public class OddsService implements ApplicationRunner {
         int bestJ = -1;
         double bestShift = 0;
         for (int j = 1; j < m.length - 1; j++) {
-            if (m[j] == m[0]) {
+            if (m[j] == m[0] || fixed.test(j)) {
                 continue;
             }
             double shift = residual / (m[j] - m[0]);

@@ -71,10 +71,17 @@ class RealRoundsPassWinCheckTest {
             BonusSettings.OFF.hot());
 
     @Test
+    void plinkoMegaRoundsWithGatesWheelAndMegaSpinPassTheCheck() {
+        int[] stats = play(BonusSettings.MEGA, 4000, 20);
+        assertThat(stats[0]).isGreaterThan(3000);
+        assertThat(stats[2]).as("some rounds paid a MEGA SPIN").isPositive();
+    }
+
+    @Test
     void everyRealRoundPassesTheCheckAndIsPaidItsWin() {
         int[] stats = play(BONUSES, 4000, 20);
         assertThat(stats[0]).isGreaterThan(3000);
-        assertThat(stats[2]).as("some rounds paid free balls").isPositive();
+        assertThat(stats[2]).as("some rounds paid a MEGA SPIN").isPositive();
     }
 
     @Test
@@ -159,7 +166,7 @@ class RealRoundsPassWinCheckTest {
         assertThat(game.play("s", new GameService.PlayRequest(8, 0, new BigDecimal("0.10"), 1)).roundId()).isNotNull();
     }
 
-    /** Plays rounds and checks each; returns {played, capped, with free balls}. */
+    /** Plays rounds and checks each; returns {played, capped, with a MEGA SPIN}. */
     private int[] play(BonusSettings bonuses, int count, int maxBetCents) {
         GameService game = game(bonuses, false);
         Random random = new Random(42);
@@ -178,7 +185,7 @@ class RealRoundsPassWinCheckTest {
                 assertThat(paid).last().isEqualTo(round.id() + "=" + round.totalWin().toPlainString());
                 played++;
                 capped += round.bonus() != null && round.bonus().contains("capped:") ? 1 : 0;
-                withFreeBalls += round.bonus() != null && round.bonus().contains("free:") ? 1 : 0;
+                withFreeBalls += round.bonus() != null && round.bonus().contains("mega:") ? 1 : 0;
             } catch (ApiException e) {
                 assertThat(e.code()).isEqualTo("BET_TOO_HIGH");
             }

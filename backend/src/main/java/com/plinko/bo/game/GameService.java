@@ -63,7 +63,32 @@ public class GameService {
      */
     public record GameConfig(BigDecimal minBet, BigDecimal maxBet, BigDecimal defaultBet, int maxBalls, List<RowConfig> rows,
                              boolean holdToDrop, boolean sessionClock, int realityCheckMinutes, boolean quietSmallWins,
-                             BigDecimal minRoundSeconds) {
+                             BigDecimal minRoundSeconds, MegaConfig mega) {
+        public GameConfig(BigDecimal minBet, BigDecimal maxBet, BigDecimal defaultBet, int maxBalls, List<RowConfig> rows,
+                          boolean holdToDrop, boolean sessionClock, int realityCheckMinutes, boolean quietSmallWins,
+                          BigDecimal minRoundSeconds) {
+            this(minBet, maxBet, defaultBet, maxBalls, rows, holdToDrop, sessionClock, realityCheckMinutes, quietSmallWins, minRoundSeconds, null);
+        }
+    }
+
+    /**
+     * Plinko Mega's board, for the game to draw: per rows count ("8".."14") the gates as [step, rights] and the two SPIN
+     * slots; gateBoost (null: gates off); the wheel and the gold wheel's segments (null: off).
+     */
+    public record MegaConfig(Map<String, List<List<Integer>>> gates, Map<String, List<Integer>> spinSlots, BigDecimal gateBoost,
+                             List<SegmentView> wheel, List<SegmentView> megaWheel) {
+    }
+
+    /** A wheel segment as the game shows it: what it pays, and its jackpot name (null for a plain segment). */
+    public record SegmentView(String name, BigDecimal multiplier) {
+    }
+
+    /** A wheel spin started by paid ball {@code ball}: the segment it stopped on, what that pays (x the bet) and the win. */
+    public record SpinView(int ball, int segment, BigDecimal multiplier, BigDecimal win) {
+    }
+
+    /** A MEGA SPIN of the gold wheel: its stake from the pot, the segment, what that pays (x the stake) and the win. */
+    public record MegaSpinView(BigDecimal stake, int segment, BigDecimal multiplier, BigDecimal win) {
     }
 
     /** prizes[prizeIndex] = multipliers for [low, mid, high] risk. */
@@ -84,12 +109,15 @@ public class GameService {
      * multipliers are what each ball paid (prize x golden boost x hot boost); boosts says which balls were golden
      * (1 = normal ball); hotSlot is the slot lit up for this round (null when none) and hotBoost what it multiplies by.
      * free* describe the free balls a full bonus meter paid in this round (dropped after the paid balls; each with
-     * its own stake from the pot); meter is the player's meter after the round.
+     * its own stake from the pot); meter is the player's meter after the round. Plinko Mega: paths (each paid ball's
+     * path, see MegaBoard), gates (how many gates each went through), spins (wheel spins from SPIN slots) and megaSpins
+     * (MEGA SPINs paid by a full meter).
      */
     public record PlayResponse(String roundId, List<Integer> slots, List<BigDecimal> multipliers, BigDecimal totalBet,
                                BigDecimal totalWin, BigDecimal balance, List<BigDecimal> boosts, Integer hotSlot, BigDecimal hotBoost,
                                List<Integer> freeSlots, List<BigDecimal> freeMultipliers, List<BigDecimal> freeBoosts,
-                               List<BigDecimal> freeBets, MeterView meter, List<BigDecimal> wins, List<BigDecimal> freeWins) {
+                               List<BigDecimal> freeBets, MeterView meter, List<BigDecimal> wins, List<BigDecimal> freeWins,
+                               List<Integer> paths, List<Integer> gates, List<SpinView> spins, List<MegaSpinView> megaSpins) {
     }
 
     private final GameRepository repository;
@@ -120,6 +148,16 @@ public class GameService {
         @Override
         public BigDecimal golden(BonusSettings settings) {
             return bonus.rollGolden(settings);
+        }
+
+        @Override
+        public int path(int rows, int slot) {
+            return bonus.rollPath(rows, slot);
+        }
+
+        @Override
+        public int segment(BonusSettings.Wheel wheel) {
+            return bonus.rollSegment(wheel);
         }
     };
 
@@ -230,7 +268,23 @@ public class GameService {
         SettingsService.GameFeatures features = now.features();
         return new GameConfig(limits.minBet(), limits.maxBet(), limits.defaultBet(), limits.maxBalls(), rows,
                 features.holdToDrop(), features.sessionClock(), features.realityCheckMinutes(), features.quietSmallWins(),
-                features.minRoundSeconds());
+                features.minRoundSeconds(), megaConfig(bonus.current()));
+    }
+
+    static MegaConfig megaConfig(BonusSettings settings) {
+        Map<String, List<List<Integer>>> gates = new java.util.TreeMap<>();
+        Map<String, List<Integer>> spinSlots = new java.util.TreeMap<>();
+        for (int rows = PlinkoBoard.MIN_ROWS; rows <= PlinkoBoard.MAX_ROWS; rows++) {
+            gates.put(String.valueOf(rows), com.plinko.bo.odds.MegaBoard.gates(rows).stream().map(g -> List.of(g.step(), g.rights())).toList());
+            int spin = com.plinko.bo.odds.MegaBoard.spinPrizeIndex(rows);
+            spinSlots.put(String.valueOf(rows), List.of(PlinkoBoard.leftSlot(rows, spin), PlinkoBoard.rightSlot(rows, spin)));
+        }
+        return new MegaConfig(gates, spinSlots, settings.gatesOn() ? settings.gates().boost().stripTrailingZeros() : null,
+                settings.wheelOn() ? segments(settings.wheel()) : null, settings.meterOn() ? segments(settings.megaWheel()) : null);
+    }
+
+    private static List<SegmentView> segments(BonusSettings.Wheel wheel) {
+        return wheel.segments().stream().map(s -> new SegmentView(s.name(), s.multiplier().stripTrailingZeros())).toList();
     }
 
     /** Review 7.4: a round is refused while a required reality check is due (RealityChecks). */
@@ -340,7 +394,10 @@ public class GameService {
                 : new MeterView(true, drawn.chargesAfter(), meterSettings.charges(), BonusService.meterPositions(setup.bonus()));
         return new PlayResponse(roundId, drawn.slots(), drawn.multipliers(), setup.totalBet(), drawn.totalWin(), balance, drawn.boosts(),
                 drawn.hotSlot(), drawn.hotBoost() == null ? null : drawn.hotBoost().stripTrailingZeros(),
-                drawn.freeSlots(), drawn.freeMultipliers(), drawn.freeBoosts(), drawn.freeBets(), meterAfter, drawn.wins(), drawn.freeWins());
+                drawn.freeSlots(), drawn.freeMultipliers(), drawn.freeBoosts(), drawn.freeBets(), meterAfter, drawn.wins(), drawn.freeWins(),
+                drawn.paths(), drawn.gates(),
+                drawn.spins().stream().map(x -> new SpinView(x.ball(), x.segment(), x.multiplier(), x.win())).toList(),
+                drawn.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier(), x.win())).toList());
     }
 
     /** The odds table and bonuses in force, the round's cost, and the hard win limit (a bet that could exceed it is refused). */
@@ -564,10 +621,16 @@ public class GameService {
         List<BigDecimal> freeBoosts = outcome.free().stream().map(f -> f.boost().stripTrailingZeros()).toList();
         List<BigDecimal> freeBets = outcome.free().stream().map(RoundWin.FreeBall::stake).toList();
         List<BigDecimal> freeWins = outcome.free().stream().map(f -> RoundWin.ball(f.stake(), f.multiplier())).toList();
+        List<Integer> gates = outcome.paths() == null ? null : outcome.paths().stream()
+                .map(path -> outcome.gateBoost() == null ? 0 : com.plinko.bo.odds.MegaBoard.gatesPassed(round.rows(), path)).toList();
         return new PlayResponse(round.id(), outcome.slots(), outcome.multipliers().stream().map(BigDecimal::stripTrailingZeros).toList(),
                 round.totalBet(), round.totalWin(), balance, boosts, outcome.hotSlot(),
                 outcome.hotBoost() == null ? null : outcome.hotBoost().stripTrailingZeros(), freeSlots, freeMultipliers, freeBoosts, freeBets,
-                meter, wins, freeWins);
+                meter, wins, freeWins, outcome.paths(), gates,
+                outcome.spins().stream().map(x -> new SpinView(x.ball(), x.segment(), x.multiplier().stripTrailingZeros(),
+                        RoundWin.ball(round.bet(), x.multiplier()))).toList(),
+                outcome.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier().stripTrailingZeros(),
+                        RoundWin.ball(x.stake(), x.multiplier()))).toList());
     }
 
     /** (c) the credit's answer, the round's status, the player's balance and the round lock released: one transaction. */

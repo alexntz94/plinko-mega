@@ -116,7 +116,7 @@ function readWheel(json: unknown, board: BoardStyle, accent: string, text: strin
 }
 
 export async function loadTheme(id: string): Promise<Theme> {
-  const safe = /^[a-z0-9-]{1,32}$/.test(id) ? id : 'drop-riot';
+  const safe = /^[a-z0-9-]{1,32}$/.test(id) ? id : 'loteria-muerta';
   const path = `/themes/${safe}/`;
   let json: Record<string, unknown> = {};
   try {

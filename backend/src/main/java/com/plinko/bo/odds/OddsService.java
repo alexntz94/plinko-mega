@@ -39,7 +39,7 @@ public class OddsService implements ApplicationRunner {
     private final java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
 
     private static final BigDecimal PROBABILITY_TOLERANCE = new BigDecimal("0.0001");
-    public static final BigDecimal DEFAULT_RTP = new BigDecimal("96");
+    public static final BigDecimal DEFAULT_RTP = new BigDecimal("98");
 
     private static final Logger log = LoggerFactory.getLogger(OddsService.class);
 

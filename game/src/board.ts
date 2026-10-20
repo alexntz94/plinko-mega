@@ -716,6 +716,11 @@ export class Board extends Container {
     if (this.fx === 'cctv' && multiplier >= 2) this.report(x, y, multiplier);
     if (this.fx === 'noir' && multiplier >= 2) this.gunshots(x, y, multiplier);
     if (this.fx === 'clown' && multiplier >= 2) this.jackInTheBox(x, y, multiplier);
+    if (this.fx === 'loteria') {
+      // marigold petals out of every landing; a card is called on a good one
+      this.particles.burst(x, y, ['#f59a1b', '#e3197c', '#f7f1e3'], multiplier < 1 ? 4 : multiplier < 2 ? 8 : 14, multiplier < 2 ? 140 : 220);
+      if (multiplier >= 2) this.callCard(x, y, multiplier);
+    }
     if (this.fx === 'riot') {
       // spray paint is bright: dark slots spray the theme's red instead
       const n = parseInt(face.slice(1), 16);
@@ -739,6 +744,44 @@ export class Board extends Container {
       gsap.delayedCall(0.12, () => this.particles.ring(x, this.slotY(), '#ffffff', 90));
       shake(this, 7);
     }
+  }
+
+  /**
+   * Lotería Muerta: a good landing calls a card, as the caller does in Lotería. A little paper card flips up out of
+   * the slot with its number and name (a big prize calls La Muerte or La Calavera), wobbles and drifts away.
+   */
+  private callCard(x: number, y: number, multiplier: number): void {
+    const SMALL: [number, string][] = [[2, 'EL DIABLITO'], [4, 'EL CATRÍN'], [9, 'EL ARBOLITO'], [12, 'EL BORRACHO'], [24, 'LA ROSA'],
+      [27, 'EL CORAZÓN'], [35, 'LA ESTRELLA'], [43, 'LA LUNA'], [50, 'EL VALIENTE'], [2, 'LA CATRINA']];
+    const BIG: [number, string][] = [[13, 'LA MUERTE'], [1, 'LA CALAVERA'], [54, '¡LOTERÍA!']];
+    const pool = multiplier >= 10 ? BIG : SMALL;
+    const [number, name] = pool[Math.floor(Math.random() * pool.length)];
+    const w = multiplier >= 10 ? 74 : 58;
+    const h = w * 1.4;
+    const cardView = new Container();
+    const paper = new Graphics().roundRect(-w / 2 + 2, -h / 2 + 4, w, h, 4).fill({ color: '#000000', alpha: 0.4 })
+      .roundRect(-w / 2, -h / 2, w, h, 4).fill('#efe0bf').stroke({ color: '#1f1512', width: 2.5 })
+      .rect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8).stroke({ color: '#1f1512', width: 1 });
+    const num = label(String(number), w * 0.24, 'left', { fill: '#1f1512' });
+    num.position.set(-w / 2 + 7, -h / 2 + 5);
+    const title = label(name, w * 0.16, 'center', { fill: multiplier >= 10 ? '#c41a1f' : '#1f1512' });
+    title.anchor.set(0.5, 0.5);
+    title.position.set(0, h / 2 - w * 0.17);
+    if (title.width > w - 8) title.scale.set((w - 8) / title.width);
+    const times = label('×' + multiplierText(multiplier), w * 0.32, 'center', { fill: multiplier >= 10 ? '#c41a1f' : '#e3197c',
+      stroke: { color: '#1f1512', width: 3, join: 'round' } });
+    times.anchor.set(0.5, 0.5);
+    times.y = -w * 0.08;
+    cardView.addChild(paper, num, title, times);
+    cardView.position.set(x, y);
+    this.textLayer.addChild(cardView);
+    const tilt = (Math.random() - 0.5) * 0.5;
+    gsap.timeline({ onComplete: () => cardView.destroy({ children: true }) })
+      .fromTo(cardView.scale, { x: 0, y: 0.4 }, { x: 1, y: 1, duration: 0.35, ease: 'back.out(2.2)' })
+      .to(cardView, { y: y - h * 0.9, rotation: tilt, duration: 0.35, ease: 'power2.out' }, 0)
+      .to(cardView, { rotation: -tilt, duration: 0.18, yoyo: true, repeat: 2, ease: 'sine.inOut' })
+      .to(cardView, { y: y - h * 1.5, alpha: 0, duration: 0.6, ease: 'power1.in' }, '+=0.25');
+    if (multiplier >= 10) shake(this, 6);
   }
 
   /** The round's hot slot (decided by the server) lights up before the balls drop: a pulsing glow and its boost. */

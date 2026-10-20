@@ -52,7 +52,7 @@ export class Wheel extends Container {
     const cy = view.stageH / 2 + this.radius * 0.08;
     this.disc.position.set(view.stageW / 2, cy);
     this.pointer.position.set(view.stageW / 2, cy - this.radius * 1.04);
-    this.title.position.set(view.stageW / 2, cy - this.radius * 1.32);
+    this.title.position.set(view.stageW / 2, Math.max(view.offsetY + 34, cy - this.radius * 1.62));
     this.result.position.set(view.stageW / 2, cy + this.radius * 1.24);
   }
 
@@ -157,7 +157,7 @@ export class Wheel extends Container {
     // the pointer: the theme's drawing, or a plain marker pointing down at the top segment
     if (this.finger) {
       const finger = new Sprite({ texture: this.finger, anchor: { x: 0.5, y: 0.9 } });
-      finger.scale.set(r * 0.42 / Math.max(finger.texture.height, 1));
+      finger.scale.set(r * 0.34 / Math.max(finger.texture.height, 1));
       this.pointer.addChild(finger);
     } else {
       this.pointer.addChild(new Graphics().poly([-r * 0.08, -r * 0.14, r * 0.08, -r * 0.14, 0, r * 0.06]).fill(this.style.title)

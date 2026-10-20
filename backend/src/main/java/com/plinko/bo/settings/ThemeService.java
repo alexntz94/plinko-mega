@@ -19,6 +19,7 @@ public class ThemeService {
     public static final Map<String, String> KNOWN = new LinkedHashMap<>();
 
     static {
+        KNOWN.put("loteria-muerta", "Lotería Muerta");
         KNOWN.put("drop-riot", "Drop Riot");
         KNOWN.put("bad-bounce", "Bad Bounce");
         KNOWN.put("gravity-issues", "Gravity Issues");
@@ -64,9 +65,9 @@ public class ThemeService {
             enabled = KNOWN.keySet().stream().filter(id -> on.contains(id) || !seen.contains(id)).toList();
         }
         if (enabled.isEmpty()) {
-            enabled = List.of("drop-riot");
+            enabled = List.of("loteria-muerta");
         }
-        String defaultTheme = values.getOrDefault("game.theme.default", "drop-riot");
+        String defaultTheme = values.getOrDefault("game.theme.default", "loteria-muerta");
         if (!enabled.contains(defaultTheme)) {
             defaultTheme = enabled.get(0);
         }

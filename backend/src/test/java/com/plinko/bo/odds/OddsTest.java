@@ -74,7 +74,7 @@ class OddsTest {
             for (int risk = 0; risk < PlinkoBoard.RISK_LEVELS; risk++) {
                 OddsTable table = odds.defaultTable(rows, risk);
                 assertThat(odds.validate(table)).as("%d rows risk %d", rows, risk).isEmpty();
-                assertThat(table.rtp().doubleValue()).isCloseTo(96.0, org.assertj.core.data.Offset.offset(0.0001));
+                assertThat(table.rtp().doubleValue()).isCloseTo(OddsService.DEFAULT_RTP.doubleValue(), org.assertj.core.data.Offset.offset(0.0001));
             }
         }
     }

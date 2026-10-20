@@ -1,0 +1,116 @@
+{
+  "name": "Lotería Muerta",
+  "title": "Lotería Muerta · Plinko Mega",
+  "background": "#2a1747",
+  "accent": "#f59a1b",
+  "text": "#f7f1e3",
+  "playText": "#f7f1e3",
+  "retina": true,
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "win",
+    "lose",
+    "bigWin",
+    "result"
+  ],
+  "font": {
+    "family": "Barlow Condensed",
+    "file": "barlow-condensed.woff2",
+    "weight": "600"
+  },
+  "board": {
+    "fx": "loteria",
+    "peg": "item_peg.png",
+    "pegFlash": "#f59a1b",
+    "trail": "#f59a1b",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#efe0bf",
+        "text": "#1f1512"
+      },
+      {
+        "face": "#139e9c",
+        "text": "#f7f1e3"
+      },
+      {
+        "face": "#f59a1b",
+        "text": "#1f1512"
+      },
+      {
+        "face": "#e3197c",
+        "text": "#f7f1e3"
+      },
+      {
+        "face": "#c41a1f",
+        "text": "#f7f1e3"
+      }
+    ]
+  },
+  "wheel": {
+    "faces": [
+      "#efe0bf",
+      "#139e9c",
+      "#f59a1b",
+      "#e3197c",
+      "#efe0bf",
+      "#2a1747"
+    ],
+    "text": [
+      "#1f1512",
+      "#f7f1e3",
+      "#1f1512",
+      "#f7f1e3",
+      "#1f1512",
+      "#e9b53c"
+    ],
+    "rim": "#2a1747",
+    "ink": "#1f1512",
+    "title": "#e9b53c",
+    "gold": {
+      "faces": [
+        "#e9b53c",
+        "#efe0bf",
+        "#c41a1f",
+        "#f59a1b"
+      ],
+      "text": [
+        "#1f1512",
+        "#1f1512",
+        "#f7f1e3",
+        "#1f1512"
+      ],
+      "rim": "#8a5d12"
+    },
+    "hub": "item_wheel_hub.png",
+    "pointer": "item_wheel_pointer.png",
+    "gate": "item_gate.png"
+  },
+  "ui": {
+    "style": "ink",
+    "drop": "button_drop.png",
+    "controls": "button_controls.png",
+    "ink": "#1f1512",
+    "panel": "#3a2160"
+  },
+  "layout": {
+    "labelY": -9,
+    "valueY": 43,
+    "controlY": 32,
+    "dragBarY": 32,
+    "riskLeftX": 34,
+    "riskRightX": 220,
+    "halfX": 166,
+    "doubleX": 218
+  }
+}

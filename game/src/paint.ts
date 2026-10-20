@@ -1,5 +1,6 @@
 // Drawing helpers shared by the parts the game draws in code (the control bar, the wheel, the meter).
-import { FillGradient, type ColorSource, type Graphics } from 'pixi.js';
+import { FillGradient, type ColorSource, type Graphics, type Text } from 'pixi.js';
+import { label } from './ui';
 
 /** A mix of two #rrggbb colours (t = 0: a, t = 1: b), as a number for Pixi. */
 export function mix(a: string, b: string, t: number): number {
@@ -28,4 +29,12 @@ export function inkPanel(g: Graphics, x: number, y: number, w: number, h: number
   return g.roundRect(x + 4, y + 4, w, h, r).fill(ink)
     .roundRect(x, y, w, h, r).fill(panel).stroke({ width: 3.5, color: ink })
     .roundRect(x + 8, y + 5, w - 16, 3, 1.5).fill({ color: '#ffffff', alpha: 0.18 });
+}
+
+/** A big gold amount with dark edges, for wins. */
+export function goldText(value: string, size: number): Text {
+  return label(value, size, 'center', {
+    fill: shade('#fff6c2', '#e3a21a'), stroke: { color: '#3a2200', width: Math.max(4, size * 0.12), join: 'round' },
+    dropShadow: { color: '#000000', alpha: 0.7, blur: 6, distance: 4, angle: Math.PI / 2 },
+  });
 }

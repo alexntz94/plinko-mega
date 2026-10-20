@@ -7,6 +7,7 @@ import { Board, type Landing, type PegHit } from './board';
 import { BigWin, winLevel } from './effects';
 import { FortuneWheel } from './fortuneWheel';
 import { MegaControls } from './megaControls';
+import { WinTicker } from './ticker';
 import { Meter } from './meter';
 import { betLadder, nextBet, RISKS, round2 } from './rules';
 import { ExitDialog, Menu, Options, ResultScreen, type MotionSwitch } from './screens';
@@ -51,6 +52,7 @@ export class Game extends Container {
   /** The fortune wheel under the board, and the control bar. */
   private readonly wheel: FortuneWheel;
   private readonly bar: MegaControls;
+  private readonly ticker: WinTicker;
   private ballsLeft = 0;          // balls dropped and not landed yet (PLAY shows them)
   private readonly meter: Meter;
 
@@ -119,7 +121,8 @@ export class Game extends Container {
       balls: step => this.changeBalls(Math.min(config.maxBalls, Math.max(1, this.balls + step))),
       rows: step => this.changeRows(this.rowOptions.indexOf(this.rows) + step),
     });
-    this.table.addChild(this.board, this.wheel, this.meter, this.bar);
+    this.ticker = new WinTicker(theme.wheel.title);
+    this.table.addChild(this.board, this.ticker, this.wheel, this.meter, this.bar);
 
     this.result = new ResultScreen(tex('item_result.png'), tex('item_result_p.png'), tex('button_continue.png'), () => this.go('menu'));
     this.options = new Options({ settings: tex('button_settings.png'), soundOn: tex('button_sound_on.png'),
@@ -156,6 +159,7 @@ export class Game extends Container {
     if (view.landscape) this.wheel.place(view.stageW * 0.82 - view.offsetX * 0.5, view.stageH * 0.62, Math.min(140, visibleH * 0.23));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.735, Math.min(150, visibleH * 0.16));
     this.bar.layout(view, view.landscape ? view.stageW * 0.45 : view.stageW / 2);
+    this.ticker.layout(view);
     this.meter.layout(view);
     this.options.layout(view);
   }
@@ -182,6 +186,7 @@ export class Game extends Container {
   private async start(): Promise<void> {
     this.go('game');
     this.board.clearAmounts();
+    this.ticker.clear();
     this.risk = 0;
     this.rows = this.rowOptions[0] ?? 8;
     this.bet = this.ladder.includes(this.session.config.defaultBet) ? this.session.config.defaultBet : this.ladder[0];
@@ -438,6 +443,7 @@ export class Game extends Container {
           const win = round.wins?.[i] ?? cents(bet * multiplier);
           land(win);
           this.board.showAmount(landing.slot, this.money(win), multiplier > 1);
+          this.ticker.add(this.money(win), multiplier);
           if (charging.includes(landing.prizeIndex)) this.meter.charge();
           landSound(multiplier, boost, landing);
           this.ballsLeft = Math.max(0, this.ballsLeft - 1);

@@ -34,6 +34,10 @@ vi.mock('../src/fortuneWheel', async () => {
   const { Stub } = await import('./stubs');
   return { FortuneWheel: class FortuneWheel extends Stub { turn() { this.calls.push(['turn']); return Promise.resolve(); } } };
 });
+vi.mock('../src/ticker', async () => {
+  const { Stub } = await import('./stubs');
+  return { WinTicker: class WinTicker extends Stub {} };
+});
 vi.mock('../src/megaControls', async () => {
   const { Stub } = await import('./stubs');
   return { MegaControls: class MegaControls extends Stub {} };

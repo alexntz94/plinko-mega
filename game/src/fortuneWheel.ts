@@ -6,7 +6,7 @@ import { BlurFilter, Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
 import { gsap } from 'gsap';
 import { label, textQuality, typeface, fit } from './ui';
 import { Particles, calm, shake } from './effects';
-import { shade } from './paint';
+import { goldText, shade } from './paint';
 import type { Segment } from './api';
 import type { WheelStyle } from './theme';
 
@@ -16,14 +16,6 @@ const RAINBOW = ['#ff3b3b', '#ff9a1b', '#ffe14a', '#4ade5a', '#2ec4ff', '#8a5bff
 /** "×25", or the jackpot's name. */
 export function segmentText(segment: Segment): string {
   return segment.name ? segment.name : '×' + String(Number(segment.multiplier.toFixed(2)));
-}
-
-/** A big gold amount with dark edges, for wins. */
-export function goldText(value: string, size: number): Text {
-  return label(value, size, 'center', {
-    fill: shade('#fff6c2', '#e3a21a'), stroke: { color: '#3a2200', width: Math.max(4, size * 0.12), join: 'round' },
-    dropShadow: { color: '#000000', alpha: 0.7, blur: 6, distance: 4, angle: Math.PI / 2 },
-  });
 }
 
 export class FortuneWheel extends Container {

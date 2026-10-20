@@ -668,7 +668,7 @@ export class Board extends Container {
     const [number, name] = pool[Math.floor(Math.random() * pool.length)];
     const w = multiplier >= 10 ? 74 : 58;
     const h = w * 1.4;
-    const cardView = new Container();
+    const cardView = new Container({ label: 'called-card' });
     const paper = new Graphics().roundRect(-w / 2 + 2, -h / 2 + 4, w, h, 4).fill({ color: '#000000', alpha: 0.4 })
       .roundRect(-w / 2, -h / 2, w, h, 4).fill('#efe0bf').stroke({ color: '#1f1512', width: 2.5 })
       .rect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8).stroke({ color: '#1f1512', width: 1 });

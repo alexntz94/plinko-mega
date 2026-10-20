@@ -1,7 +1,7 @@
 import { Container, Graphics, GraphicsContext, Rectangle, type Text } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
-import { label, typeface } from './ui';
+import { goldText } from './paint';
 
 // Visual effects only: sparks, bursts, shakes and the big-win banner. They never decide or change a result; they
 // dress up what the server already decided. Players who ask their device for less motion get calmer versions.
@@ -120,6 +120,7 @@ export function winLevel(totalWin: number, totalBet: number): WinLevel | null {
 /** The big-win celebration over the table: banner, the amount counting up, confetti. Tap to skip. */
 export class BigWin extends Container {
   private readonly dim = new Graphics();
+  private readonly rays = new Graphics();
   private readonly banner: Text;
   private readonly amount: Text;
   private readonly confetti = new Particles();
@@ -129,11 +130,16 @@ export class BigWin extends Container {
 
   constructor(private readonly colours: string[]) {
     super();
-    const outline = { stroke: { color: '#000000', width: 10, join: 'round' as const } };
-    this.banner = label('', 96, 'center', { fill: colours[0], ...outline,
-      dropShadow: { color: '#000000', alpha: 0.8, blur: 0, distance: 6, angle: Math.PI / 2 } });
-    this.amount = label('', 64, 'center', { fill: typeface.colour, ...outline });
-    this.addChild(this.dim, this.confetti, this.banner, this.amount);
+    // the win in gold over turning rays of light, like the wheel's win
+    this.banner = goldText('', 92);
+    this.amount = goldText('', 70);
+    for (let i = 0; i < 24; i++) {
+      const a = i * Math.PI * 2 / 24;
+      this.rays.moveTo(0, 0).lineTo(Math.cos(a - 0.06) * 700, Math.sin(a - 0.06) * 700)
+        .lineTo(Math.cos(a + 0.06) * 700, Math.sin(a + 0.06) * 700).lineTo(0, 0).fill({ color: '#ffd76a', alpha: 0.22 });
+    }
+    this.rays.blendMode = 'add';
+    this.addChild(this.dim, this.rays, this.confetti, this.banner, this.amount);
     this.eventMode = 'static';
     this.on('pointertap', () => this.close());
     this.visible = false;
@@ -144,7 +150,8 @@ export class BigWin extends Container {
     this.dim.clear().rect(0, 0, view.stageW, view.stageH).fill({ color: '#000000', alpha: 0.55 });
     this.hitArea = new Rectangle(0, 0, view.stageW, view.stageH);
     this.banner.position.set(view.stageW / 2, view.stageH * 0.45);
-    this.amount.position.set(view.stageW / 2, view.stageH * 0.45 + 90);
+    this.amount.position.set(view.stageW / 2, view.stageH * 0.45 + 96);
+    this.rays.position.set(view.stageW / 2, view.stageH * 0.45 + 20);
   }
 
   /** Plays the celebration; resolves when it ends by itself (about 3.5 s) or the player taps. */
@@ -159,6 +166,8 @@ export class BigWin extends Container {
     } else {
       gsap.fromTo(this.banner.scale, { x: 0.2, y: 0.2 }, { x: 1, y: 1, duration: 0.7, ease: 'elastic.out(1, 0.5)' });
       gsap.to(this.banner, { rotation: 0.03, duration: 0.6, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+      gsap.fromTo(this.rays, { rotation: 0, alpha: 0 }, { rotation: 1.2, alpha: 1, duration: 3.5, ease: 'none' });
+      gsap.fromTo(this.rays.scale, { x: 0.2, y: 0.2 }, { x: 1, y: 1, duration: 0.6, ease: 'power2.out' });
     }
     const counter = { value: 0 };
     gsap.to(counter, { value: total, duration: 1.6, ease: 'power2.out', onUpdate: () => { this.amount.text = format(counter.value); } });

@@ -4,7 +4,20 @@ export interface RowConfig { rows: number; prizes: number[][] }          // priz
 export interface GameConfig { minBet: number; maxBet: number; defaultBet: number; maxBalls: number; rows: RowConfig[];
   holdToDrop?: boolean;
   /** the market's responsible gambling options (review 7.4), set in the admin's Settings */
-  sessionClock?: boolean; realityCheckMinutes?: number; quietSmallWins?: boolean; minRoundSeconds?: number }
+  sessionClock?: boolean; realityCheckMinutes?: number; quietSmallWins?: boolean; minRoundSeconds?: number;
+  mega?: MegaConfig }
+/** A wheel segment: what it pays (times the bet, or the pot on the gold wheel), and MINI / MAJOR / MEGA on a jackpot. */
+export interface Segment { name?: string | null; multiplier: number }
+/**
+ * Plinko Mega's board: per rows count ("8".."14") the gates as [step, rights] (after `step` bounces the ball has gone
+ * right `rights` times) and the two SPIN slots; what a gate multiplies by (null: gates off); the wheels (null: off).
+ */
+export interface MegaConfig { gates: Record<string, number[][]>; spinSlots: Record<string, number[]>; gateBoost?: number | null;
+  wheel?: Segment[] | null; megaWheel?: Segment[] | null }
+/** A wheel spin: the paid ball whose SPIN slot started it, the segment it stopped on, what that pays and the win. */
+export interface Spin { ball: number; segment: number; multiplier: number; win: number }
+/** A MEGA SPIN of the gold wheel, paid by a full meter: its stake (the pot), the segment, what that pays and the win. */
+export interface MegaSpin { stake: number; segment: number; multiplier: number; win: number }
 export interface Session {
   sessionId: string;
   player: { username: string | null };
@@ -28,7 +41,10 @@ export interface Round { roundId: string; slots: number[]; multipliers: number[]
   freeSlots?: number[]; freeMultipliers?: number[]; freeBoosts?: number[]; freeBets?: number[];
   meter?: MeterInfo;
   /** what each ball and free ball paid, exactly as the server added them up */
-  wins?: number[]; freeWins?: number[] }
+  wins?: number[]; freeWins?: number[];
+  /** Plinko Mega: every paid ball's path (bit i set: bounce i+1 goes right), the gates each went through, the wheel
+   *  spins from SPIN slots and the MEGA SPINs a full meter paid */
+  paths?: number[]; gates?: number[]; spins?: Spin[]; megaSpins?: MegaSpin[] }
 export interface ApiError { status: number; code: string; message?: string; balance?: number }
 
 const BASE = '/api/game';

@@ -24,7 +24,15 @@ export interface BoardStyle {
  * `controls`: the theme's own drawings of the drop button and of the controls switch.
  */
 export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; drop: string | null; controls: string | null; ink: string; panel: string }
-export type ThemeFx = 'standard' | 'riot' | 'bounce' | 'gravity' | 'comic' | 'cartoon' | 'viral' | 'nana' | 'scam' | 'shurda' | 'inked' | 'glitch' | 'holy' | 'toxic' | 'cctv' | 'noir' | 'clown';
+export type ThemeFx = 'standard' | 'riot' | 'bounce' | 'gravity' | 'comic' | 'cartoon' | 'viral' | 'nana' | 'scam' | 'shurda' | 'inked' | 'glitch' | 'holy' | 'toxic' | 'cctv' | 'noir' | 'clown' | 'loteria';
+/**
+ * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
+ * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
+ * drawings (the wheel's centre, its pointer, a gate's arch).
+ */
+export interface WheelLook { faces: string[]; text: string[]; rim: string }
+export interface WheelStyle extends WheelLook { ink: string; title: string; gold: WheelLook; hub: string | null; pointer: string | null;
+  gate: string | null }
 export interface Theme {
   id: string;
   name: string;
@@ -48,6 +56,7 @@ export interface Theme {
   logoNeon: number;
   /** The sound effects the theme ships itself (sfx_<name>.ogg / .mp3); the rest come from the shared set. */
   sounds: SoundName[];
+  wheel: WheelStyle;
   path: string;
 }
 
@@ -79,7 +88,7 @@ function readBoard(json: unknown): BoardStyle {
     slots,
     slotRadius: Math.min(20, Math.max(0, number(b.slotRadius, DEFAULT_BOARD.slotRadius))),
     slotArt: b.slotArt === true,
-    fx: (['riot', 'bounce', 'gravity', 'comic', 'cartoon', 'viral', 'nana', 'scam', 'shurda', 'inked', 'glitch', 'holy', 'toxic', 'cctv', 'noir', 'clown'] as const).find(f => f === b.fx) ?? 'standard',
+    fx: (['riot', 'bounce', 'gravity', 'comic', 'cartoon', 'viral', 'nana', 'scam', 'shurda', 'inked', 'glitch', 'holy', 'toxic', 'cctv', 'noir', 'clown', 'loteria'] as const).find(f => f === b.fx) ?? 'standard',
   };
 }
 
@@ -88,6 +97,22 @@ function readUi(json: unknown): ThemeUi {
   const style = u.style === 'glass' || u.style === 'ink' ? u.style : 'flat';
   return { style, drop: fileName(u.drop, /\.png$/), controls: fileName(u.controls, /\.png$/), ink: colour(u.ink, '#111111'),
     panel: colour(u.panel, '#222222') };
+}
+
+const colours = (value: unknown, fallback: string[]) =>
+  Array.isArray(value) && value.length > 0 && value.length <= 16 ? value.map(v => colour(v, fallback[0])) : fallback;
+
+/** The wheels' look; a theme without one gets its slot colours and accent. */
+function readWheel(json: unknown, board: BoardStyle, accent: string, text: string): WheelStyle {
+  const w = (json ?? {}) as Record<string, unknown>;
+  const g = (w.gold ?? {}) as Record<string, unknown>;
+  const faces = colours(w.faces, board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF7C11', '#EF521E', '#EF282C']);
+  const texts = colours(w.text, board.slots?.map(s => s.text) ?? [text]);
+  return {
+    faces, text: texts, rim: colour(w.rim, '#222222'), ink: colour(w.ink, '#000000'), title: colour(w.title, accent),
+    gold: { faces: colours(g.faces, ['#f3c64a', '#fff0b8', '#d99a1e']), text: colours(g.text, ['#2a1a00']), rim: colour(g.rim, '#8a5d12') },
+    hub: fileName(w.hub, /\.png$/), pointer: fileName(w.pointer, /\.png$/), gate: fileName(w.gate, /\.png$/),
+  };
 }
 
 export async function loadTheme(id: string): Promise<Theme> {
@@ -119,6 +144,7 @@ export async function loadTheme(id: string): Promise<Theme> {
     music: fileName(json.music, /\.mp3$/),
     logoNeon: Math.min(3, Math.max(0, Math.floor(number(json.logoNeon, 0)))),
     sounds: Array.isArray(json.sounds) ? SOUND_NAMES.filter(name => (json.sounds as unknown[]).includes(name)) : [],
+    wheel: readWheel(json.wheel, readBoard(json.board), colour(json.accent, '#ffffff'), colour(json.text, '#ffffff')),
     path,
   };
   document.title = theme.title;

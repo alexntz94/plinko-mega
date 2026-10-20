@@ -56,6 +56,26 @@ export function setSlotArt(textures: Texture[]): void {
 const random = (min: number, max: number) => min + Math.random() * (max - min);
 
 
+/** Plinko Mega: the colours of the gates and SPIN marks (the theme's accent and its ink), set before the board is built. */
+let megaLook = { accent: '#FFBF00', ink: '#000000', art: null as Texture | null };
+export function setMegaLook(accent: string, ink: string, gateArt: Texture | null): void {
+  megaLook = { accent, ink, art: gateArt };
+}
+
+/** A tiny wheel over a SPIN slot: a ring with spokes and SPIN under it. */
+function spinBadge(): Container {
+  const badge = new Container();
+  const ring = new Graphics().circle(0, 0, 9).fill(megaLook.ink).stroke({ color: megaLook.accent, width: 2.5 });
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 4;
+    ring.moveTo(Math.cos(a) * -8, Math.sin(a) * -8).lineTo(Math.cos(a) * 8, Math.sin(a) * 8).stroke({ color: megaLook.accent, width: 1.5 });
+  }
+  ring.circle(0, 0, 2.5).fill(megaLook.accent);
+  badge.addChild(ring);
+  gsap.to(ring, { rotation: Math.PI * 2, duration: 4, repeat: -1, ease: 'none' });
+  return badge;
+}
+
 /** Multiplier label without the "x": the slots are read as multipliers, and short labels can be larger. */
 function multiplierText(value: number): string {
   return String(Number(value.toFixed(2)));
@@ -66,6 +86,8 @@ export class Slot extends Container {
   private readonly flash: Container;
   /** Marks a slot that charges the bonus meter. */
   readonly meterMark: Graphics;
+  /** Plinko Mega: marks a SPIN slot (a ball landing in it also spins the wheel). */
+  readonly spinMark: Container;
   baseY = 0;
 
   constructor(readonly prizeIndex: number, tier: number) {
@@ -92,7 +114,10 @@ export class Slot extends Container {
     this.meterMark = new Graphics().poly([0, -5, 4, 0, 0, 5, -4, 0]).fill('#ffffff').stroke({ color: '#000000', width: 1.5 });
     this.meterMark.position.set(0, -SLOT_H / 2 - 7);
     this.meterMark.visible = false;
-    this.addChild(...body, this.flash, this.text, this.meterMark);
+    this.spinMark = spinBadge();
+    this.spinMark.position.set(0, -SLOT_H / 2 - 13);
+    this.spinMark.visible = false;
+    this.addChild(...body, this.flash, this.text, this.meterMark, this.spinMark);
   }
 
   setValue(value: number): void {
@@ -103,7 +128,7 @@ export class Slot extends Container {
   }
 
   override destroy(options?: Parameters<Container['destroy']>[0]): void {
-    gsap.killTweensOf([this, this.scale, this.flash]);
+    gsap.killTweensOf([this, this.scale, this.flash, this.spinMark.children[0]]);
     super.destroy(options);
   }
 
@@ -153,6 +178,11 @@ export function wanderingSteps(rows: number, slot: number): number[] {
   return candidates[candidates.length - 1].steps;
 }
 
+/** The steps of a path decided by the server (bit i set: bounce i + 1 goes right). */
+export function pathSteps(rows: number, path: number): number[] {
+  return Array.from({ length: rows }, (_, i) => ((path >> i) & 1 ? 1 : -1));
+}
+
 export interface Landing { slot: number; prizeIndex: number; x: number; y: number; pan: number }
 /** A ball touching a peg, for the sound: which row (of how many), and where across the board (-1 left .. 1 right). */
 export interface PegHit { row: number; rows: number; pan: number }
@@ -162,7 +192,7 @@ export interface PegHit { row: number; rows: number; pan: number }
  * which a spring pulls back to nothing. Only the drawing uses the knock: the route, and so the slot, never changes.
  */
 interface Flight { sprite: Sprite; x: number; y: number; ox: number; oy: number; vx: number; vy: number; free: boolean; cooldown: number;
-  tracker?: Container }
+  tracker?: Container; timeline?: gsap.core.Timeline }
 
 export class Board extends Container {
   readonly field = new Container();     // pegs, slots and balls, in board coordinates (x = 0 is the centre)
@@ -191,6 +221,12 @@ export class Board extends Container {
   rows = 8;
   private prizes: number[][] = [];
   private risk = 0;
+  /** Plinko Mega: gates per rows count ([step, rights]), what each multiplies by, and the SPIN slots per rows count. */
+  private megaGates: Record<string, number[][]> = {};
+  private gateBoost = 0;
+  private spinSlots: Record<string, number[]> = {};
+  private readonly gateLayer = new Container();
+  private gates: { step: number; rights: number; view: Container }[] = [];
 
   constructor(frame: Texture, framePortrait: Texture, private readonly ballTexture: Texture, style: BoardStyle,
               pegTexture: Texture | null) {
@@ -223,7 +259,9 @@ export class Board extends Container {
     }
     this.status.y = -10;
     gsap.fromTo(this.status, { alpha: 1 }, { alpha: 0.3, duration: 0.3, repeat: -1, yoyo: true, ease: 'none' });
-    this.field.addChild(this.status, this.holeLayer, this.slotLayer, this.trailLayer, this.ballLayer, this.particles, this.textLayer);
+    this.drawBumpButton();
+    this.field.addChild(this.status, this.gateLayer, this.holeLayer, this.slotLayer, this.trailLayer, this.ballLayer, this.particles, this.textLayer,
+      this.bumpButton);
     this.addChild(this.frame, this.framePortrait, this.field);
   }
 
@@ -245,6 +283,115 @@ export class Board extends Container {
       this.slots.push(slot);
     }
     this.setRisk(this.risk);
+    this.drawMega();
+    this.bumpButton.position.set(this.slotX(rows) + PEG_SPACING * 0.2, PEG_SPACING * 1.2);
+  }
+
+  /** Plinko Mega's gates and SPIN slots (from the server's config; no gates when gateBoost is null). */
+  setMega(gates: Record<string, number[][]>, gateBoost: number | null, spinSlots: Record<string, number[]>): void {
+    this.megaGates = gates;
+    this.gateBoost = gateBoost ?? 0;
+    this.spinSlots = spinSlots;
+    this.drawMega();
+  }
+
+  /** The SPIN slots of the current board ([] when the wheel is off or on a replay without one). */
+  currentSpinSlots(): number[] {
+    return this.spinSlots[String(this.rows)] ?? [];
+  }
+
+  private drawMega(): void {
+    this.gateLayer.removeChildren().forEach(child => child.destroy({ children: true }));
+    this.gates = [];
+    const spin = this.currentSpinSlots();
+    this.slots.forEach((slot, i) => { slot.spinMark.visible = spin.includes(i); });
+    if (this.gateBoost <= 0) return;
+    for (const [step, rights] of this.megaGates[String(this.rows)] ?? []) {
+      const view = this.gateView();
+      view.position.set(PEG_SPACING / 2 * (2 * rights - step), PEG_SPACING * (step + 1));
+      this.gateLayer.addChild(view);
+      this.gates.push({ step, rights, view });
+    }
+  }
+
+  /** A gate: an arch over the peg a ball must touch to go through it, with the boost on its keystone. */
+  private gateView(): Container {
+    const view = new Container();
+    if (megaLook.art) {
+      view.addChild(new Sprite({ texture: megaLook.art, anchor: { x: 0.5, y: 0.62 } }));
+    } else {
+      const arch = new Graphics()
+        .moveTo(-17, 12).lineTo(-17, -6).arc(0, -6, 17, Math.PI, 0).lineTo(17, 12)
+        .stroke({ color: megaLook.ink, width: 7, cap: 'round' })
+        .moveTo(-17, 12).lineTo(-17, -6).arc(0, -6, 17, Math.PI, 0).lineTo(17, 12)
+        .stroke({ color: megaLook.accent, width: 3.5, cap: 'round' });
+      view.addChild(arch);
+    }
+    const key = new Container();
+    key.addChild(new Graphics().circle(0, 0, 9).fill(megaLook.ink).stroke({ color: megaLook.accent, width: 2 }));
+    key.addChild(new Text({ text: '×' + multiplierText(this.gateBoost), anchor: 0.5, resolution: textQuality(),
+      style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: 10, fill: megaLook.accent } }));
+    key.y = -25;
+    view.addChild(key);
+    return view;
+  }
+
+  /** A ball went through a gate: the arch flashes and kicks, and the boost pops out of it. */
+  private gatePass(gate: { view: Container }, boostSoFar: number): void {
+    const v = gate.view;
+    gsap.killTweensOf(v.scale);
+    gsap.fromTo(v.scale, { x: 1.35, y: 1.35 }, { x: 1, y: 1, duration: 0.45, ease: 'elastic.out(1.2, 0.4)' });
+    this.particles.burst(v.x, v.y - 8, [megaLook.accent, '#ffffff'], 14, 260);
+    this.particles.ring(v.x, v.y - 8, megaLook.accent, 26);
+    const pop = new Text({ text: '×' + multiplierText(boostSoFar), anchor: 0.5, resolution: textQuality(),
+      style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: 24, fill: megaLook.accent,
+        stroke: { color: megaLook.ink, width: 5 } } });
+    pop.position.set(v.x, v.y - 30);
+    this.textLayer.addChild(pop);
+    gsap.timeline({ onComplete: () => pop.destroy() })
+      .from(pop.scale, { x: 0.3, y: 0.3, duration: 0.2, ease: 'back.out(3)' })
+      .to(pop, { y: pop.y - 26, alpha: 0, duration: 0.7, ease: 'power1.in' }, 0.35);
+    this.onGate?.(boostSoFar);
+  }
+
+  /** How much faster balls fall after a bump (until the board is empty again). */
+  private hurry = 1;
+  readonly bumpButton = new Container();
+
+  /**
+   * Plinko Mega's bump: the board jolts and the balls in the air hurry on. Looks only: their paths, and so where they
+   * land, were decided by the server before they fell.
+   */
+  bump(): void {
+    if (this.flights.size === 0) return;
+    this.hurry = Math.min(2.6, this.hurry * 1.5);
+    this.flights.forEach(f => f.timeline?.timeScale(this.hurry));
+    shake(this.field, 7);
+    this.flights.forEach(f => { f.vx += random(-160, 160); f.vy -= random(60, 140); });
+    gsap.fromTo(this.bumpButton.scale, { x: 0.8, y: 0.8 }, { x: 1, y: 1, duration: 0.3, ease: 'back.out(3)' });
+  }
+
+  /** The bump button sits at the board's top right while balls are falling. */
+  private drawBumpButton(): void {
+    const b = this.bumpButton;
+    b.removeChildren().forEach(child => child.destroy({ children: true }));
+    b.addChild(new Graphics().circle(0, 0, 26).fill(megaLook.ink).stroke({ color: megaLook.accent, width: 3 }));
+    b.addChild(new Text({ text: 'BUMP', anchor: 0.5, resolution: textQuality(),
+      style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: 13, fill: megaLook.accent } }));
+    b.eventMode = 'static';
+    b.cursor = 'pointer';
+    b.visible = false;
+  }
+
+  /** Called when a ball goes through a gate, with what its gates multiply it by so far (for the sound). */
+  onGate: ((boost: number) => void) | null = null;
+
+  /** A ball landed in a SPIN slot: the slot's little wheel whirls and the slot glows. */
+  spinLanding(slot: number): void {
+    const s = this.slots[slot];
+    if (!s) return;
+    gsap.fromTo(s.spinMark.scale, { x: 2, y: 2 }, { x: 1, y: 1, duration: 0.6, ease: 'back.out(2)' });
+    this.particles.burst(this.slotX(slot), this.slotY() - 20, [megaLook.accent, '#ffffff'], 22, 340);
   }
 
   /** Which prize positions charge the bonus meter on the current board (none: meter off). */
@@ -301,10 +448,20 @@ export class Board extends Container {
    * exactly `slot` go right, in random order, so every ball looks different but always lands where it must.
    */
   dropBall(slot: number, events: { onPeg?: (peg: PegHit) => void; onLand?: (landing: Landing) => void } = {}, boost = 1,
-           tint: string | null = null): Promise<void> {
+           tint: string | null = null, path: number | null = null): Promise<void> {
     const golden = boost > 1;
     const rows = this.rows;
-    const steps = wanderingSteps(rows, slot);
+    // Plinko Mega: the server decides the path (it decides the gates); a round without one gets a lively made-up route
+    const steps = path != null && Number.isInteger(path) && path >= 0 && path < 2 ** rows ? pathSteps(rows, path) : wanderingSteps(rows, slot);
+    // the gates on this route: after `step` bounces, `rights` of them right
+    const passes = new Map<number, { view: Container }>();
+    let rights = 0;
+    steps.forEach((step, i) => {
+      if (step > 0) rights++;
+      const gate = this.gates.find(g => g.step === i + 1 && g.rights === rights);
+      if (gate) passes.set(i + 1, gate);
+    });
+    let gateBoost = 1;
     const points: { x: number; y: number }[] = [{ x: 0, y: PEG_SPACING - BALL_REST }];
     let x = 0;
     for (let r = 1; r < rows; r++) {
@@ -320,6 +477,7 @@ export class Board extends Container {
     this.ballLayer.addChild(ball);
     const flight: Flight = { sprite: ball, x: 0, y: 0, ox: 0, oy: 0, vx: 0, vy: 0, free: true, cooldown: 0 };
     this.flights.add(flight);
+    this.bumpButton.visible = true;
     if (this.fx === 'cctv') this.track(flight);
 
     const radius = ball.texture.width / 2;
@@ -330,6 +488,8 @@ export class Board extends Container {
 
     return new Promise(resolve => {
       const timeline = gsap.timeline({ onComplete: resolve });
+      flight.timeline = timeline;
+      if (this.hurry > 1) timeline.timeScale(this.hurry);
       /** One arc from a to b: steady sideways speed, and up-then-down like under gravity; the ball rolls as it moves. */
       const arc = (from: { x: number; y: number }, to: { x: number; y: number }, height: number, duration: number) => {
         const hop = { t: 0 };
@@ -357,6 +517,8 @@ export class Board extends Container {
           pace * (1 - 0.28 * progress) * random(0.97, 1.03));
         const column = this.pegColumn(i, points[i].x);
         timeline.call(() => this.touchPeg(ball, i, column, events.onPeg));
+        const gate = passes.get(i);
+        if (gate) timeline.call(() => { gateBoost *= this.gateBoost; this.gatePass(gate, gateBoost); ball.scale.set(1 + 0.12 * Math.log2(gateBoost)); });
         // now and then the ball bounces up off a peg and comes down on it again before going on (Bad Bounce: often,
         // and badly)
         const bad = this.fx === 'bounce';
@@ -401,11 +563,16 @@ export class Board extends Container {
             this.landingEffect(slot, prizeIndexOfSlot(rows, slot));
             if (golden) this.goldenLanding(slot, boost);
             if (this.hot?.slot === slot) this.hotLanding(slot);
+            if (this.currentSpinSlots().includes(slot)) this.spinLanding(slot);
             events.onLand?.({ slot, prizeIndex: prizeIndexOfSlot(rows, slot), x: this.slotX(slot), y: this.slotY(), pan: this.pan(this.slotX(slot)) });
           }
         },
       });
-      timeline.call(() => { this.flights.delete(flight); ball.destroy(); });
+      timeline.call(() => {
+        this.flights.delete(flight);
+        ball.destroy();
+        if (this.flights.size === 0) { this.hurry = 1; this.bumpButton.visible = false; }
+      });
     });
   }
 

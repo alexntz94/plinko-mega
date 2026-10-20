@@ -8,7 +8,7 @@ import { atlasUrls, imageUrls, inAtlas, type Formats } from './images';
 import { computeViewport } from './viewport';
 import { initSounds, startMusic } from './sound';
 import { setTextQuality, setTypeface } from './ui';
-import { setSlotArt, setSlotLooks } from './board';
+import { setMegaLook, setSlotArt, setSlotLooks } from './board';
 import { Game } from './game';
 import { BackdropVideo } from './backdrop';
 
@@ -32,6 +32,7 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.ui.drop ? [theme.ui.drop] : []),
     ...(theme.ui.controls ? [theme.ui.controls] : []),
     ...neonLayers(theme).flat(),
+    ...[theme.wheel.hub, theme.wheel.pointer, theme.wheel.gate].filter((file): file is string => file !== null),
   ];
 }
 
@@ -186,6 +187,7 @@ async function start(): Promise<void> {
   setSlotLooks(theme.board);
   const tex = (file: string) => textures[file];
   if (theme.board.slotArt) setSlotArt(SLOT_ART.map(tex));
+  setMegaLook(theme.wheel.title, theme.wheel.ink, theme.wheel.gate ? tex(theme.wheel.gate) : null);
   initSounds(theme.path, theme.sounds);
 
   const app = new Application();

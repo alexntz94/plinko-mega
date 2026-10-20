@@ -5,6 +5,7 @@ import { HistoryPanel } from './historyPanel';
 import { ResponsiblePlay } from './responsible';
 import { Board, slotTier, type Landing, type PegHit } from './board';
 import { BigWin, winLevel } from './effects';
+import { Wheel } from './wheel';
 import { Meter } from './meter';
 import { History } from './history';
 import { ControlCenter } from './control';
@@ -63,6 +64,7 @@ export class Game extends Container {
   private readonly result: ResultScreen;
   private readonly options: Options;
   private readonly bigWin: BigWin;
+  private readonly wheel: Wheel;
   private readonly meter: Meter;
   private readonly guide: Guide;
   private readonly accent: string;
@@ -141,6 +143,12 @@ export class Game extends Container {
     () => { this.closeExit(); this.go('menu'); }, () => this.closeExit());
     this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text], theme.board.fx);
     this.board.onClack = () => sound('clack', { volume: 0.5 });
+    const mega = config.mega;
+    if (mega) this.board.setMega(mega.gates ?? {}, mega.gateBoost ?? null, mega.wheel ? mega.spinSlots ?? {} : {});
+    this.board.onGate = () => sound('golden', { volume: 0.7 });
+    this.board.bumpButton.on('pointertap', () => { sound('clack'); this.board.bump(); });
+    this.wheel = new Wheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null);
+    this.wheel.onTick = () => sound('hit', { volume: 0.35 });
 
     this.result = new ResultScreen(tex('item_result.png'), tex('item_result_p.png'), tex('button_continue.png'), () => this.go('menu'));
     this.options = new Options({ settings: tex('button_settings.png'), soundOn: tex('button_sound_on.png'),
@@ -154,7 +162,7 @@ export class Game extends Container {
     this.guide = new Guide({ accent: theme.accent, text: theme.text, background: theme.background });
     this.showControls();
 
-    this.addChild(this.menu, this.table, this.bigWin, this.result, this.exitDialog, this.options, this.guide);
+    this.addChild(this.menu, this.table, this.wheel, this.bigWin, this.result, this.exitDialog, this.options, this.guide);
     this.historyPanel = new HistoryPanel(value => this.money(value), entry => void this.replay(entry));
     this.responsible = new ResponsiblePlay(config, session.sessionId, value => this.money(value), () => { this.stopHolding(); this.go('menu'); });
     this.go('menu');
@@ -164,6 +172,7 @@ export class Game extends Container {
         event.preventDefault();
         this.play();
       }
+      if (event.code === 'KeyB' && this.page === 'game') this.board.bump();
     });
   }
 
@@ -177,6 +186,7 @@ export class Game extends Container {
     this.exitDialog.layout(view);
     this.result.layout(view);
     this.bigWin.layout(view);
+    this.wheel.layout(view);
     this.meter.layout(view);
     this.options.layout(view);
     this.guide.layout(view);
@@ -535,9 +545,28 @@ export class Game extends Container {
           if (charging.includes(landing.prizeIndex)) this.meter.charge();
           landSound(multiplier, boost, landing);
         },
-      }, boost));
+      }, boost, null, round.paths?.[i] ?? null));
     }
     await Promise.all(drops);
+
+    // Plinko Mega: every ball in a SPIN slot spins the wheel, then a full meter's MEGA SPINs turn the gold wheel
+    const config = this.session.config.mega;
+    for (const spin of round.spins ?? []) {
+      if (!config?.wheel?.[spin.segment]) { land(spin.win); continue; }
+      sound('big');
+      await this.wheel.show(config.wheel, spin.segment, { gold: false, title: 'SPIN!', amount: this.money(spin.win), hurry: this.holding });
+      land(spin.win);
+      if (spin.win > 0) sound(config.wheel[spin.segment].name ? 'bigWin' : 'score');
+    }
+    for (const mega of round.megaSpins ?? []) {
+      if (!config?.megaWheel?.[mega.segment]) { land(mega.win); continue; }
+      this.meter.set(true, 0, this.session.meter?.of ?? 0);
+      sound('huge');
+      await this.wheel.show(config.megaWheel, mega.segment, { gold: true, title: 'MEGA SPIN · ' + this.money(mega.stake),
+        amount: this.money(mega.win), hurry: this.holding });
+      land(mega.win);
+      sound(config.megaWheel[mega.segment].name ? 'bigWin' : 'win');
+    }
 
     // a full bonus meter pays free balls (decided by the server with the round), dropped after the paid ones
     const free = round.freeSlots ?? [];
@@ -643,9 +672,11 @@ export class Game extends Container {
       this.board.setStatus('REPLAY · ROUND ' + round.roundId.slice(0, 8).toUpperCase());
       await wait(1.2);
       const all = [...round.slots.map((slot, i) => ({ slot, boost: round.boosts?.[i] ?? 1, win: round.wins?.[i] ?? 0,
-        paid: (round.multipliers[i] ?? 0) > 1, multiplier: round.multipliers[i] ?? 0, accent: undefined as string | undefined })),
+        paid: (round.multipliers[i] ?? 0) > 1, multiplier: round.multipliers[i] ?? 0, accent: undefined as string | undefined,
+        path: round.paths?.[i] ?? null })),
       ...(round.freeSlots ?? []).map((slot, i) => ({ slot, boost: round.freeBoosts?.[i] ?? 1, win: round.freeWins?.[i] ?? 0,
-        paid: (round.freeWins?.[i] ?? 0) > (round.freeBets?.[i] ?? 0), multiplier: round.freeMultipliers?.[i] ?? 0, accent: this.accent }))];
+        paid: (round.freeWins?.[i] ?? 0) > (round.freeBets?.[i] ?? 0), multiplier: round.freeMultipliers?.[i] ?? 0, accent: this.accent,
+        path: null }))];
       if (round.hotSlot != null && round.hotBoost != null) this.board.setHot(round.hotSlot, round.hotBoost);
       const drops: Promise<void>[] = [];
       for (let i = 0; i < all.length; i++) {
@@ -654,9 +685,20 @@ export class Game extends Container {
         drops.push(this.board.dropBall(ball.slot, {
           onPeg: pegSound,
           onLand: landing => { this.board.showAmount(landing.slot, this.money(ball.win), ball.paid); landSound(ball.multiplier, ball.boost, landing); },
-        }, ball.boost, ball.accent));
+        }, ball.boost, ball.accent, ball.path));
       }
       await Promise.all(drops);
+      const config = this.session.config.mega;
+      for (const spin of round.spins ?? []) {
+        if (config?.wheel?.[spin.segment]) {
+          await this.wheel.show(config.wheel, spin.segment, { gold: false, title: 'SPIN!', amount: this.money(spin.win), hurry: true });
+        }
+      }
+      for (const mega of round.megaSpins ?? []) {
+        if (config?.megaWheel?.[mega.segment]) {
+          await this.wheel.show(config.megaWheel, mega.segment, { gold: true, title: 'MEGA SPIN', amount: this.money(mega.win), hurry: true });
+        }
+      }
       this.board.setStatus('REPLAY · WON ' + this.money(round.totalWin));
       await wait(2.5);
     } finally {

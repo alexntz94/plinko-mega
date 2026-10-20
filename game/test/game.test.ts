@@ -16,6 +16,7 @@ vi.mock('../src/board', async () => {
   const { slotTier } = await import('../src/rules');
   class Board extends Stub {
     rows = 8;
+    bumpButton = new Stub();
     setRows(rows: number) { this.rows = rows; this.calls.push(['setRows', rows]); }
     /** A ball lands a second after it is dropped, on the slot the server chose. */
     dropBall(slot: number, handlers: { onLand: (landing: object) => void }, boost = 1) {
@@ -36,6 +37,10 @@ vi.mock('../src/control', async () => {
 vi.mock('../src/panel', async () => {
   const { Stub } = await import('./stubs');
   return { Panel: class Panel extends Stub { rowsSlider = { set: () => undefined }; ballsSlider = { set: () => undefined }; } };
+});
+vi.mock('../src/wheel', async () => {
+  const { Stub } = await import('./stubs');
+  return { Wheel: class Wheel extends Stub { show() { this.calls.push(['show']); return Promise.resolve(); } } };
 });
 vi.mock('../src/meter', async () => {
   const { Stub } = await import('./stubs');
@@ -81,7 +86,9 @@ const resume = vi.mocked(resumeSession);
 
 const THEME = {
   accent: '#ff0', text: '#fff', background: '#000', playText: undefined, landscapeExitFromPortrait: false,
-  layout: {}, board: { fx: 'standard', peg: null, slots: [] }, ui: { style: 'flat', drop: null, controls: null, ink: '#000', panel: '#fff' },
+  layout: {}, board: { fx: 'standard', peg: null, slots: [] },
+  wheel: { faces: ['#fff'], text: ['#000'], rim: '#000', ink: '#000', title: '#fff', gold: { faces: ['#ff0'], text: ['#000'], rim: '#000' },
+    hub: null, pointer: null, gate: null }, ui: { style: 'flat', drop: null, controls: null, ink: '#000', panel: '#fff' },
 } as unknown as Theme;
 
 const METER: MeterInfo = { enabled: true, charges: 1, of: 5, positions: { '8:0': [4], '8:1': [3, 4], '10:0': [5] } };
@@ -177,6 +184,28 @@ describe('the balance shown is the server\'s (review 5.7 #5)', () => {
     expect(during).toEqual([...during].sort((a, b) => a - b));
     expect(credit()).toBe('€' + answer.balance.toFixed(2));
     expect(board().calledWith('dropBall')).toHaveLength(103);
+  });
+
+  it('Plinko Mega: wheel spins and a MEGA SPIN are added as they stop, and the round ends on the server\'s balance', async () => {
+    const mega = { gates: { '8': [[3, 0], [5, 5], [7, 2]] }, spinSlots: { '8': [0, 8] }, gateBoost: 2,
+      wheel: [{ multiplier: 2 }, { multiplier: 5 }, { name: 'MINI', multiplier: 50 }, { multiplier: 1 }],
+      megaWheel: [{ multiplier: 1 }, { multiplier: 3 }, { name: 'MEGA', multiplier: 100 }, { multiplier: 2 }] };
+    const { actions } = await table(100, { mega });
+    actions.balls(2);
+    const base = round(100, 1, [0.3, 0.6, 2.4]);
+    const spins = [{ ball: 0, segment: 2, multiplier: 50, win: 50 }];
+    const megaSpins = [{ stake: 1.5, segment: 1, multiplier: 3, win: 4.5 }];
+    const totalWin = Math.round((base.totalWin + 50 + 4.5) * 100) / 100;
+    const answer = { ...base, paths: [0, 15, 3], gates: [1, 0, 0], spins, megaSpins, totalWin,
+      balance: Math.round((100 - base.totalBet + totalWin) * 100) / 100 };
+    play.mockResolvedValueOnce(answer);
+    actions.play();
+    await vi.runAllTimersAsync();
+    // each ball falls along the server's path
+    expect(board().calledWith('dropBall')).toHaveLength(3);
+    expect(Math.max(...credits())).toBeLessThanOrEqual(answer.balance);
+    expect(credit()).toBe('€' + answer.balance.toFixed(2));
+    expect(one('Wheel').calledWith('show')).toHaveLength(2);
   });
 
   it('a capped round (balls worth more than the round pays) never shows more than the server paid', async () => {

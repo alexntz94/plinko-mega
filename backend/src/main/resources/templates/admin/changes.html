@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head><title>Approvals · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Approvals</h1>
+            <p th:if="${requireSecondApprover}">Odds, bet limits and account access change only when a different admin approves. Every decision is in the audit log.</p>
+        </div>
+        <div class="page-actions"><a class="button secondary" th:href="${links.csv()}">Export CSV</a></div>
+    </div>
+    <div class="flash error" th:unless="${requireSecondApprover}">Second approver is off (REQUIRE_SECOND_APPROVER=false). Only acceptable for local development.</div>
+
+    <h2 th:text="|Waiting (${pending.size()})|">Waiting</h2>
+    <div class="card empty-state" th:if="${pending.isEmpty()}">Nothing is waiting for approval.</div>
+    <div class="card" th:each="c : ${pending}">
+        <div class="card-head">
+            <div>
+                <h3 th:text="|#${c.id()} · ${#strings.capitalize(#strings.toLowerCase(#strings.replace(c.type(), '_', ' ')))}|">#1 · Odds</h3>
+                <p class="muted small" th:text="|Proposed by ${c.requestedBy()} on ${#temporals.format(c.requestedAt(), 'yyyy-MM-dd HH:mm')} UTC|"></p>
+            </div>
+            <span class="status PENDING">Waiting</span>
+        </div>
+        <details class="expand" th:open="${c.summary().length() <= 400}">
+            <summary class="expand-line" th:text="${c.summary()}">summary</summary>
+            <p class="change-summary wrap pre" th:text="${c.summary()}"></p>
+        </details>
+        <div class="card-actions">
+            <form sec:authorize="hasRole('OPERATOR')" th:action="@{/admin/changes/{id}/reject(id=${c.id()})}" method="post" class="toolbar">
+                <input name="note" maxlength="500" placeholder="Reason (optional)" aria-label="Reason">
+                <button type="submit" class="secondary">Reject or withdraw</button>
+            </form>
+            <form sec:authorize="hasRole('ADMIN')" th:action="@{/admin/changes/{id}/approve(id=${c.id()})}" method="post" class="toolbar">
+                <input name="note" maxlength="500" placeholder="Note (optional)" aria-label="Note">
+                <button type="submit" data-confirm="Approve and apply this change now?">Approve</button>
+            </form>
+        </div>
+    </div>
+
+    <h2>Decided</h2>
+    <form class="filters" method="get" th:action="@{/admin/changes}" data-autosubmit>
+        <input type="search" name="q" th:value="${filter.q()}" placeholder="Search in changes and notes" maxlength="128" aria-label="Search">
+        <select name="type" aria-label="Type">
+            <option value="">All types</option>
+            <option th:each="t : ${types}" th:value="${t}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(t, '_', ' ')))}" th:selected="${t == filter.type()}">Odds</option>
+        </select>
+        <select name="status" aria-label="Decision">
+            <option value="">All decisions</option>
+            <option th:each="d : ${decisions}" th:value="${d}" th:text="${#strings.capitalize(#strings.toLowerCase(d))}" th:selected="${d == filter.status()}">Approved</option>
+        </select>
+        <select name="proposer" aria-label="Proposed by">
+            <option value="">Anyone proposed</option>
+            <option th:each="u : ${people}" th:value="${u}" th:text="|By ${u}|" th:selected="${u == filter.proposer()}">admin</option>
+        </select>
+        <select name="decider" aria-label="Decided by">
+            <option value="">Anyone decided</option>
+            <option th:each="u : ${people}" th:value="${u}" th:text="|Decided by ${u}|" th:selected="${u == filter.decider()}">admin</option>
+        </select>
+        <span class="date-range"><span>Decided</span><input type="date" name="from" th:value="${filter.from()}" aria-label="From date"><span class="dash">–</span><input type="date" name="to" th:value="${filter.to()}" aria-label="To date"></span>
+        <span class="spacer"></span>
+        <a class="clear" th:if="${links.filtered()}" th:href="@{/admin/changes}">Clear filters</a>
+    </form>
+
+    <div class="table-wrap expand-list">
+        <div class="expand-head">
+            <span class="num"><a th:href="${links.sort('id')}">#</a><span class="arrow" th:text="${links.arrow('id')}"></span></span>
+            <span>Type</span><span>Change</span><span>Proposed by</span><span>Decision</span><span>By</span>
+            <span><a th:href="${links.sort('decided')}">Decided (UTC)</a><span class="arrow" th:text="${links.arrow('decided')}"></span></span>
+            <span></span>
+        </div>
+        <details class="expand-row" th:each="c : ${result.items()}">
+            <summary>
+                <span class="num muted" th:text="${c.id()}">12</span>
+                <span th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(c.type(), '_', ' ')))}">Odds</span>
+                <span class="ellipsis" th:text="${c.summary()}">8 rows / High …</span>
+                <span th:text="${c.requestedBy()}">admin</span>
+                <span><span class="status" th:classappend="${c.status()}" th:text="${#strings.capitalize(#strings.toLowerCase(c.status()))}">Approved</span></span>
+                <span th:text="${c.decidedBy() ?: '–'}">alex</span>
+                <span class="nowrap" th:text="${#temporals.format(c.decidedAt(), 'yyyy-MM-dd HH:mm')}"></span>
+                <span class="chevron" aria-hidden="true"></span>
+            </summary>
+            <div class="expand-body">
+                <p class="change-summary wrap pre" th:text="${c.summary()}"></p>
+                <dl class="facts">
+                    <dt>Proposed</dt><dd th:text="|${c.requestedBy()}, ${#temporals.format(c.requestedAt(), 'yyyy-MM-dd HH:mm:ss')} UTC|"></dd>
+                    <dt>Decided</dt><dd th:text="|${c.decidedBy() ?: '–'}, ${#temporals.format(c.decidedAt(), 'yyyy-MM-dd HH:mm:ss')} UTC|"></dd>
+                    <dt>Note</dt><dd th:text="${c.decisionNote() ?: '–'}"></dd>
+                    <dt>Applies to</dt><dd class="mono small" th:text="${c.target()}"></dd>
+                </dl>
+            </div>
+        </details>
+        <div class="empty" th:if="${result.items().isEmpty()}">No decided changes match these filters.</div>
+    </div>
+    <div th:replace="~{admin/fragments :: pager(${result}, ${links})}"></div>
+</section>
+</body>
+</html>

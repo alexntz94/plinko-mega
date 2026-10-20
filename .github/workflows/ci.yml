@@ -1,0 +1,301 @@
+# Review 6 / 7.6 / 7.7: every push is built and tested; pull requests and main also run the full end-to-end suite on a
+# throwaway stack; every night the whole set runs again (new vulnerabilities are published every day) with a deeper
+# stage of its own (Monte Carlo and the query plans at full size, the load test and Lighthouse; review 5.6, setup 6);
+# a v* tag also attaches the images' SBOMs to its GitHub release.
+# Actions are pinned by commit and the tools' images by digest (review 6), the tag kept as a comment; Dependabot
+# proposes updates for the actions.
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 2 * * *"
+    # weekly (Sunday): the query-plan test on 10,000,000 rounds (review 5.5); hours, so not every night
+    - cron: "37 3 * * 0"
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: Run the nightly stage too (deeper Monte Carlo and query plans, load test, Lighthouse)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# A new push cancels the older run of the same branch, but never the nightly run: the event is part of the group, and
+# a scheduled run is never cancelled (review 6).
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+env:
+  GITLEAKS_IMAGE: ghcr.io/gitleaks/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055
+  TRIVY_IMAGE: aquasec/trivy:0.58.1@sha256:ab70a02200597efa04748f210f793936eb647cbcdb0ea69cc30b226d6f5a22c7
+  PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v1.48.2-jammy@sha256:96dc479be9a603227fafc7126bd7d5e8152ae3e63749f377b2c49a4314b28ae1
+
+jobs:
+  backend:
+    name: Backend tests and coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4.9.1
+        with: {distribution: temurin, java-version: "21", cache: maven}
+      # unit tests (odds, bonuses, the credit check, 5,000 real rounds, Monte Carlo RTP and chi-square on every board)
+      # and the coverage bars on the money code.
+      - run: mvn -B verify
+        if: github.event_name != 'schedule' && !inputs.nightly
+        working-directory: backend
+      # the nightly stage: the same tests, the Monte Carlo with 2,000,000 rounds and the query-plan test on 2,000,000
+      # rows (given both ways: a system property and an environment variable)
+      - name: mvn verify (nightly sizes)
+        if: (github.event_name == 'schedule' && github.event.schedule != '37 3 * * 0') || inputs.nightly
+        run: mvn -B verify -DMONTE_CARLO_ROUNDS="$MONTE_CARLO_ROUNDS" -DQUERY_PLAN_ROWS="$QUERY_PLAN_ROWS"
+        working-directory: backend
+        env:
+          MONTE_CARLO_ROUNDS: "2000000"
+          QUERY_PLAN_ROWS: "2000000"
+      # weekly: the repositories' real queries EXPLAINed on 10,000,000 rounds (review 5.5)
+      - name: query plans on 10,000,000 rounds (weekly)
+        if: github.event_name == 'schedule' && github.event.schedule == '37 3 * * 0'
+        timeout-minutes: 350    # a hosted runner job ends at 6 hours
+        run: mvn -B test -Dtest=QueryPlanTest -Djacoco.skip=true -DQUERY_PLAN_ROWS="$QUERY_PLAN_ROWS"
+        working-directory: backend
+        env:
+          QUERY_PLAN_ROWS: "10000000"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with: {name: coverage-report, path: backend/target/site/jacoco, retention-days: 14}
+
+  game:
+    name: Game client build and audit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with: {node-version: "22", cache: npm, cache-dependency-path: game/package-lock.json}
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: game
+      - run: npx --no-install tsc --noEmit -p .
+        working-directory: game
+      # review 5.7: the client's own rules (slot layout as the server's, bets, messages, the requests it sends)
+      - run: npm test
+        working-directory: game
+      - run: npm run build
+        working-directory: game
+      # review 4.x: what a first visit downloads per theme, counted on the files players get (the image build's game
+      # stage: half-size, atlas, WebP and AVIF copies). Fails when any theme is over 2 MB, or an existing theme grows past
+      # its budget (game/scripts/theme-size-budget.json: its size + 40 KB). The video loads after the player's first
+      # round (game/src/backdrop.ts), so it is reported apart ("after 1st round"), not in the first visit.
+      - name: First-visit size per theme (on the image build's files)
+        run: |
+          docker build --target game -f deploy/nginx/Dockerfile -t plinko-game:ci .
+          docker create --name plinko-game-ci plinko-game:ci
+          docker cp plinko-game-ci:/build/dist "$RUNNER_TEMP/dist"
+          node game/scripts/theme-size-budget.mjs "$RUNNER_TEMP/dist" --built
+      # known vulnerabilities in what ships to players (dev tools excluded)
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: game
+
+  checks:
+    name: Secrets, dependencies, configuration, migrations
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with: {fetch-depth: 0}
+      - name: No secrets in the repository (gitleaks, whole history)
+        run: docker run --rm -v "$PWD:/repo" "$GITLEAKS_IMAGE" git /repo --redact --no-banner
+      - name: Known vulnerabilities in Maven and npm dependencies (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0 (its tags now start with v; pinned by commit)
+        with: {scan-type: fs, scan-ref: ., scanners: vuln, severity: "HIGH,CRITICAL", ignore-unfixed: true, exit-code: "1"}
+      - name: Dockerfiles, compose and Cloud Run configuration (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0 (its tags now start with v; pinned by commit)
+        with: {scan-type: config, scan-ref: ., severity: "HIGH,CRITICAL", exit-code: "1", trivyignores: .trivyignore.yaml}
+      - name: Migrations safe for a rolling release (and no data backfills in them)
+        run: sh scripts/check-migrations.sh
+
+  images:
+    name: Images scan and SBOM
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      # compose needs its settings even to build (PAM_BASE_URL is required): the throwaway test ones
+      - run: docker compose --env-file "$(sh scripts/test-env.sh "$RUNNER_TEMP/plinko")" build
+      - name: Fixable HIGH or CRITICAL vulnerabilities in the images (Trivy)
+        run: |
+          for image in plinko-backend:local plinko-web:local plinko-db:local; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image \
+              --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$image"
+          done
+      - name: SBOM (CycloneDX) of every image, kept with the build
+        run: |
+          mkdir sbom
+          for image in plinko-backend plinko-web plinko-db; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/sbom:/out" "$TRIVY_IMAGE" image \
+              --format cyclonedx --output "/out/$image.cdx.json" --no-progress "$image:local"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with: {name: sbom, path: sbom, retention-days: 90}
+
+  # review 7.7c: a release tag (v*) gets the SBOMs of the images built from it attached to its GitHub release (kept
+  # for as long as the release), besides the 90-day artifact above
+  release:
+    name: SBOMs attached to the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [images]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with: {name: sbom, path: sbom}
+      - name: Attach the SBOMs to the GitHub release of this tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --generate-notes
+          gh release upload "$TAG" sbom/*.cdx.json --repo "$GITHUB_REPOSITORY" --clobber
+
+  e2e:
+    name: End-to-end, attack and browser tests
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    needs: [backend, game]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 95   # the browser checks: about 2 minutes per theme (two browsers, three pixel densities)
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - name: Throwaway secrets and settings
+        run: echo "TEST_ENV=$(sh scripts/test-env.sh "$RUNNER_TEMP/plinko")" >> "$GITHUB_ENV"
+      - run: docker compose -p plinkotest --env-file "$TEST_ENV" up -d --build
+      - name: Wait for the stack
+        run: |
+          for _ in $(seq 1 60); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' plinkotest-web-1 2>/dev/null)" = healthy ] && exit 0; sleep 5
+          done
+          docker compose -p plinkotest --env-file "$TEST_ENV" ps; exit 1
+      # pytest, pinned in tests/requirements.txt, in its own virtual environment (the runner's Python is system-managed)
+      - name: Test packages
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q -r tests/requirements.txt
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      # one module per area (tests/e2e), in file order; one area alone: -k <area> on a fresh stack (README, Testing)
+      - run: python3 -m pytest tests/e2e --env-file "$TEST_ENV" -q -rA --junitxml="$RUNNER_TEMP/e2e-junit.xml"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: ${{ !cancelled() }}
+        with: {name: e2e-junit, path: "${{ runner.temp }}/e2e-junit.xml", retention-days: 14, if-no-files-found: ignore}
+      - name: Logs of a failed run
+        if: failure()
+        run: docker compose -p plinkotest --env-file "$TEST_ENV" logs --no-color > "$RUNNER_TEMP/stack.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: failure()
+        with: {name: stack-logs, path: "${{ runner.temp }}/stack.log", retention-days: 7}
+      # review 5.7: the browser checks, on a fresh stack (the attack suite above leaves rotated keys, test settings and
+      # its own data behind); the images are the ones just built
+      - name: Fresh stack for the browser checks
+        if: ${{ !cancelled() }}
+        run: |
+          docker compose -p plinkotest --env-file "$TEST_ENV" down -v
+          docker compose -p plinkotest --env-file "$TEST_ENV" up -d
+      - name: Wait for the fresh stack
+        if: ${{ !cancelled() }}
+        run: |
+          for _ in $(seq 1 60); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' plinkotest-web-1 2>/dev/null)" = healthy ] && exit 0; sleep 5
+          done
+          docker compose -p plinkotest --env-file "$TEST_ENV" ps; exit 1
+      - name: Launch tokens (one mock wallet per theme)
+        if: ${{ !cancelled() }}
+        run: python3 tests/launch_tokens.py "$TEST_ENV" > "$RUNNER_TEMP/tokens.env"
+      # review N6/5.7: Chromium and WebKit (Safari's engine: its WebP/AVIF detection); the first screen at 1x, 2x and 3x
+      # (@2x pictures only from 1.5), compared with tests/baselines/ (the image's WebKit is in the pinned image)
+      - name: Browser checks (Playwright, production CSP; every theme, Chromium and WebKit, both orientations, a full round of 100 balls)
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/game-ui"
+          docker run --rm --network host --ipc host -v "$PWD/tests:/tests:ro" -v "$RUNNER_TEMP/game-ui:/out" \
+            --env-file "$RUNNER_TEMP/tokens.env" -e GAME=http://localhost:8080 -e OUT=/out -e BASELINES=/tests/baselines \
+            -w /work "$PLAYWRIGHT_IMAGE" \
+            sh -c 'npm i -s --no-save --ignore-scripts --no-audit --no-fund playwright@1.48.2 pixelmatch@7.1.0 pngjs@7.0.0 \
+              && cp /tests/browser_check.mjs /tests/game_ui.mjs . \
+              && node browser_check.mjs "$BROWSER_TOKEN" && node game_ui.mjs'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: ${{ !cancelled() }}
+        with: {name: game-ui-screenshots, path: "${{ runner.temp }}/game-ui", retention-days: 7, if-no-files-found: ignore}
+
+  compat:
+    name: Works side by side with the previous release
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    needs: [backend, game]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with: {fetch-depth: 0}
+      - name: Throwaway secrets and settings
+        run: echo "TEST_ENV=$(sh scripts/test-env.sh "$RUNNER_TEMP/plinko")" >> "$GITHUB_ENV"
+      # review 7.6 / N9: the previous release's backend (newest tag v*) on the new migrations, and back; the new backend
+      # accepts the previous release's game client requests. Fails when there is no earlier tag (README, Releases).
+      - run: scripts/compat-check.sh "$TEST_ENV"
+
+  # The nightly stage (review 5.6, setup 6), on its own fresh stack: nginx's limits, Lighthouse on a phone profile for
+  # three themes (page weight against tests/lighthouse/lighthouserc.json), the fixed load test (200 players for 3 minutes,
+  # 5 of them on a failing wallet, 2 admins on the dashboard and Finance), then the load scenarios: a ramp until play
+  # breaks (the highest rate held), a 2-minute wallet outage, a database restart, and 2,000,000 seeded rounds with a big
+  # day for the daily-totals rebuild (tests/load/scenarios.py). A push never runs it, so pushes stay fast.
+  nightly:
+    name: Nightly load tests and Lighthouse
+    if: github.event_name == 'schedule' || inputs.nightly
+    needs: [backend, game]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      # the CI machine is smaller than production: the target is decision D7, this only catches a regression
+      PLAY_P99_MS: "1500"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with: {node-version: "22"}
+      - name: Throwaway secrets and settings
+        run: echo "TEST_ENV=$(sh scripts/test-env.sh "$RUNNER_TEMP/plinko")" >> "$GITHUB_ENV"
+      - run: docker compose -p plinkotest --env-file "$TEST_ENV" up -d --build --wait --wait-timeout 300
+      # Lighthouse CI (pinned) with the runner's Chrome, through nginx as players get the game
+      # review 5.6 #8: body size, slow bodies and headers, connections and request rate per address, on the public port
+      - name: nginx limits
+        run: OUT="$RUNNER_TEMP/loadtest" python3 -u tests/load/nginx_limits.py http://127.0.0.1:8080
+      - name: Lighthouse, mobile profile (drop-riot, rat-race, fatal-attraction)
+        run: OUT="$RUNNER_TEMP/lighthouse" scripts/lighthouse.sh "$TEST_ENV"
+      - name: Load test (k6, 200 players, 3 minutes)
+        if: ${{ !cancelled() }}
+        run: OUT="$RUNNER_TEMP/loadtest" scripts/loadtest.sh "$TEST_ENV" 200 3m
+      # review 5.6 #1, #3, #4: the highest rate held (database and pool per step), the wallet refusing every credit for
+      # 2 minutes, the database restarted under load; every round settled afterwards and none paid twice
+      - name: Load scenarios (ramp, wallet outage, database restart)
+        if: ${{ !cancelled() }}
+        run: OUT="$RUNNER_TEMP/loadtest" python3 -u tests/load/scenarios.py "$TEST_ENV" ramp outage db-restart
+      # review 5.6 #5 and N4: the same players on 2,000,000 seeded rounds, then with 500,000 of them played today (the
+      # minute's daily-totals rebuild reads them all): play's percentiles with and without the big rebuild
+      - name: Load on a large history (2,000,000 rounds)
+        if: ${{ !cancelled() }}
+        run: OUT="$RUNNER_TEMP/loadtest" python3 -u tests/load/scenarios.py "$TEST_ENV" history
+        env:
+          HISTORY_ROUNDS: "2000000"
+          TODAY_ROUNDS: "500000"
+      - name: Logs of a failed run
+        if: failure()
+        run: docker compose -p plinkotest --env-file "$TEST_ENV" logs --no-color > "$RUNNER_TEMP/stack.log"
+      # the reports only (the *wallets.json files hold the runs' launch tokens and the admin session)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: nightly-reports
+          retention-days: 30
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/lighthouse
+            ${{ runner.temp }}/loadtest/*.json
+            !${{ runner.temp }}/loadtest/*wallets.json
+            ${{ runner.temp }}/stack.log

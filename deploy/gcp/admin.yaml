@@ -1,0 +1,109 @@
+# The admin panel: the backend alone, answering only on its admin port (8081; the game API is not served there).
+# Google IAP sits in front: only the Google accounts in ADMIN_EMAILS reach the login page, which then asks for the
+# admin password and 2FA. One instance, because admin sign-ins live in its memory. Rendered by deploy.sh.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: plinko-admin
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/iap-enabled: "true"
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/network-interfaces: '[{"network":"plinko","subnetwork":"plinko-run"}]'
+        run.googleapis.com/vpc-access-egress: all-traffic
+        # the metrics collector starts once the backend is up (review 7.10a)
+        run.googleapis.com/container-dependencies: '{"collector":["backend"]}'
+    spec:
+      serviceAccountName: plinko-admin@${PROJECT_ID}.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 120
+      containers:
+        - name: backend
+          image: ${BACKEND_IMAGE}
+          ports:
+            - name: http1
+              containerPort: 8081
+          env:
+            - {name: SERVER_PORT, value: "8080"}
+            - {name: ADMIN_PORT, value: "8081"}
+            # every secret is a file in a folder of its own (Cloud Run mounts one secret per folder)
+            - {name: SPRING_CONFIG_IMPORT, value: "optional:configtree:/secrets/*/"}
+            - {name: DB_URL, value: "jdbc:mysql://${DB_IP}:3306/plinko?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&sslMode=REQUIRED"}
+            - {name: DB_NAME, value: plinko}
+            - {name: DB_USERNAME, value: plinko_app}
+            - {name: DB_POOL_SIZE, value: "5"}
+            - {name: DB_POOL_MIN_IDLE, value: "1"}
+            - {name: SPRING_FLYWAY_ENABLED, value: "false"}
+            - {name: ADMIN_USERNAME, value: "${ADMIN_USERNAME}"}
+            - {name: PAM_BASE_URL, value: "${PAM_BASE_URL}"}
+            - {name: PAM_ALLOW_HTTP, value: "false"}
+            - {name: MOCK_PAM_ENABLED, value: "false"}
+            - {name: REQUIRE_SECOND_APPROVER, value: "true"}
+            - {name: REPORTING_TIME_ZONE, value: "${REPORTING_TIME_ZONE}"}
+            # retiring the original ROUND_SIGNING_KEY (README, Keys): empty = not yet
+            - {name: LEGACY_KEY_UNTIL, value: "${LEGACY_KEY_UNTIL}"}
+            - {name: LEGACY_KEY_SUSPECTED_LEAK, value: "${LEGACY_KEY_SUSPECTED_LEAK}"}
+            - {name: LEGACY_RESIGN, value: "${LEGACY_RESIGN}"}
+            # settlement limits per currency (README, Settling a blocked round): empty = 1,000 and 100 in every currency
+            - {name: SETTLEMENT_MAX_AMOUNTS, value: "${SETTLEMENT_MAX_AMOUNTS}"}
+            - {name: SETTLEMENT_OTHER_AMOUNTS, value: "${SETTLEMENT_OTHER_AMOUNTS}"}
+            - {name: COOKIE_SECURE, value: "true"}
+            # visitor address for the login throttles and the audit log: the entry Google's front end appends
+            - {name: CLIENT_IP_HOPS, value: "${ADMIN_CLIENT_IP_HOPS}"}
+            - {name: GAME_URL, value: "https://${GAME_DOMAIN}/"}
+          resources:
+            limits: {cpu: "1", memory: 1Gi}
+          startupProbe:
+            tcpSocket: {port: 8081}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 36
+          volumeMounts:
+            - {name: db-password, mountPath: /secrets/DB_PASSWORD}
+            - {name: admin-password, mountPath: /secrets/ADMIN_PASSWORD}
+            - {name: round-signing-key, mountPath: /secrets/ROUND_SIGNING_KEY}
+            - {name: pam-api-key, mountPath: /secrets/PAM_API_KEY}
+            - {name: pam-secret, mountPath: /secrets/PAM_SECRET}
+            - {name: round-keys, mountPath: /secrets/ROUND_KEYS}
+            - {name: record-keys, mountPath: /secrets/RECORD_KEYS}
+            - {name: encryption-keys, mountPath: /secrets/ENCRYPTION_KEYS}
+        # Review 7.10a: Google's Managed Service for Prometheus collector for Cloud Run (the run-gmp-sidecar), pinned by
+        # digest (1.9.4). It scrapes the backend's /actuator/prometheus on the admin port inside the instance (never
+        # through IAP or the internet), as set in deploy/gcp/gmp-config.yaml (the plinko-gmp-config secret, made by
+        # "deploy.sh deploy"), and writes the metrics to Cloud Monitoring as prometheus.googleapis.com/plinko_*. The
+        # money gauges (pending payments, RTP, blocked rounds) come from the database, so this one instance covers them all.
+        - name: collector
+          image: us-docker.pkg.dev/cloud-ops-agents-artifacts/cloud-run-gmp-sidecar/cloud-run-gmp-sidecar:1.9.4@sha256:8f8ac35f4bc82aa9547b1458343acb79b2594b35b56fb4c13dbe62c1f5a64679
+          resources:
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: gmp-config, mountPath: /etc/rungmp}
+      volumes:
+        - name: gmp-config
+          secret: {secretName: plinko-gmp-config, items: [{key: latest, path: config.yaml}]}
+        - name: db-password
+          secret: {secretName: plinko-db-password, items: [{key: latest, path: DB_PASSWORD}]}
+        - name: admin-password
+          secret: {secretName: plinko-admin-password, items: [{key: latest, path: ADMIN_PASSWORD}]}
+        - name: round-signing-key
+          secret: {secretName: plinko-round-signing-key, items: [{key: latest, path: ROUND_SIGNING_KEY}]}
+        - name: pam-api-key
+          secret: {secretName: plinko-pam-api-key, items: [{key: latest, path: PAM_API_KEY}]}
+        - name: pam-secret
+          secret: {secretName: plinko-pam-secret, items: [{key: latest, path: PAM_SECRET}]}
+        - name: round-keys
+          secret: {secretName: plinko-round-keys, items: [{key: latest, path: ROUND_KEYS}]}
+        - name: record-keys
+          secret: {secretName: plinko-record-keys, items: [{key: latest, path: RECORD_KEYS}]}
+        - name: encryption-keys
+          secret: {secretName: plinko-encryption-keys, items: [{key: latest, path: ENCRYPTION_KEYS}]}

@@ -1,0 +1,37 @@
+{
+  "name": "Rat Race",
+  "title": "Rat Race Plinko",
+  "background": "#18321f",
+  "accent": "#f2c230",
+  "text": "#f6ecd2",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Bangers", "file": "bangers.woff2", "weight": "400" },
+  "board": {
+    "fx": "comic",
+    "peg": "item_peg.png",
+    "pegFlash": "#f2c230",
+    "trail": "#f2c230",
+    "slotRadius": 6,
+    "slots": [
+      { "face": "#20304f", "text": "#f6ecd2" },
+      { "face": "#2f6b3a", "text": "#f6ecd2" },
+      { "face": "#f6ecd2", "text": "#15120e" },
+      { "face": "#f2c230", "text": "#15120e" },
+      { "face": "#e8402f", "text": "#f6ecd2" }
+    ]
+  },
+  "ui": { "style": "ink", "ink": "#15120e", "panel": "#20304f", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": {
+    "labelY": -9,
+    "valueY": 43,
+    "controlY": 32,
+    "dragBarY": 32,
+    "riskLeftX": 34,
+    "riskRightX": 220,
+    "halfX": 166,
+    "doubleX": 218
+  }
+}

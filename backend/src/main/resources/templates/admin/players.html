@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Players · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Players</h1>
+            <p>Created automatically the first time a player opens the game from the casino. Balances live in the PAM; this is the last one it reported.</p>
+        </div>
+        <div class="page-actions"><a class="button secondary" th:href="${links.csv()}">Export CSV</a></div>
+    </div>
+
+    <form class="filters" method="get" th:action="@{/admin/players}" data-autosubmit>
+        <input type="search" name="q" th:value="${q}" placeholder="Search PAM id or username" maxlength="128" aria-label="Search">
+        <select name="status" aria-label="Status">
+            <option value="">All statuses</option>
+            <option value="allowed" th:selected="${status == 'allowed'}">Allowed</option>
+            <option value="blocked" th:selected="${status == 'blocked'}">Blocked</option>
+        </select>
+        <select name="currency" aria-label="Currency">
+            <option value="">All currencies</option>
+            <option th:each="c : ${currencies}" th:value="${c}" th:text="${c}" th:selected="${c == currency}">EUR</option>
+        </select>
+        <label class="toggle"><input type="checkbox" name="active" value="1" th:checked="${active}"> Active now</label>
+        <span class="spacer"></span>
+        <a class="clear" th:if="${links.filtered()}" th:href="@{/admin/players}">Clear filters</a>
+    </form>
+
+    <div data-live="players">
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'player', 'PAM player id', '')}"></th:block>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'username', 'Username', '')}"></th:block>
+                    <th>Currency</th>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'balance', 'Balance', 'num')}"></th:block>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'lastSeen', 'Last seen (UTC)', '')}"></th:block>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'firstSeen', 'First seen (UTC)', '')}"></th:block>
+                    <th>Status</th>
+                </tr></thead>
+                <tbody>
+                <tr th:each="p : ${result.items()}">
+                    <td><a th:href="@{/admin/players/{id}(id=${p.id()})}" th:text="${p.externalId()}"></a></td>
+                    <td th:text="${p.username() ?: '–'}"></td>
+                    <td th:text="${p.currency()}"></td>
+                    <td class="num" th:text="${p.lastBalance() == null} ? '–' : ${#numbers.formatDecimal(p.lastBalance(), 1, 'COMMA', 2, 'POINT')}"></td>
+                    <td th:text="${#temporals.format(p.lastSeenAt(), 'yyyy-MM-dd HH:mm:ss')}"></td>
+                    <td class="muted" th:text="${#temporals.format(p.createdAt(), 'yyyy-MM-dd')}"></td>
+                    <td><span class="status" th:classappend="${p.blocked()} ? 'TAMPERED' : 'COMPLETED'" th:text="${p.blocked()} ? 'Blocked' : 'Allowed'"></span>
+                        <span class="status live" th:if="${activeNow.contains(p.id())}">Active now</span></td>
+                </tr>
+                <tr th:if="${result.items().isEmpty()}"><td colspan="7" class="empty">No players match these filters.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div th:replace="~{admin/fragments :: pager(${result}, ${links})}"></div>
+    </div>
+</section>
+</body>
+</html>

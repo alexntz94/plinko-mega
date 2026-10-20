@@ -1,0 +1,43 @@
+# Creates the database and its two users on Cloud SQL with SQL (deploy/mysql/01-users.sh), then shows their
+# grants ("deploy.sh db-setup"; safe to run again). Only this job ever holds the root password. Rendered by deploy.sh.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: plinko-db-setup
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/network-interfaces: '[{"network":"plinko","subnetwork":"plinko-run"}]'
+        run.googleapis.com/vpc-access-egress: private-ranges-only
+    spec:
+      taskCount: 1
+      template:
+        spec:
+          maxRetries: 0
+          timeoutSeconds: 300
+          serviceAccountName: plinko-db-setup@${PROJECT_ID}.iam.gserviceaccount.com
+          containers:
+            - name: db-setup
+              image: ${DB_SETUP_IMAGE}
+              command: [/docker-entrypoint-initdb.d/01-users.sh]
+              env:
+                - {name: DB_HOST, value: "${DB_IP}"}
+                - {name: MYSQL_DATABASE, value: plinko}
+                - {name: DB_OWNER_USERNAME, value: plinko_owner}
+                - {name: DB_USERNAME, value: plinko_app}
+              resources:
+                limits: {cpu: "1", memory: 512Mi}
+              volumeMounts:
+                - {name: root-password, mountPath: /secrets/MYSQL_ROOT_PASSWORD}
+                - {name: db-owner-password, mountPath: /secrets/DB_OWNER_PASSWORD}
+                - {name: db-password, mountPath: /secrets/DB_PASSWORD}
+          volumes:
+            - name: root-password
+              secret: {secretName: plinko-mysql-root-password, items: [{key: latest, path: MYSQL_ROOT_PASSWORD}]}
+            - name: db-owner-password
+              secret: {secretName: plinko-db-owner-password, items: [{key: latest, path: DB_OWNER_PASSWORD}]}
+            - name: db-password
+              secret: {secretName: plinko-db-password, items: [{key: latest, path: DB_PASSWORD}]}

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head><title>Round · Plinko Admin</title></head>
+<body>
+<section>
+    <a class="back" th:href="@{/admin/rounds}">Rounds</a>
+    <div class="page-head">
+        <div>
+            <h1>Round <span class="mono id-title" th:text="${#strings.substring(round.id(), 0, 8)}"></span></h1>
+            <p class="mono small" th:text="${round.id()}"></p>
+        </div>
+        <div class="page-actions">
+            <span class="status" th:classappend="${round.status()}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(round.status(), '_', ' ')))}"></span>
+            <form sec:authorize="hasRole('ADMIN')" th:if="${round.status() == 'CREDIT_PENDING' or round.status() == 'ROLLBACK_PENDING'}"
+                  th:action="@{/admin/rounds/{id}/retry(id=${round.id()})}" method="post">
+                <button type="submit" data-confirm="Retry the pending wallet transaction now? It reuses the same transaction id.">Retry wallet transaction</button>
+            </form>
+        </div>
+    </div>
+    <div class="flash error" th:if="${signatureValid != null and !signatureValid}">
+        Signature check failed: this round's data was changed outside the application. It will never be paid.
+    </div>
+    <div class="two-col">
+        <div class="card">
+            <h2>Bet and result</h2>
+            <dl class="facts">
+                <dt>Player</dt><dd><a th:if="${player}" th:href="@{/admin/players/{id}(id=${player.id()})}" th:text="|${player.username() ?: player.externalId()}|"></a>
+                    <span class="muted small" th:if="${player}" th:text="${player.externalId()}"></span></dd>
+                <dt>Played (UTC)</dt><dd th:text="${#temporals.format(round.createdAt(), 'yyyy-MM-dd HH:mm:ss')}"></dd>
+                <dt>Board</dt><dd th:text="|${round.rows()} rows, ${riskNames[round.risk()]} risk|"></dd>
+                <dt>Bet</dt><dd th:text="|${round.bet()} × ${round.balls()} balls = ${round.totalBet()} ${round.currency()}|"></dd>
+                <dt>Win</dt><dd th:text="${round.totalWin() == null} ? '–' : |${round.totalWin()} ${round.currency()}|"
+                                th:classappend="${round.totalWin() != null and round.totalWin() > round.totalBet()} ? 'good-text'"></dd>
+                <dt>Error</dt><dd th:text="${round.error() ?: '–'}"></dd>
+            </dl>
+        </div>
+        <div class="card">
+            <h2>Proof</h2>
+            <dl class="facts">
+                <dt>Signature</dt><dd th:text="${signatureValid == null} ? 'Not signed yet (no outcome)' : (${signatureValid} ? 'Valid' : 'Invalid')"
+                                      th:classappend="${signatureValid != null and !signatureValid} ? 'bad-text' : (${signatureValid != null} ? 'good-text' : '')"></dd>
+                <dt>Landing slots</dt><dd class="mono wrap" th:text="${round.slots() ?: '–'}"></dd>
+                <dt>Multipliers</dt><dd class="mono wrap" th:text="${round.multipliers() ?: '–'}"></dd>
+                <dt>Bonus</dt><dd class="mono wrap" th:text="${round.bonus() ?: '–'}" title="gold:2x3 = ball 2 (counting from 0) was golden and paid 3x its slot"></dd>
+            </dl>
+        </div>
+    </div>
+    <div class="card" th:if="${round.status() == 'TAMPERED'}">
+        <h2>Settle with the player</h2>
+        <div th:if="${settlement != null}">
+            <p><span th:text="${settlement.action() == 'PAY'} ? 'Pay' : (${settlement.action() == 'REFUND'} ? 'Refund' : 'Closed, nothing owed')"></span>
+                <span th:if="${settlement.action() != 'CLOSE'}" th:text="|${settlement.amount()} ${round.currency()}|"></span>,
+                <span th:text="|approved by ${settlement.approvedBy()} (proposed by ${settlement.proposedBy()}, change #${settlement.changeId()}).|"></span></p>
+            <p class="small" th:text="|Reason: ${settlement.reason()}|"></p>
+            <p><span class="status" th:classappend="${settlement.status() == 'DONE'} ? 'COMPLETED' : 'CREDIT_PENDING'"
+                     th:text="${settlement.status() == 'DONE'} ? 'Done' : 'Waiting on the wallet'"></span></p>
+            <form sec:authorize="hasRole('ADMIN')" th:if="${settlement.status() == 'PENDING'}" th:action="@{/admin/rounds/{id}/settle/send(id=${round.id()})}" method="post">
+                <button type="submit">Send to the wallet again</button>
+            </form>
+        </div>
+        <p th:if="${settlement == null and settlementPending != null}">
+            Proposed by <span th:text="${settlementPending.requestedBy()}"></span>, waiting for another admin:
+            <a th:href="@{/admin/changes}" th:text="|change #${settlementPending.id()}|"></a>.
+        </p>
+        <form sec:authorize="hasRole('ADMIN')" th:if="${settlement == null and settlementPending == null}" class="stack"
+              th:action="@{/admin/rounds/{id}/settle(id=${round.id()})}" method="post">
+            <p class="muted small" th:text="|The round stays blocked. Once you and another admin agree, the player is paid or refunded once, through the wallet. Up to ${settlementLimit} ${round.currency()}.|"></p>
+            <p class="small" th:if="${recomputedWin != null}" th:text="|Pay: the round's own win, recomputed from its signed outcome, is ${recomputedWin} ${round.currency()}. Any other amount is limited to ${settlementOther} ${round.currency()}. Refund: exactly the total bet of ${round.totalBet()}.|"></p>
+            <p class="small bad-text" th:if="${recomputedWin == null}" th:text="|This round's outcome can't be trusted, so its win can't be recomputed: a payment is limited to ${settlementOther} ${round.currency()}. Refund: exactly the total bet of ${round.totalBet()}.|"></p>
+            <label>Outcome
+                <select name="action" required>
+                    <option value="PAY">Pay an amount (the round was genuine)</option>
+                    <option value="REFUND">Refund the bet</option>
+                    <option value="CLOSE">Close, nothing owed (the round was not genuine)</option>
+                </select>
+            </label>
+            <label>Amount <input name="amount" inputmode="decimal" th:placeholder="|e.g. ${round.totalBet()}|"></label>
+            <label>What was found and why <textarea name="reason" required minlength="10" maxlength="500" rows="3"></textarea></label>
+            <button type="submit">Propose settlement</button>
+        </form>
+    </div>
+
+    <h2>Wallet transactions</h2>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Time (UTC)</th><th>Transaction</th><th>Type</th><th class="num">Amount</th><th>Status</th><th class="num">Attempts</th><th>PAM reference</th><th>Error</th></tr></thead>
+            <tbody>
+            <tr th:each="t : ${transactions}">
+                <td th:text="${#temporals.format(t.createdAt(), 'yyyy-MM-dd HH:mm:ss')}"></td>
+                <td class="mono small" th:text="${t.id()}"></td>
+                <td th:text="${#strings.capitalize(#strings.toLowerCase(t.type()))}"></td>
+                <td class="num" th:text="${t.amount()}"></td>
+                <td><span class="status" th:classappend="${t.status()}" th:text="${#strings.capitalize(#strings.toLowerCase(t.status()))}"></span></td>
+                <td class="num" th:text="${t.attempts()}"></td>
+                <td class="mono small" th:text="${t.pamReference() ?: '–'}"></td>
+                <td class="small wrap" th:text="${t.error() ?: ''}"></td>
+            </tr>
+            <tr th:if="${transactions.isEmpty()}"><td colspan="8" class="empty">No wallet calls for this round.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+</body>
+</html>

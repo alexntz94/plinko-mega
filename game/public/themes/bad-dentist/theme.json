@@ -1,0 +1,28 @@
+{
+  "name": "Bad Dentist",
+  "title": "Bad Dentist Plinko",
+  "background": "#2b2925",
+  "accent": "#b3121b",
+  "text": "#efe7d6",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Alfa Slab One", "file": "alfa-slab-one.woff2", "weight": "400" },
+  "board": {
+    "fx": "cartoon",
+    "peg": "item_peg.png",
+    "pegFlash": "#efe7d6",
+    "trail": "#b3121b",
+    "slotRadius": 6,
+    "slots": [
+      { "face": "#4a463f", "text": "#efe7d6" },
+      { "face": "#6b665c", "text": "#efe7d6" },
+      { "face": "#a39d90", "text": "#15120e" },
+      { "face": "#efe7d6", "text": "#15120e" },
+      { "face": "#b3121b", "text": "#efe7d6" }
+    ]
+  },
+  "ui": { "style": "ink", "ink": "#15120e", "panel": "#4a463f", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": { "labelY": -9, "valueY": 43, "controlY": 32, "dragBarY": 32, "riskLeftX": 34, "riskRightX": 220, "halfX": 166, "doubleX": 218 }
+}

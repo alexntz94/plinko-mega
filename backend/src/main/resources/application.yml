@@ -1,0 +1,122 @@
+server:
+  port: 8080
+  # Forwarded headers are not trusted as a whole: X-Forwarded-For can be written by anyone, which would let them
+  # bypass the per-address login throttle. Behind a load balancer only its own entries are read (client-ip-hops).
+  forward-headers-strategy: none
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        same-site: strict
+        secure: ${COOKIE_SECURE:true}
+  tomcat:
+    max-swallow-size: 64KB
+    max-http-form-post-size: 256KB
+
+spring:
+  application:
+    name: plinko-backend
+  # Requests run on virtual threads: a round waiting for the PAM costs almost nothing, so a burst of players is
+  # limited by the database pool and the PAM, never by a fixed number of threads (which, once used up, failed every
+  # wallet call).
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/plinko?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&sslMode=PREFERRED}
+    username: ${DB_USERNAME:plinko}
+    password: ${DB_PASSWORD:}
+    hikari:
+      # Each round makes several short writes that wait for the disk; more connections let MySQL flush many of
+      # them together. Every backend instance opens up to this many (keep instances x size under max_connections).
+      maximum-pool-size: ${DB_POOL_SIZE:30}
+      # Connections kept open while idle (Cloud Run sets 2, so idle instances don't each hold a full pool).
+      minimum-idle: ${DB_POOL_MIN_IDLE:${DB_POOL_SIZE:30}}
+  flyway:
+    enabled: true
+    # Migrations run as the schema owner; the application itself uses the restricted DB_USERNAME account.
+    user: ${DB_OWNER_USERNAME:plinko_owner}
+    password: ${DB_OWNER_PASSWORD:}
+    # N11: migrations run while the previous version serves players; under READ COMMITTED a data backfill
+    # (INSERT ... SELECT, UPDATE with a subquery) reads the rounds without locking them
+    init-sqls: SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED
+    placeholders:
+      dbName: ${DB_NAME:plinko}
+      appUser: ${DB_USERNAME:plinko}
+  thymeleaf:
+    cache: true
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # prometheus: the metrics (review 7.10); answered on the admin port only (AdminPortConfig)
+        include: health, prometheus
+
+plinko:
+  # First admin account (role ADMIN), created only when no admin exists yet. Must enrol 2FA on first login.
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:}
+    # false: never create the first admin here (the public game service on Google Cloud; the admin service does it)
+    bootstrap: ${ADMIN_BOOTSTRAP:true}
+  # Odds / bet limit changes need approval by a different admin. Only set false for local development.
+  require-second-approver: ${REQUIRE_SECOND_APPROVER:true}
+  # Wallet connection. Environment only, so it cannot be redirected from the admin panel.
+  pam:
+    base-url: ${PAM_BASE_URL:}
+    api-key: ${PAM_API_KEY:}
+    secret: ${PAM_SECRET:}
+    timeout-ms: ${PAM_TIMEOUT_MS:10000}
+    # The PAM must be reached over https://. Set true only for a PAM on the same private network.
+    allow-http: ${PAM_ALLOW_HTTP:false}
+  # Built-in fake PAM for testing (/mock-pam/**). Never enable in production.
+  mock-pam:
+    enabled: ${MOCK_PAM_ENABLED:false}
+    # Testing on a phone: the game's address on the local network, e.g. http://192.168.1.4:8080/ (used for QR codes).
+    phone-game-url: ${MOCK_PHONE_GAME_URL:}
+  # Public demo (/demo): every visitor gets a fresh wallet of fake credits in the mock PAM. Only starts with
+  # MOCK_PAM_ENABLED=true and PAM_BASE_URL pointing at the built-in mock PAM; never on a server with real money.
+  demo:
+    enabled: ${DEMO_MODE:false}
+    credits: ${DEMO_CREDITS:1000}
+    per-day: ${DEMO_WALLETS_PER_DAY:2000}
+  # Signs every round result; changing round data in the database is then detected.
+  round-signing-key: ${ROUND_SIGNING_KEY:}
+  # Hard limits that no admin action can exceed.
+  limits:
+    max-rtp: ${LIMIT_MAX_RTP:99.7}
+    min-rtp: ${LIMIT_MIN_RTP:85}
+    max-multiplier: ${LIMIT_MAX_MULTIPLIER:1000}
+    max-bet: ${LIMIT_MAX_BET:1000}
+    max-balls: ${LIMIT_MAX_BALLS:100}
+    max-win-per-round: ${LIMIT_MAX_WIN_PER_ROUND:100000}
+  # Admin login protection.
+  login:
+    max-attempts: 5
+    lock-minutes: 15
+  # Behind a proxy: how many X-Forwarded-For entries the platform appends, counting the visitor's own (2 behind
+  # Google Cloud's HTTPS load balancer, 1 for a Cloud Run service reached directly, like the admin panel behind IAP);
+  # the visitor's address is read that far from the right. 0 = the connection's address (Docker).
+  client-ip-hops: ${CLIENT_IP_HOPS:0}
+  # Separate port for the admin panel (0 = same port as the game API, for local development).
+  admin-port: ${ADMIN_PORT:0}
+  # Public game URL used to build mock launch links in the admin panel.
+  game-url: ${GAME_URL:http://localhost:8080/}
+  session-ttl-minutes: ${GAME_SESSION_TTL_MINUTES:60}
+  # Background retry of failed credits / rollbacks.
+  retry:
+    interval-ms: 60000
+    max-attempts: 10
+
+logging:
+  # every line of a game request names it and its round (review 7.10): "INFO [req=..., round=...]"
+  pattern:
+    level: "%5p [req=%X{requestId:-} round=%X{roundId:-}]"
+  level:
+    com.plinko: INFO

@@ -1,0 +1,50 @@
+# Public demo: fake credits, no real money, behind a free Cloudflare Tunnel (see "Live demo" in the README).
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+# Never on a server with a real PAM: the backend refuses DEMO_MODE unless the wallet is the built-in mock PAM.
+
+services:
+  backend:
+    environment:
+      MOCK_PAM_ENABLED: "true"
+      PAM_BASE_URL: http://localhost:8080/mock-pam
+      DEMO_MODE: "true"
+      DEMO_CREDITS: ${DEMO_CREDITS:-1000}
+      DEMO_WALLETS_PER_DAY: ${DEMO_WALLETS_PER_DAY:-2000}
+      # the admin panel is reached over SSH at http://127.0.0.1:8081
+      COOKIE_SECURE: "false"
+
+  web:
+    build:
+      args:
+        CLIENT_IP: client-ip-cloudflare.conf   # visitor address from Cloudflare's CF-Connecting-IP
+    image: plinko-web:demo
+    # only the tunnel reaches nginx; nothing is open to the internet on the server
+    ports: !override
+      - "127.0.0.1:8080:8080"
+    # nginx also joins the tunnel's own network (the backend is not on it)
+    networks: [edge, tunnel]
+
+  # Connects out to Cloudflare, which serves https://<your demo address> and passes requests to nginx.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c
+    command: [tunnel, --no-autoupdate, run, --token-file, /run/secrets/CLOUDFLARE_TUNNEL_TOKEN]
+    depends_on:
+      web: {condition: service_healthy}
+    secrets: [CLOUDFLARE_TUNNEL_TOKEN]
+    # only nginx is reachable from here: a wrong route in the Cloudflare dashboard can't reach the backend
+    networks: [tunnel]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    mem_limit: 128m
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+
+networks:
+  tunnel: {}
+
+secrets:
+  CLOUDFLARE_TUNNEL_TOKEN: {file: "${SECRETS_DIR:-./secrets}/CLOUDFLARE_TUNNEL_TOKEN"}

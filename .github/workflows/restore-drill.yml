@@ -1,0 +1,50 @@
+# Review 7.1d: the restore drill is done twice a year (README, "Restoring a backup"). On 1 January and 1 July this opens
+# an issue with the drill's checklist, so it is scheduled, assigned and its result recorded; closing the issue with the
+# result is the record. Run by hand (Run workflow) to open one now.
+name: Restore drill reminder
+
+on:
+  schedule:
+    - cron: "0 8 1 1,7 *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    name: Open the restore drill issue
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Open the issue (once per half year)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          half="$(date -u +%Y)-H$(( ($(date -u +%-m) - 1) / 6 + 1 ))"
+          title="Restore drill $half"
+          if [ -n "$(gh issue list --state all --search "\"$title\" in:title" --json number --jq '.[].number')" ]; then
+            echo "$title: already opened"; exit 0
+          fi
+          cat > "$RUNNER_TEMP/drill.md" <<'BODY'
+          Twice a year we prove a backup can be restored (review 7.1, README "Restoring a backup"). Assign an owner and a date
+          this month; close this issue with the result (passed / what failed and its fix) and add the drill to the README.
+
+          **On the test stack** (`scripts/test-env.sh`, then `python3 tests/restore_drill.py <test.env>`)
+          - [ ] the drill passes: backup, more rounds, restore; no integrity alarm, the lost rounds listed by the wallet check
+
+          **On Google Cloud, into a staging project (never over production)**
+          - [ ] restore the latest Cloud SQL backup, and a point-in-time restore, to a **new** instance in the staging project
+          - [ ] point a staging deployment at it (same `ROUND_SIGNING_KEY` and key lists); sign in; the admin's 2FA still works
+          - [ ] Dashboard: no integrity alarm, the audit chain intact, the latest rounds as expected
+          - [ ] Finance -> Check against the wallet from the restore point: only the rounds after it are listed
+          - [ ] a round can be played and paid on the restored copy
+          - [ ] a partial restore (one table, e.g. from an export): the integrity alarms it must raise appear
+          - [ ] note how long the restore took and how much was lost, against the agreed targets (decision D8)
+          - [ ] delete the restored instance
+
+          **Afterwards**
+          - [ ] the runbook updated where a step was wrong or missing
+          - [ ] the result added to the README ("Drill of ...")
+          BODY
+          gh issue create --title "$title" --body-file "$RUNNER_TEMP/drill.md"

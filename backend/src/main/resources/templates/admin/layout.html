@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:fragment="layout(title, content)">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
+    <title th:replace="${title}">Plinko Admin</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/admin-assets/logo.svg}">
+    <link rel="stylesheet" th:href="@{/admin-assets/admin.css}">
+    <script th:src="@{/admin-assets/admin.js}" defer></script>
+</head>
+<body>
+<div class="app">
+    <nav class="sidebar" id="sidebar" aria-label="Main">
+        <a class="brand" th:href="@{/admin}"><img class="brand-mark" src="/admin-assets/logo.svg" alt="" width="28" height="28">Plinko</a>
+
+        <div class="nav-section">Overview</div>
+        <a class="nav-link" th:href="@{/admin}" th:classappend="${currentPath == '/admin' or currentPath == '/admin/'} ? 'active'">Dashboard</a>
+        <a class="nav-link" th:href="@{/admin/finance}" th:classappend="${#strings.startsWith(currentPath, '/admin/finance')} ? 'active'">Finance</a>
+
+        <div class="nav-section">Play</div>
+        <a class="nav-link" th:href="@{/admin/players}" th:classappend="${#strings.startsWith(currentPath, '/admin/players')} ? 'active'">Players</a>
+        <a class="nav-link" th:href="@{/admin/rounds}" th:classappend="${#strings.startsWith(currentPath, '/admin/rounds')} ? 'active'">Rounds</a>
+        <a class="nav-link" th:href="@{/admin/transactions}" th:classappend="${#strings.startsWith(currentPath, '/admin/transactions')} ? 'active'">Wallet transactions</a>
+
+        <div class="nav-section">Game</div>
+        <a class="nav-link" th:href="@{/admin/odds}" th:classappend="${#strings.startsWith(currentPath, '/admin/odds')} ? 'active'">Odds</a>
+        <a class="nav-link" th:href="@{/admin/bonus}" th:classappend="${#strings.startsWith(currentPath, '/admin/bonus')} ? 'active'">Bonuses</a>
+        <a class="nav-link" th:href="@{/admin/themes}" th:classappend="${#strings.startsWith(currentPath, '/admin/themes')} ? 'active'">Themes</a>
+        <a class="nav-link" th:href="@{/admin/settings}" th:classappend="${#strings.startsWith(currentPath, '/admin/settings')} ? 'active'">Settings</a>
+
+        <div class="nav-section">Control</div>
+        <a class="nav-link" th:href="@{/admin/changes}" th:classappend="${#strings.startsWith(currentPath, '/admin/changes')} ? 'active'">
+            Approvals <span class="badge" th:if="${pendingChangeCount > 0}" th:text="${pendingChangeCount}">1</span></a>
+        <a class="nav-link" sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" th:classappend="${#strings.startsWith(currentPath, '/admin/users')} ? 'active'">
+            Admins <span class="badge" th:if="${resetRequestCount > 0}" th:text="${resetRequestCount}">1</span></a>
+        <a class="nav-link" sec:authorize="hasRole('ADMIN')" th:href="@{/admin/audit}" th:classappend="${#strings.startsWith(currentPath, '/admin/audit')} ? 'active'">Audit log</a>
+
+        <th:block sec:authorize="hasRole('ADMIN')" th:if="${mockPamEnabled}">
+            <div class="nav-section">Testing</div>
+            <a class="nav-link" th:href="@{/admin/mock-pam}" th:classappend="${#strings.startsWith(currentPath, '/admin/mock-pam')} ? 'active'">Mock PAM</a>
+        </th:block>
+
+        <div class="sidebar-foot">
+            <a class="who" th:href="@{/admin/account}"><span class="avatar" th:text="${#strings.substring(#authentication.name, 0, 1)}">a</span>
+                <span sec:authentication="name">user</span></a>
+            <form th:action="@{/admin/logout}" method="post"><button class="link" type="submit">Log out</button></form>
+        </div>
+    </nav>
+
+    <div class="content">
+        <button class="menu-toggle" type="button" data-nav-toggle aria-controls="sidebar">☰&nbsp; Menu</button>
+        <div class="warning-banner" th:if="${mockPamEnabled}">Mock PAM is on: test wallets only. Never run like this in production.</div>
+        <main>
+            <p class="live-status" id="live-status" hidden></p>
+            <div class="flash error" th:if="${!integrityAlarms.isEmpty()}">
+                <strong>Integrity alarm: data was changed outside the admin panel.</strong>
+                <span th:if="${!oddsHealthy}">The game is stopped until the odds are fixed.</span>
+                <ul><li th:each="alarm : ${integrityAlarms}" th:text="${alarm}">alarm</li></ul>
+            </div>
+            <div class="flash error" th:if="${setupAlarms != null and !setupAlarms.isEmpty()}">
+                <strong>Setup problem: keys.</strong>
+                <ul><li th:each="alarm : ${setupAlarms}" th:text="${alarm}">alarm</li></ul>
+            </div>
+            <div class="flash error" th:if="${walletAlarms != null and !walletAlarms.isEmpty()}">
+                <strong>Wallet keeps refusing.</strong>
+                <ul><li th:each="alarm : ${walletAlarms}" th:text="${alarm}">alarm</li></ul>
+            </div>
+            <div class="flash ok" th:if="${message}" th:text="${message}"></div>
+            <div class="flash error" th:if="${error}" th:text="${error}"></div>
+            <div th:replace="${content}"></div>
+        </main>
+    </div>
+</div>
+</body>
+</html>

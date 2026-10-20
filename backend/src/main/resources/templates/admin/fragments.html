@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Column header that sorts the list (clicking the current column flips the direction). -->
+<th:block th:fragment="sort(links, key, label, cls)"><th th:class="${cls}">
+    <a th:href="${links.sort(key)}" th:text="${label}">Time</a><span class="arrow" th:text="${links.arrow(key)}"></span></th></th:block>
+
+<!-- "1–50 of 1,284" · page numbers · page size -->
+<div th:fragment="pager(result, links)" class="pager">
+    <span th:if="${result.total() > 0}"
+          th:text="|${#numbers.formatInteger(result.from(), 1, 'COMMA')}–${#numbers.formatInteger(result.to(), 1, 'COMMA')} of ${#numbers.formatInteger(result.shownTotal(), 1, 'COMMA')}${result.capped() ? '+' : ''}|">1–50 of 1,284</span>
+    <span th:if="${result.total() == 0}">No results</span>
+    <nav class="pages" aria-label="Pages" th:if="${result.pages() > 1}">
+        <a th:if="${result.query().page() > 1}" th:href="${links.page(result.query().page() - 1)}" aria-label="Previous page">‹</a>
+        <span th:unless="${result.query().page() > 1}" class="disabled">‹</span>
+        <th:block th:each="n : ${result.pageNumbers()}">
+            <span th:if="${n == null}" class="gap">…</span>
+            <span th:if="${n != null and n == result.query().page()}" class="current" th:text="${n}" aria-current="page">1</span>
+            <a th:if="${n != null and n != result.query().page()}" th:href="${links.page(n)}" th:text="${n}">2</a>
+        </th:block>
+        <a th:if="${result.query().page() < result.pages()}" th:href="${links.page(result.query().page() + 1)}" aria-label="Next page">›</a>
+        <span th:unless="${result.query().page() < result.pages()}" class="disabled">›</span>
+    </nav>
+    <span class="segmented" aria-label="Rows per page">
+        <a th:each="s : ${pageSizes}" th:href="${links.size(s)}" th:text="${s}"
+           th:classappend="${s == result.query().size()} ? 'on'">50</a>
+    </span>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Python packages for tests/*.py and tests/e2e (Python 3.10 or later; CI: the runner's Python 3.12, plus the docker CLI),
+# each pinned to an exact version (name==x.y.z):
+#   python3 -m venv .venv && .venv/bin/pip install -r tests/requirements.txt
+# The end-to-end suite (tests/e2e, and tests/security_e2e.py which runs it) and tests/restore_drill.py (which uses its
+# helpers) need pytest; compat_smoke.py and launch_tokens.py use only the standard library.
+pytest==8.3.4
+#
+# The browser checks (game_ui.mjs, browser_check.mjs) run on Node in the pinned Playwright image with
+# playwright==1.48.2 (see .github/workflows/ci.yml, job e2e).

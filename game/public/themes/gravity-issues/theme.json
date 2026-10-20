@@ -1,0 +1,39 @@
+{
+  "name": "Gravity Issues",
+  "title": "Gravity Issues Plinko",
+  "background": "#0b1220",
+  "accent": "#ffce32",
+  "text": "#efe6cc",
+  "playText": "#0b1220",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Saira Condensed", "file": "saira-condensed.woff2", "weight": "600" },
+  "board": {
+    "fx": "gravity",
+    "peg": "item_peg.png",
+    "pegFlash": "#ffce32",
+    "trail": "#9fd0ff",
+    "slotRadius": 9,
+    "slotArt": true,
+    "slots": [
+      { "face": "#163f7a", "text": "#efe6cc" },
+      { "face": "#1a529c", "text": "#efe6cc" },
+      { "face": "#1f6ccc", "text": "#ffffff" },
+      { "face": "#2f86e6", "text": "#ffffff" },
+      { "face": "#ffce32", "text": "#0b1220" }
+    ]
+  },
+  "ui": { "style": "glass", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": {
+    "labelY": -9,
+    "valueY": 43,
+    "controlY": 32,
+    "dragBarY": 32,
+    "riskLeftX": 34,
+    "riskRightX": 220,
+    "halfX": 166,
+    "doubleX": 218
+  }
+}

@@ -1,0 +1,146 @@
+# Production-style stack. Settings come from .env and secrets from ./secrets (create both with
+# scripts/generate-secrets.sh; never commit them).
+#   game:  http://localhost:8080        (public)
+#   admin: http://127.0.0.1:8081/admin  (bound to localhost only; reach it through a VPN or SSH tunnel)
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "5"}
+
+services:
+  db:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: deploy/mysql/Dockerfile
+    image: plinko-db:local
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/MYSQL_ROOT_PASSWORD
+      MYSQL_ROOT_HOST: localhost        # root can only log in from inside the database container
+      MYSQL_DATABASE: plinko
+      DB_OWNER_USERNAME: plinko_owner
+      DB_USERNAME: plinko_app
+    secrets: [MYSQL_ROOT_PASSWORD, DB_OWNER_PASSWORD, DB_PASSWORD]
+    # log-bin-trust-function-creators: lets the schema owner create the integrity triggers (migration V4)
+    # while binary logging is on. The application's own database user still cannot create or drop triggers.
+    command: ["--skip-name-resolve", "--local-infile=0", "--require-secure-transport=ON", "--log-bin-trust-function-creators=ON"]
+    volumes:
+      - db-data:/var/lib/mysql
+    tmpfs:
+      - /tmp:uid=999,gid=999,mode=0700
+      - /var/run/mysqld:uid=999,gid=999,mode=0700
+    networks: [internal]
+    mem_limit: 1g
+    pids_limit: 512
+
+  # Applies database migrations as the schema owner, then exits. Only this short-lived container ever
+  # holds the owner's password; the running backend uses the restricted application user.
+  migrate:
+    <<: *hardening
+    image: plinko-backend:local
+    restart: "no"
+    depends_on:
+      db: {condition: service_healthy}
+    entrypoint: ["java", "-Dloader.main=com.plinko.migration.Migrator", "-cp", "/app/app.jar",
+                 "org.springframework.boot.loader.launch.PropertiesLauncher"]
+    healthcheck: {disable: true}
+    environment:
+      DB_URL: jdbc:mysql://db:3306/plinko?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&sslMode=REQUIRED
+      DB_NAME: plinko
+      DB_USERNAME: plinko_app
+      DB_OWNER_USERNAME: plinko_owner
+    secrets: [DB_OWNER_PASSWORD]
+    tmpfs: [/tmp]
+    networks: [internal]
+    mem_limit: 512m
+    pids_limit: 128
+
+  backend:
+    <<: *hardening
+    build: ./backend
+    image: plinko-backend:local
+    depends_on:
+      db: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+    environment:
+      DB_URL: jdbc:mysql://db:3306/plinko?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&sslMode=REQUIRED
+      DB_NAME: plinko
+      DB_USERNAME: plinko_app
+      SPRING_FLYWAY_ENABLED: "false"    # migrations run in the migrate container
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PORT: "8081"
+      PAM_BASE_URL: ${PAM_BASE_URL:?}
+      PAM_ALLOW_HTTP: ${PAM_ALLOW_HTTP:-false}
+      MOCK_PAM_ENABLED: ${MOCK_PAM_ENABLED:-false}
+      MOCK_PHONE_GAME_URL: ${MOCK_PHONE_GAME_URL:-}
+      # public demo with fake credits; only with the mock PAM (docker-compose.demo.yml turns it on)
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DEMO_CREDITS: ${DEMO_CREDITS:-1000}
+      DEMO_WALLETS_PER_DAY: ${DEMO_WALLETS_PER_DAY:-2000}
+      REQUIRE_SECOND_APPROVER: ${REQUIRE_SECOND_APPROVER:-true}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      GAME_URL: ${GAME_URL:-http://localhost:8080/}
+      # the casino's days for Finance and the daily totals (review 7.9), e.g. Europe/Malta
+      REPORTING_TIME_ZONE: ${REPORTING_TIME_ZONE:-UTC}
+      # retiring the original ROUND_SIGNING_KEY (README "Keys", review N8): a UTC time, e.g. 2026-11-01T00:00:00Z;
+      # empty = not yet. Needs ROUND_KEYS, RECORD_KEYS and ENCRYPTION_KEYS set.
+      LEGACY_KEY_UNTIL: ${LEGACY_KEY_UNTIL:-}
+      # review R7: nothing made from this time on is signed again (a suspected leak of ROUND_SIGNING_KEY); false stops the job
+      LEGACY_KEY_SUSPECTED_LEAK: ${LEGACY_KEY_SUSPECTED_LEAK:-}
+      LEGACY_RESIGN: ${LEGACY_RESIGN:-true}
+      # settlement limits per currency (README, Settling a blocked round): e.g. EUR=1000,SEK=11000; empty = 1000 / 100
+      SETTLEMENT_MAX_AMOUNTS: ${SETTLEMENT_MAX_AMOUNTS:-}
+      SETTLEMENT_OTHER_AMOUNTS: ${SETTLEMENT_OTHER_AMOUNTS:-}
+    # Mounted as files in /run/secrets and read as configuration: not visible in `docker inspect` or the
+    # process environment. ROUND_KEYS, RECORD_KEYS, ENCRYPTION_KEYS: the separate keys per use (review 7.2 / N8,
+    # README "Keys"), "id=secret,..." newest first; an empty file = the original ROUND_SIGNING_KEY for that use.
+    # Never set them as environment variables: those show in `docker inspect` and override the files.
+    secrets: [DB_PASSWORD, ADMIN_PASSWORD, ROUND_SIGNING_KEY, ROUND_KEYS, RECORD_KEYS, ENCRYPTION_KEYS, PAM_API_KEY, PAM_SECRET]
+    tmpfs: [/tmp]
+    networks: [internal, edge]
+    ports:
+      - "127.0.0.1:8081:8081"           # admin panel only; the game API is not served on this port
+    mem_limit: 1g
+    pids_limit: 1024
+
+  web:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: deploy/nginx/Dockerfile
+    image: plinko-web:local
+    depends_on:
+      backend: {condition: service_healthy}
+    tmpfs: [/tmp]
+    networks: [edge]
+    ports:
+      - "8080:8080"
+    mem_limit: 256m
+    pids_limit: 128
+
+# Secret values are files in ./secrets (created by scripts/generate-secrets.sh; folder readable only by its
+# owner, never committed). They are mounted read-only into the containers that need them.
+secrets:
+  MYSQL_ROOT_PASSWORD: {file: "${SECRETS_DIR:-./secrets}/MYSQL_ROOT_PASSWORD"}
+  DB_OWNER_PASSWORD: {file: "${SECRETS_DIR:-./secrets}/DB_OWNER_PASSWORD"}
+  DB_PASSWORD: {file: "${SECRETS_DIR:-./secrets}/DB_PASSWORD"}
+  ADMIN_PASSWORD: {file: "${SECRETS_DIR:-./secrets}/ADMIN_PASSWORD"}
+  ROUND_SIGNING_KEY: {file: "${SECRETS_DIR:-./secrets}/ROUND_SIGNING_KEY"}
+  ROUND_KEYS: {file: "${SECRETS_DIR:-./secrets}/ROUND_KEYS"}
+  RECORD_KEYS: {file: "${SECRETS_DIR:-./secrets}/RECORD_KEYS"}
+  ENCRYPTION_KEYS: {file: "${SECRETS_DIR:-./secrets}/ENCRYPTION_KEYS"}
+  PAM_API_KEY: {file: "${SECRETS_DIR:-./secrets}/PAM_API_KEY"}
+  PAM_SECRET: {file: "${SECRETS_DIR:-./secrets}/PAM_SECRET"}
+
+networks:
+  internal:
+    internal: true   # database traffic never leaves the host and the db has no route out
+  edge: {}
+
+volumes:
+  db-data:

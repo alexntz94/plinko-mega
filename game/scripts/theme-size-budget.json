@@ -1,0 +1,21 @@
+{
+  "note": "Review 4.x: first-visit budget per existing theme in KB (scripts/theme-size-budget.mjs --update): its size then + 40 KB, never above 2 MB. A theme not listed: 2 MB. The video loads after the first round and is not counted.",
+  "themes": {
+    "bad-bounce": 1275,
+    "bad-dentist": 1380,
+    "big-brother": 1099,
+    "clown-business": 1324,
+    "doomscroll": 1372,
+    "drop-riot": 1361,
+    "fatal-attraction": 1259,
+    "gravity-issues": 1248,
+    "holy-sin": 1428,
+    "inked-damned": 1294,
+    "rat-race": 1649,
+    "scam-squad": 1599,
+    "shady-nana": 1299,
+    "shurda": 1395,
+    "system-failure": 1285,
+    "toxic-lab": 1110
+  }
+}

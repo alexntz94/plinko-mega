@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Authenticator code · Plinko Admin</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/admin-assets/logo.svg}">
+    <link rel="stylesheet" th:href="@{/admin-assets/admin.css}">
+    <script th:src="@{/admin-assets/admin.js}" defer></script>
+</head>
+<body class="auth">
+<main class="auth-panel">
+    <div class="auth-brand"><img class="brand-mark" src="/admin-assets/logo.svg" alt="" width="28" height="28">Plinko Admin</div>
+    <h1>Enter your code</h1>
+    <p class="muted">Open your authenticator app and enter the 6-digit code for <strong th:text="${username}">admin</strong>.</p>
+    <div class="flash error" th:if="${error}" th:text="${error}"></div>
+    <form th:action="@{/admin/login}" method="post" autocomplete="off" data-code-form>
+        <input type="hidden" name="username" th:value="${username}">
+        <input class="code-input" name="code" required autofocus inputmode="numeric" pattern="\d{6}" maxlength="6"
+               autocomplete="one-time-code" aria-label="6-digit code" placeholder="000000">
+        <button class="block" type="submit">Sign in</button>
+    </form>
+    <p class="auth-foot">Not you? <a th:href="@{/admin/login(restart=1)}">Start over</a></p>
+</main>
+</body>
+</html>

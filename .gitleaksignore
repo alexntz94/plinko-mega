@@ -1,0 +1,3 @@
+# gitleaks: findings checked and accepted. Each is a made-up password of a throwaway test account in the
+# end-to-end suite, not a real secret. Listed one by one (commit:file:rule:line), so anything new is still caught.
+bb2c72fecd8738366fde79592cd7641bc4bcdd40:tests/security_e2e.py:generic-api-key:311

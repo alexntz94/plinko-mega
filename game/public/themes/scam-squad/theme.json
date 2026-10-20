@@ -1,0 +1,38 @@
+{
+  "name": "The Scam Squad",
+  "title": "The Scam Squad Plinko",
+  "background": "#140f1c",
+  "accent": "#ffb21e",
+  "text": "#f6e7c4",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Fredoka", "file": "fredoka.woff2", "weight": "600" },
+  "board": {
+    "fx": "scam",
+    "peg": "item_peg.png",
+    "pegFlash": "#ffb21e",
+    "trail": "#ffb21e",
+    "slotRadius": 8,
+    "slotArt": true,
+    "slots": [
+      { "face": "#f6e7c4", "text": "#1a1020" },
+      { "face": "#0b6c6e", "text": "#f6e7c4" },
+      { "face": "#ffb21e", "text": "#1a1020" },
+      { "face": "#4a1046", "text": "#f6e7c4" },
+      { "face": "#d8250f", "text": "#f6e7c4" }
+    ]
+  },
+  "ui": { "style": "glass", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": {
+    "labelY": -9,
+    "valueY": 43,
+    "controlY": 32,
+    "dragBarY": 32,
+    "riskLeftX": 34,
+    "riskRightX": 220,
+    "halfX": 166,
+    "doubleX": 218
+  }
+}

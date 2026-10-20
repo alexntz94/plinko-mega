@@ -1,0 +1,14 @@
+{
+  "about": "Review N9: every request the game client sends, as it sends them. game/test/requests.test.ts fails when the client's requests change and this file isn't updated with them; tests/compat_smoke.py replays the PREVIOUS release's copy of this file against the new backend (scripts/compat-check.sh), so a backend that refuses what players' cached clients still send fails CI. Placeholders: $TOKEN (a fresh launch token), $UUID (a new id), $NEXT (the cursor from the history answer before; skipped when there is none), $NOW (the time now, in milliseconds). goesOnWithout: the game carries on whatever the answer (a report, review 7.4), so a backend without the endpoint (404, or 403 from a backend that denies paths it doesn't know) is accepted; any other refusal is not.",
+  "requests": [
+    {"path": "/api/game/session", "body": {"token": "$TOKEN"}},
+    {"path": "/api/game/session", "body": {"token": "$TOKEN", "theme": "drop-riot"}},
+    {"path": "/api/game/resume", "body": {}},
+    {"path": "/api/game/play", "body": {"rows": 8, "risk": 0, "bet": 1, "balls": 2, "requestId": "$UUID"}},
+    {"path": "/api/game/history", "body": {}},
+    {"path": "/api/game/history", "body": {"cursor": "$NEXT"}},
+    {"path": "/api/game/event", "body": {"type": "REALITY_CHECK_SHOWN", "at": "$NOW"}, "goesOnWithout": true},
+    {"path": "/api/game/event", "body": {"type": "REALITY_CHECK_CONTINUED", "at": "$NOW"}, "goesOnWithout": true},
+    {"path": "/api/game/event", "body": {"type": "SESSION_CLOCK_SHOWN", "at": "$NOW"}, "goesOnWithout": true}
+  ]
+}

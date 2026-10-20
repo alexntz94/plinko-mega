@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head><title>My account · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>My account</h1>
+            <p>Signed in as <strong sec:authentication="name"></strong>. Your authenticator app stays the same when you change your password.</p>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-head"><div><h2>Change password</h2><p class="muted">Your other sessions are signed out; this one stays signed in.</p></div></div>
+        <form th:action="@{/admin/account/password}" method="post" autocomplete="off">
+            <div class="form-row">
+                <label>Current password <input name="currentPassword" type="password" required maxlength="200" autocomplete="current-password"></label>
+                <label>New password <input name="newPassword" type="password" required minlength="12" maxlength="200" autocomplete="new-password"></label>
+                <div class="form-actions"><button type="submit">Change password</button></div>
+            </div>
+            <p class="hint">At least 12 characters, mixing 3 of lowercase, uppercase, digits and symbols.</p>
+        </form>
+    </div>
+</section>
+</body>
+</html>

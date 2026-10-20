@@ -1,0 +1,12 @@
+{
+  "about": "Prize position (0 = centre, highest = edges) of every slot, left to right, for every board the server offers (8 to 14 rows). Both the game client (game/test/rules.test.ts) and the server (OddsTest) are tested against this file. Made from the client formula floor(|slot - rows/2|).",
+  "rows": {
+    "8": [4, 3, 2, 1, 0, 1, 2, 3, 4],
+    "9": [4, 3, 2, 1, 0, 0, 1, 2, 3, 4],
+    "10": [5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5],
+    "11": [5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 5],
+    "12": [6, 5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5, 6],
+    "13": [6, 5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 5, 6],
+    "14": [7, 6, 5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5, 6, 7]
+  }
+}

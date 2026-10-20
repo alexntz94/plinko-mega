@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Phone QR · Plinko Admin</title></head>
+<body>
+<section>
+    <a class="back" th:href="@{/admin/mock-pam}">Mock PAM</a>
+    <div class="page-head">
+        <div>
+            <h1>Open the game on your phone</h1>
+            <p>Scan with the phone's camera. The phone must be on the same Wi-Fi as this computer. The code works once.</p>
+        </div>
+    </div>
+    <div class="card qr-card">
+        <img class="qr" th:src="${qrCode}" alt="QR code with the game launch link">
+        <div>
+            <div class="form-actions">
+                <a class="button" th:href="@{/admin/mock-pam/{id}/qr(id=${playerId}, theme=${theme})}">New code</a>
+            </div>
+            <p class="hint">Game:</p>
+            <div class="segmented">
+                <a th:href="@{/admin/mock-pam/{id}/qr(id=${playerId})}" th:classappend="${theme == null} ? 'on'">Default</a>
+                <a th:each="t : ${themes}" th:href="@{/admin/mock-pam/{id}/qr(id=${playerId}, theme=${t.key})}" th:text="${t.value}" th:classappend="${theme == t.key} ? 'on'"></a>
+            </div>
+            <p class="mono small wrap hint" th:text="${url}"></p>
+            <p class="hint">Nothing opens? Check that the phone is on the same network and that this computer allows incoming connections on port 8080.</p>
+        </div>
+    </div>
+</section>
+</body>
+</html>

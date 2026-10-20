@@ -1,0 +1,25 @@
+{
+  "name": "plinko-game",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Plinko game client: PixiJS (WebGL) rendering of results decided and signed by the server",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "size-budget": "node scripts/theme-size-budget.mjs"
+  },
+  "dependencies": {
+    "gsap": "3.15.0",
+    "howler": "2.2.4",
+    "pixi.js": "8.21.0"
+  },
+  "devDependencies": {
+    "@types/howler": "2.2.13",
+    "pngjs": "7.0.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.1",
+    "vitest": "5.0.3"
+  }
+}

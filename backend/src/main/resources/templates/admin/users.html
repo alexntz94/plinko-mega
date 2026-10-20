@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Admins · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Admins</h1>
+            <p>Accounts are disabled, never deleted, so the audit trail stays complete. Giving or removing approval rights needs a second admin.</p>
+        </div>
+    </div>
+
+    <div class="card temp-password" th:if="${tempPassword}">
+        <h2 th:text="|Temporary password for ${tempUser}|">Temporary password</h2>
+        <p class="secret" th:text="${tempPassword}">xxxx</p>
+        <p class="hint">Shown only this once. Give it to <strong th:text="${tempUser}"></strong> in person or over a trusted channel (not email or chat). It works for 24 hours; they choose a new password at sign-in and still need their own authenticator.</p>
+    </div>
+
+    <div class="card" th:unless="${resetRequests.isEmpty()}">
+        <div class="card-head"><div><h2>Forgot-password requests</h2><p class="muted">Confirm it is really them (call or meet them) before you reset anything.</p></div></div>
+        <div class="table-wrap">
+            <table class="compact">
+                <thead><tr><th>Username</th><th>Requested (UTC)</th><th>From address</th><th></th></tr></thead>
+                <tbody>
+                <tr th:each="r : ${resetRequests}">
+                    <td th:text="${r.username()}"></td>
+                    <td th:text="${#temporals.format(r.requestedAt(), 'yyyy-MM-dd HH:mm')}"></td>
+                    <td class="mono" th:text="${r.ip()}"></td>
+                    <td><div class="row-actions">
+                        <form th:action="@{/admin/users/{u}/reset-password(u=${r.username()})}" method="post">
+                            <input type="hidden" name="formToken" th:value="${formToken}">
+                            <button type="submit" class="small" data-confirm="Did you confirm it is really them? This creates a temporary password.">Reset password</button>
+                        </form>
+                        <form th:action="@{/admin/users/reset-requests/{id}/dismiss(id=${r.id()})}" method="post">
+                            <button type="submit" class="small secondary">Dismiss</button>
+                        </form>
+                    </div></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Username</th><th>Role</th><th>2FA</th><th>Status</th><th>Last sign-in (UTC)</th><th></th></tr></thead>
+            <tbody>
+            <tr th:each="u : ${users}">
+                <td><strong th:text="${u.username()}"></strong></td>
+                <td>
+                    <form th:action="@{/admin/users/{u}/role(u=${u.username()})}" method="post" class="inline-form">
+                        <select name="role" aria-label="Role"><option th:each="r : ${roles}" th:value="${r}" th:text="${#strings.capitalize(#strings.toLowerCase(r))}" th:selected="${r == u.role()}"></option></select>
+                        <button type="submit" class="secondary small">Change</button>
+                    </form>
+                </td>
+                <td><span class="status" th:classappend="${u.enrolled()} ? 'COMPLETED' : 'PENDING'" th:text="${u.enrolled()} ? 'Set up' : 'Not set up'"></span></td>
+                <td><span class="status" th:classappend="${!u.enabled() or u.locked()} ? 'TAMPERED' : (${u.mustChangePassword()} ? 'PENDING' : 'COMPLETED')"
+                          th:text="${!u.enabled()} ? 'Disabled' : (${u.locked()} ? 'Locked' : (${u.mustChangePassword()} ? 'Temporary password' : 'Active'))"></span></td>
+                <td class="muted" th:text="${u.lastLoginAt() == null} ? '–' : ${#temporals.format(u.lastLoginAt(), 'yyyy-MM-dd HH:mm')}"></td>
+                <td><div class="row-actions">
+                    <form th:if="${u.locked()}" th:action="@{/admin/users/{u}/unlock(u=${u.username()})}" method="post"><button type="submit" class="small secondary">Unlock</button></form>
+                    <form th:action="@{/admin/users/{u}/reset-password(u=${u.username()})}" method="post">
+                        <input type="hidden" name="formToken" th:value="${formToken}">
+                        <button type="submit" class="small secondary" data-confirm="Create a temporary password for this account? Their 2FA stays as it is.">Reset password</button>
+                    </form>
+                    <form th:if="${u.enrolled()}" th:action="@{/admin/users/{u}/reset-2fa(u=${u.username()})}" method="post">
+                        <button type="submit" class="small secondary" data-confirm="They will have to set up their authenticator again at next sign-in.">Reset 2FA</button>
+                    </form>
+                    <form th:action="@{/admin/users/{u}/{a}(u=${u.username()}, a=${u.enabled()} ? 'disable' : 'enable')}" method="post">
+                        <button type="submit" class="small" th:classappend="${u.enabled()} ? 'danger'" th:text="${u.enabled()} ? 'Disable' : 'Enable'" data-confirm="Are you sure?"></button>
+                    </form>
+                </div></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="hint"><strong>Viewer</strong> reads only. <strong>Operator</strong> proposes odds and limit changes, blocks players and stops the game. <strong>Admin</strong> also approves other people's changes and manages admins.</p>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Add an account</h2><p class="muted">The new person sets up 2FA and replaces this password at first sign-in.</p></div></div>
+        <form th:action="@{/admin/users}" method="post" autocomplete="off">
+            <div class="form-row">
+                <label>Username <input name="username" required maxlength="64" pattern="[a-zA-Z0-9._\-]{3,64}" autocapitalize="none" spellcheck="false"></label>
+                <label>Temporary password <input name="password" type="password" required minlength="12" maxlength="200" autocomplete="new-password"></label>
+                <label>Role <select name="role" class="styled"><option th:each="r : ${roles}" th:value="${r}" th:text="${#strings.capitalize(#strings.toLowerCase(r))}"></option></select></label>
+                <div class="form-actions"><button type="submit">Create account</button></div>
+            </div>
+            <p class="hint">Password: at least 12 characters, mixing 3 of lowercase, uppercase, digits and symbols.</p>
+        </form>
+    </div>
+</section>
+</body>
+</html>

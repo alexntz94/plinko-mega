@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Dashboard · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Dashboard</h1>
+            <p>The game at a glance: health checks first, then money per period and the latest rounds.</p>
+        </div>
+        <div class="page-actions"><a class="button secondary" th:href="@{/admin/finance}">Open Finance</a></div>
+    </div>
+    <div data-live="dashboard">
+
+    <div class="tiles">
+        <div class="tile" th:classappend="${gameEnabled} ? 'good' : 'bad'">
+            <span class="label">Game</span><strong th:text="${gameEnabled} ? 'Running' : 'Stopped'">Running</strong>
+        </div>
+        <div class="tile" th:classappend="${pendingWallet == 0} ? 'good' : 'warn'">
+            <span class="label">Rounds waiting on the wallet</span><strong th:text="${pendingWallet}">0</strong>
+        </div>
+        <div class="tile" th:classappend="${tampered == 0} ? 'good' : 'bad'">
+            <span class="label">Rounds failing signature check</span><strong th:text="${tampered}">0</strong>
+            <span class="muted small" th:text="${checkedUntil == null} ? 'no scan finished yet' : |rounds played before ${#temporals.format(checkedUntil, 'yyyy-MM-dd HH:mm')} UTC checked|"></span>
+        </div>
+        <div class="tile" th:classappend="${auditChain.intact()} ? 'good' : 'bad'">
+            <span class="label">Audit log chain</span>
+            <strong th:text="${auditChain.intact()} ? 'Intact' : |Broken at #${auditChain.brokenAtId()}|">Intact</strong>
+        </div>
+    </div>
+
+    <div th:if="${!openBlocked.isEmpty()}">
+        <div class="section-head"><h2>Blocked rounds to settle</h2><a th:href="@{/admin/rounds(status='TAMPERED')}">All blocked rounds</a></div>
+        <p class="muted small">Never paid automatically. Check each one, then propose pay, refund or close on its page; another admin approves.</p>
+        <div class="table-wrap"><table>
+            <thead><tr><th>Blocked (UTC)</th><th class="num">Waiting</th><th>Round</th><th>Player</th><th class="num">Bet</th><th>Settlement</th></tr></thead>
+            <tbody>
+            <tr th:each="b : ${openBlocked}">
+                <td th:text="${#temporals.format(b.blockedAt(), 'yyyy-MM-dd HH:mm')}"></td>
+                <td class="num" th:with="h=${T(java.time.Duration).between(b.blockedAt(), T(java.time.Instant).now()).toHours()}"
+                    th:classappend="${h >= 24} ? 'bad-text'" th:text="${h >= 48} ? |${h / 24} days| : |${h} h|"></td>
+                <td><a th:href="@{/admin/rounds/{id}(id=${b.roundId()})}" th:text="${#strings.substring(b.roundId(), 0, 8)}"></a></td>
+                <td class="mono small" th:text="${b.playerExternalId()}"></td>
+                <td class="num" th:text="|${b.totalBet()} ${b.currency()}|"></td>
+                <td th:text="${b.settlementStatus() == null} ? 'Not started' : 'Approved, waiting on the wallet'"></td>
+            </tr>
+            </tbody>
+        </table></div>
+    </div>
+
+    <p th:if="${totals.isEmpty()}" class="muted">No rounds played yet.</p>
+    <div th:each="c : ${totals}">
+        <h2 th:text="${c.currency()}">EUR</h2>
+        <div class="table-wrap"><table>
+            <thead><tr><th>Period</th><th class="num">Rounds</th><th class="num">Players</th><th class="num">Bets</th><th class="num">Wins</th><th class="num">GGR</th><th class="num">Actual RTP</th></tr></thead>
+            <tbody>
+            <tr th:each="t : ${c.periods()}">
+                <td th:text="${t.label()}"></td>
+                <td class="num" th:text="${t.rounds()}"></td>
+                <td class="num" th:text="${t.players()}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(t.bet(), 1, 'COMMA', 2, 'POINT')}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(t.win(), 1, 'COMMA', 2, 'POINT')}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(t.ggr(), 1, 'COMMA', 2, 'POINT')}"></td>
+                <td class="num" th:text="${t.rtp() == null} ? '–' : |${t.rtp()}%|"></td>
+            </tr>
+            </tbody>
+        </table></div>
+    </div>
+
+    <div class="section-head"><h2>Latest rounds</h2><a th:href="@{/admin/rounds}">All rounds</a></div>
+    <div class="table-wrap"><table>
+        <thead><tr><th>Time (UTC)</th><th>Round</th><th class="num">Rows</th><th>Risk</th><th class="num">Balls</th><th class="num">Bet</th><th class="num">Win</th><th>Status</th></tr></thead>
+        <tbody>
+        <tr th:each="r : ${recentRounds}">
+            <td th:text="${#temporals.format(r.createdAt(), 'yyyy-MM-dd HH:mm:ss')}"></td>
+            <td><a th:href="@{/admin/rounds/{id}(id=${r.id()})}" th:text="${#strings.substring(r.id(), 0, 8)}"></a></td>
+            <td class="num" th:text="${r.rows()}"></td>
+            <td th:text="${riskNames[r.risk()]}"></td>
+            <td class="num" th:text="${r.balls()}"></td>
+            <td class="num" th:text="|${r.totalBet()} ${r.currency()}|"></td>
+            <td class="num" th:text="${r.totalWin() == null} ? '–' : |${r.totalWin()} ${r.currency()}|"></td>
+            <td><span class="status" th:classappend="${r.status()}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(r.status(), '_', ' ')))}"></span></td>
+        </tr>
+        </tbody>
+    </table></div>
+    </div>
+</section>
+</body>
+</html>

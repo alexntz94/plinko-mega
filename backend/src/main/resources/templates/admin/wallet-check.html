@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::head/title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Wallet check · Plinko Admin</title></head>
+<body>
+<section>
+    <a class="back" th:href="@{/admin/finance}">Finance</a>
+    <div class="page-head">
+        <div>
+            <h1>Check against the wallet</h1>
+            <p>Compares the casino wallet's record of this game's bets, wins and refunds with the game's own, for up to 7 days (UTC).
+                Run it after a backup is restored, from the restore point to now, and whenever Finance and the casino's statement disagree.
+                It only reads; nothing is changed.</p>
+        </div>
+    </div>
+
+    <form class="filters" method="get" th:action="@{/admin/finance/wallet-check}">
+        <label>From <input type="datetime-local" name="from" th:value="${from}" required></label>
+        <label>To <input type="datetime-local" name="to" th:value="${to}" required></label>
+        <input type="hidden" name="run" value="1">
+        <button type="submit">Check</button>
+    </form>
+
+    <div class="flash error" th:if="${error}" th:text="${error}"></div>
+
+    <div th:if="${report != null}">
+        <div class="tiles">
+            <div class="tile" th:classappend="${report.clean()} ? 'good' : 'bad'">
+                <span class="label">Result</span><strong th:text="${report.clean()} ? 'Both sides agree' : 'Differences found'"></strong>
+                <span class="muted small" th:text="|${report.matched()} transactions match; the wallet listed ${report.walletCount()}, the game ${report.gameCount()}|"></span>
+            </div>
+            <div class="tile" th:classappend="${report.counts()['walletOnly'] == 0} ? 'good' : 'bad'">
+                <span class="label">Only at the wallet</span><strong th:text="${report.counts()['walletOnly']}"></strong>
+                <span class="muted small">money moved for rounds the game has no record of (lost by a restore)</span>
+            </div>
+            <div class="tile" th:classappend="${report.counts()['gameOnly'] == 0} ? 'good' : 'bad'">
+                <span class="label">Only in the game</span><strong th:text="${report.counts()['gameOnly']}"></strong>
+                <span class="muted small">recorded as done by the game, unknown to the wallet</span>
+            </div>
+            <div class="tile" th:classappend="${report.counts()['different'] == 0} ? 'good' : 'bad'">
+                <span class="label">Amount or type differs</span><strong th:text="${report.counts()['different']}"></strong>
+            </div>
+            <div class="tile" th:classappend="${report.counts()['notConfirmed'] == 0} ? 'good' : 'warn'">
+                <span class="label">Done at the wallet, still pending in the game</span><strong th:text="${report.counts()['notConfirmed']}"></strong>
+                <span class="muted small">the game's retry settles these with the same transaction id</span>
+            </div>
+        </div>
+        <p class="flash error" th:if="${!report.complete()}">More than 200,000 transactions: only part of the range was compared. Check a shorter range.</p>
+
+        <div class="table-wrap" th:if="${!report.differences().isEmpty()}"><table>
+            <thead><tr><th>What</th><th>Time (UTC)</th><th>Transaction</th><th>Type</th><th>Round</th><th>Player</th><th class="num">Game</th><th class="num">Wallet</th><th>Game status</th></tr></thead>
+            <tbody>
+            <tr th:each="d : ${report.differences()}">
+                <td th:text="${labels[d.kind()]}"></td>
+                <td th:text="${d.time() == null} ? '' : ${#temporals.format(d.time(), 'yyyy-MM-dd HH:mm:ss')}"></td>
+                <td class="mono small" th:text="${d.transactionId()}"></td>
+                <td th:text="${d.type()}"></td>
+                <td class="mono small"><a th:if="${d.roundId() != null and d.kind() != 'walletOnly'}" th:href="@{/admin/rounds/{id}(id=${d.roundId()})}" th:text="${#strings.substring(d.roundId(), 0, 8)}"></a>
+                    <span th:if="${d.kind() == 'walletOnly'}" th:text="${d.roundId()}"></span></td>
+                <td class="mono small" th:text="${d.playerId() ?: ''}"></td>
+                <td class="num" th:text="${d.gameAmount() ?: '–'}"></td>
+                <td class="num" th:text="${d.walletAmount() ?: '–'}"></td>
+                <td th:text="${d.gameStatus() ?: '–'}"></td>
+            </tr>
+            </tbody>
+        </table></div>
+    </div>
+</section>
+</body>
+</html>

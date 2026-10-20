@@ -1,0 +1,13 @@
+# What the admin service's metrics collector scrapes (review 7.10a): Google's Managed Service for Prometheus sidecar for
+# Cloud Run reads this from /etc/rungmp/config.yaml (the plinko-gmp-config secret; "deploy.sh deploy" keeps it equal to
+# this file). The backend answers /actuator/prometheus on its admin port only, without a sign-in; the sidecar reaches it
+# on localhost inside the instance.
+apiVersion: monitoring.googleapis.com/v1beta
+kind: RunMonitoring
+metadata:
+  name: plinko-admin
+spec:
+  endpoints:
+    - port: 8081
+      path: /actuator/prometheus
+      interval: 60s

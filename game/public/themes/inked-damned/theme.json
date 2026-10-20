@@ -1,0 +1,29 @@
+{
+  "name": "Inked & Damned",
+  "title": "Inked & Damned Plinko",
+  "background": "#2a1412",
+  "accent": "#c1121f",
+  "text": "#efe4cc",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Rye", "file": "rye.woff2", "weight": "400" },
+  "board": {
+    "fx": "inked",
+    "peg": "item_peg.png",
+    "pegFlash": "#d9a21b",
+    "trail": "#c1121f",
+    "slotRadius": 4,
+    "slotArt": true,
+    "slots": [
+      { "face": "#e8dab8", "text": "#000000" },
+      { "face": "#4f6b2c", "text": "#efe4cc" },
+      { "face": "#d9a21b", "text": "#000000" },
+      { "face": "#c1121f", "text": "#efe4cc" },
+      { "face": "#000000", "text": "#d9a21b" }
+    ]
+  },
+  "ui": { "style": "ink", "ink": "#000000", "panel": "#1c1714", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": { "labelY": -9, "valueY": 43, "controlY": 32, "dragBarY": 32, "riskLeftX": 34, "riskRightX": 220, "halfX": 166, "doubleX": 218 }
+}

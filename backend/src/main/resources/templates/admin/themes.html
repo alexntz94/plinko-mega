@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head><title>Themes · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Themes</h1>
+            <p>The look of the game. Every theme plays the same way: same odds, same results decided on the server. Only the images change.</p>
+        </div>
+    </div>
+
+    <form th:action="@{/admin/themes}" method="post">
+        <div class="themes">
+            <div class="theme-card" th:each="t : ${known}"
+                 th:classappend="${(current.defaultTheme() == t.key ? 'is-default ' : '') + (current.enabled().contains(t.key) ? '' : 'off')}">
+                <span class="tag" th:if="${current.defaultTheme() == t.key}">Default</span>
+                <span class="tag off" th:if="${!current.enabled().contains(t.key)}">Off</span>
+                <img th:src="@{/admin-assets/themes/{id}.png(id=${t.key})}" th:alt="|${t.value} start screen|">
+                <div class="theme-info">
+                    <div class="theme-name"><strong th:text="${t.value}">Rat Race</strong><code th:text="|theme=${t.key}|">theme=rat-race</code></div>
+                    <label class="check-row">
+                        <input type="checkbox" name="enabled" th:value="${t.key}" th:checked="${current.enabled().contains(t.key)}">
+                        Available
+                    </label>
+                    <label class="check-row">
+                        <input type="radio" name="defaultTheme" th:value="${t.key}" th:checked="${current.defaultTheme() == t.key}">
+                        Default
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="form-actions" sec:authorize="hasRole('OPERATOR')"><button type="submit">Save themes</button></div>
+    </form>
+
+    <div class="card info-card">
+        <h2>How a casino picks a theme</h2>
+        <p class="muted">Add <code>&amp;theme=</code> and the theme's id to the launch link, e.g. <code>?token=…&amp;theme=rat-race</code>.
+            Without it, or for a theme that isn't available, players get the default.</p>
+    </div>
+</section>
+</body>
+</html>

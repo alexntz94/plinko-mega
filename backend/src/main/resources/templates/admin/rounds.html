@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Rounds · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Rounds</h1>
+            <p th:if="${playerFilter == null}">Every round played. Results are decided on the server and signed; a signature that fails means the data was changed.
+                The signature column is the hourly scan's verdict (a round's own page checks it again in full).</p>
+            <p th:if="${playerFilter != null}">Rounds of <a th:href="@{/admin/players/{id}(id=${playerFilter.id()})}" th:text="${playerFilter.username() ?: playerFilter.externalId()}">player</a>
+                · <a th:href="@{/admin/rounds}">all players</a></p>
+        </div>
+        <div class="page-actions"><a class="button secondary" th:href="${links.csv()}">Export CSV</a></div>
+    </div>
+
+    <form class="filters" method="get" th:action="@{/admin/rounds}" data-autosubmit>
+        <input type="hidden" name="player" th:if="${filter.playerId() != null}" th:value="${filter.playerId()}">
+        <input type="search" name="q" th:value="${filter.q()}" placeholder="Round id, PAM id or username" maxlength="128" aria-label="Search">
+        <select name="status" aria-label="Status">
+            <option value="">All statuses</option>
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(s, '_', ' ')))}" th:selected="${s == filter.status()}">COMPLETED</option>
+        </select>
+        <select name="rows" aria-label="Rows">
+            <option value="">All rows</option>
+            <option th:each="r : ${rowOptions}" th:value="${r}" th:text="|${r} rows|" th:selected="${filter.rows() == r}">8 rows</option>
+        </select>
+        <select name="risk" aria-label="Risk">
+            <option value="">All risks</option>
+            <option th:each="i : ${#numbers.sequence(0, 2)}" th:value="${i}" th:text="${riskNames[i]}" th:selected="${filter.risk() == i}">Low</option>
+        </select>
+        <select name="currency" aria-label="Currency" th:if="${currencies.size() > 1}">
+            <option value="">All currencies</option>
+            <option th:each="c : ${currencies}" th:value="${c}" th:text="${c}" th:selected="${c == filter.currency()}">EUR</option>
+        </select>
+        <span class="date-range"><span>From</span><input type="date" name="from" th:value="${filter.from()}" aria-label="From date"><span class="dash">–</span><input type="date" name="to" th:value="${filter.to()}" aria-label="To date"></span>
+        <span class="spacer"></span>
+        <a class="clear" th:if="${links.filtered()}" th:href="@{/admin/rounds}">Clear filters</a>
+    </form>
+
+    <div data-live="rounds">
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'time', 'Time (UTC)', '')}"></th:block>
+                    <th>Round</th>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'player', 'Player', '')}"></th:block>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'rows', 'Rows', 'num')}"></th:block>
+                    <th>Risk</th>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'balls', 'Balls', 'num')}"></th:block>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'bet', 'Bet', 'num')}"></th:block>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'win', 'Win', 'num')}"></th:block>
+                    <th>Status</th>
+                    <th>Signature</th>
+                </tr></thead>
+                <tbody>
+                <tr th:each="row : ${result.items()}" th:with="r=${row.round()}">
+                    <td th:text="${#temporals.format(r.createdAt(), 'yyyy-MM-dd HH:mm:ss')}"></td>
+                    <td><a class="mono" th:href="@{/admin/rounds/{id}(id=${r.id()})}" th:text="${#strings.substring(r.id(), 0, 8)}"></a></td>
+                    <td><a th:href="@{/admin/players/{id}(id=${r.playerId()})}" th:text="${row.playerName() ?: row.playerExternalId()}"></a></td>
+                    <td class="num" th:text="${r.rows()}"></td>
+                    <td th:text="${riskNames[r.risk()]}"></td>
+                    <td class="num" th:text="${r.balls()}"></td>
+                    <td class="num" th:text="|${r.totalBet()} ${r.currency()}|"></td>
+                    <td class="num" th:text="${r.totalWin() == null} ? '–' : |${r.totalWin()} ${r.currency()}|"
+                        th:classappend="${r.totalWin() != null and r.totalWin() > r.totalBet()} ? 'good-text'"></td>
+                    <td><span class="status" th:classappend="${r.status()}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(r.status(), '_', ' ')))}"></span></td>
+                    <td th:with="verdict=${verdicts.of(r)}" th:text="${verdict.isEmpty()} ? '–' : ${verdict}"
+                        th:classappend="${verdicts.bad(verdict)} ? 'bad-text' : 'muted'"></td>
+                </tr>
+                <tr th:if="${result.items().isEmpty()}"><td colspan="10" class="empty">No rounds match these filters.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div th:replace="~{admin/fragments :: pager(${result}, ${links})}"></div>
+    </div>
+</section>
+</body>
+</html>

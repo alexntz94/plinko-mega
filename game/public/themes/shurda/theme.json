@@ -1,0 +1,29 @@
+{
+  "name": "Shurda Plinko",
+  "title": "Shurda Plinko",
+  "background": "#1f8fc2",
+  "accent": "#f0388c",
+  "text": "#ffffff",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Lilita One", "file": "lilita-one.woff2", "weight": "400" },
+  "board": {
+    "fx": "shurda",
+    "peg": "item_peg.png",
+    "pegFlash": "#ffd23f",
+    "trail": "#f0388c",
+    "slotRadius": 8,
+    "slotArt": true,
+    "slots": [
+      { "face": "#fff6e0", "text": "#111111" },
+      { "face": "#7ed957", "text": "#111111" },
+      { "face": "#3db5e6", "text": "#111111" },
+      { "face": "#ffd23f", "text": "#111111" },
+      { "face": "#f0388c", "text": "#ffffff" }
+    ]
+  },
+  "ui": { "style": "ink", "ink": "#111111", "panel": "#17668c", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": { "labelY": -9, "valueY": 43, "controlY": 32, "dragBarY": 32, "riskLeftX": 34, "riskRightX": 220, "halfX": 166, "doubleX": 218 }
+}

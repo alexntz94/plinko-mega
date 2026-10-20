@@ -1,0 +1,11 @@
+# What "gcloud builds submit" uploads to Cloud Build: only what the images are built from (an allow-list).
+# Never secrets, .env, any casino's deploy settings, git history or local builds.
+/*
+!/backend/
+!/game/
+!/deploy/
+!/.dockerignore
+/deploy/gcp/
+backend/target/
+**/node_modules/
+**/dist/

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head><title>Settings · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Settings</h1>
+            <p>Bet limits change through approval. The hard limits and the PAM connection are fixed in the server configuration.</p>
+        </div>
+    </div>
+
+    <div class="card" th:unless="${settingsTrusted}">
+        <div class="card-head">
+            <div>
+                <h2>Restore settings</h2>
+                <p class="muted">These settings were changed outside the admin panel, so the game is stopped. Restoring puts back
+                    the values last saved through the admin panel, after another admin approves it.</p>
+            </div>
+        </div>
+        <div class="table-wrap" th:unless="${settingsDifferences.isEmpty()}">
+            <table>
+                <thead><tr><th>Setting</th><th>Now in the database</th><th>Restored to</th></tr></thead>
+                <tbody>
+                <tr th:each="d : ${settingsDifferences}">
+                    <td class="mono small" th:text="${d.name()}">game.bonus</td>
+                    <td class="mono small" th:text="${d.stored() ?: '(none)'}"></td>
+                    <td class="mono small" th:text="${d.recorded() ?: '(removed)'}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="muted" th:if="${settingsDifferences.isEmpty()}">No copy of the last saved settings is kept (they were changed
+            before this version of the server), so they can't be restored from here: put them back in the database by hand.</p>
+        <div class="flash warn" th:if="${pendingRestore}">A restore is waiting for approval (<a th:href="@{/admin/changes}">Approvals</a>).</div>
+        <form sec:authorize="hasRole('OPERATOR')" th:unless="${settingsDifferences.isEmpty()}" th:action="@{/admin/settings/restore}"
+              method="post" class="toolbar">
+            <button type="submit" th:disabled="${pendingRestore != null}">Propose restore</button>
+            <span class="toolbar-note">Applies after another admin approves it.</span>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <h2>Game</h2>
+                <p class="muted">Stopping refuses new sessions and rounds immediately; rounds already in progress finish.</p>
+            </div>
+            <span class="status" th:classappend="${gameEnabled} ? 'COMPLETED' : 'TAMPERED'" th:text="${gameEnabled} ? 'Running' : 'Stopped'">Running</span>
+        </div>
+        <form sec:authorize="hasRole('OPERATOR')" th:action="@{/admin/settings/game-enabled}" method="post" class="toolbar">
+            <input type="hidden" name="enabled" th:value="${!gameEnabled}">
+            <input name="reason" required maxlength="300" placeholder="Reason, kept in the audit log" class="grow" aria-label="Reason">
+            <button type="submit" th:classappend="${gameEnabled} ? 'danger'" th:text="${gameEnabled} ? 'Stop the game' : 'Start the game'"
+                    data-confirm="Are you sure?">Stop the game</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <h2>Player features</h2>
+                <p class="muted">Hold &amp; Drop: holding the drop button plays round after round until the player lets go (it stops by
+                    itself on low balance and big wins). Some markets ban autoplay: switch it off there.
+                    The other options are what some markets require for responsible gambling: set them as the market's rules say.
+                    Operators can make these stricter; only admins can loosen them.</p>
+            </div>
+        </div>
+        <form sec:authorize="hasRole('OPERATOR')" th:action="@{/admin/settings/features}" method="post" class="toolbar">
+            <label class="check-row"><input type="checkbox" name="holdToDrop" value="true" th:checked="${features.holdToDrop()}"> Hold &amp; Drop</label>
+            <label class="check-row"><input type="checkbox" name="sessionClock" value="true" th:checked="${features.sessionClock()}"> Session clock and net result in the game</label>
+            <label class="check-row"><input type="checkbox" name="quietSmallWins" value="true" th:checked="${features.quietSmallWins()}"> No win celebration when a round pays back less than its bet</label>
+            <label>Reality check every <input type="number" name="realityCheckMinutes" min="0" max="240" step="1" th:value="${features.realityCheckMinutes()}" style="width:5em"> minutes (0: off)</label>
+            <label>Minimum time per round <input type="number" name="minRoundSeconds" min="0" max="10" step="0.1" th:value="${features.minRoundSeconds()}" style="width:5em"> seconds (0: none)</label>
+            <label class="check-row"><input type="checkbox" name="requireRealityCheckProof" value="true" th:checked="${features.requireRealityCheckProof()}">
+                Require proof of the reality check: the server refuses rounds once it is due until the game reports it shown and the player continuing</label>
+            <button type="submit">Save</button>
+        </form>
+        <p sec:authorize="!hasRole('OPERATOR')" class="muted"
+           th:text="|Hold & Drop ${features.holdToDrop() ? 'on' : 'off'}; session clock ${features.sessionClock() ? 'on' : 'off'}; reality check ${features.realityCheckMinutes() == 0 ? 'off' : 'every ' + features.realityCheckMinutes() + ' min'}; small wins ${features.quietSmallWins() ? 'not celebrated' : 'celebrated'}; minimum round time ${features.minRoundSeconds()} s; reality check proof ${features.requireRealityCheckProof() ? 'required' : 'not required'}|">Hold &amp; Drop on</p>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <h2>Currency</h2>
+                <p class="muted">The game plays in one currency. Players whose PAM wallet is in another currency can't open the game.</p>
+            </div>
+            <span class="rtp-badge" th:text="${currencyLabel}">USD – US Dollar ($)</span>
+        </div>
+        <div class="flash warn" th:if="${pendingCurrency}">A currency change is waiting for approval (<a th:href="@{/admin/changes}">Approvals</a>).</div>
+        <form sec:authorize="hasRole('OPERATOR')" th:action="@{/admin/settings/currency}" method="post" class="toolbar">
+            <select name="currency" class="styled" aria-label="Currency">
+                <option th:each="c : ${currencies}" th:value="${c.key}" th:text="${c.value}" th:selected="${c.key == currency}">USD</option>
+            </select>
+            <button type="submit" th:disabled="${pendingCurrency != null}">Propose change</button>
+            <span class="toolbar-note">Applies after another admin approves it.</span>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <h2>Bet limits</h2>
+                <p class="muted">A new value applies after another admin approves it.</p>
+            </div>
+        </div>
+        <div class="flash warn" th:if="${pendingLimits}">A change to the bet limits is waiting for approval (<a th:href="@{/admin/changes}">Approvals</a>).</div>
+        <form th:action="@{/admin/settings/limits}" method="post">
+            <div class="form-row">
+                <label>Minimum bet <input name="minBet" th:value="${limits.minBet()}" inputmode="decimal" required></label>
+                <label>Maximum bet <input name="maxBet" th:value="${limits.maxBet()}" inputmode="decimal" required></label>
+                <label>Default bet <input name="defaultBet" th:value="${limits.defaultBet()}" inputmode="decimal" required></label>
+                <label>Balls per round, at most <input name="maxBalls" th:value="${limits.maxBalls()}" inputmode="numeric" required></label>
+            </div>
+            <div class="card-actions" sec:authorize="hasRole('OPERATOR')">
+                <span class="muted small">Bets of 1/2 and 2x in the game move along round amounts between these limits.</span>
+                <button type="submit" th:disabled="${pendingLimits != null}">Propose change</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <h2>Settlement limits</h2>
+                <p class="muted">The most a settlement of a blocked round may pay, per currency, and the most it may pay when the amount
+                    is not the round's own win recomputed from its signed outcome. Written <span class="mono">EUR=1000,GBP=900</span>;
+                    a currency not listed gets the server's default. A new value applies after another admin approves it.</p>
+            </div>
+        </div>
+        <div class="flash warn" th:if="${pendingSettlementLimits}">A change to the settlement limits is waiting for approval (<a th:href="@{/admin/changes}">Approvals</a>).</div>
+        <p class="muted" th:if="${settlementLimits == null}">Not available while the settings fail their check: restore them first.</p>
+        <dl class="facts" th:if="${settlementLimits != null}">
+            <dt>Highest settlement</dt><dd class="mono" th:text="${settlementLimits.maxAmounts()}">EUR=1000</dd>
+            <dt>Any amount other than the round's own win</dt><dd class="mono" th:text="${settlementLimits.otherAmounts()}">EUR=100</dd>
+        </dl>
+        <form sec:authorize="hasRole('ADMIN')" th:if="${settlementLimits != null}" th:action="@{/admin/settings/settlement-limits}" method="post">
+            <div class="form-row">
+                <label>Highest settlement <input name="maxAmounts" th:value="${settlementLimits.maxAmounts()}" required maxlength="500" class="mono"></label>
+                <label>Other amounts <input name="otherAmounts" th:value="${settlementLimits.otherAmounts()}" required maxlength="500" class="mono"></label>
+            </div>
+            <div class="card-actions">
+                <span class="muted small">Applies after another admin approves it; the proposer can't approve it.</span>
+                <button type="submit" th:disabled="${pendingSettlementLimits != null}">Propose change</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="two-col">
+        <div class="card">
+            <div class="card-head"><div><h2>Hard limits</h2><p class="muted">No admin action can go past them.</p></div></div>
+            <dl class="facts">
+                <dt>RTP range</dt><dd th:text="|${hardLimits.minRtp()}% – ${hardLimits.maxRtp()}%|"></dd>
+                <dt>Highest multiplier</dt><dd th:text="|${hardLimits.maxMultiplier()}x|"></dd>
+                <dt>Highest bet</dt><dd th:text="${hardLimits.maxBet()}"></dd>
+                <dt>Most balls</dt><dd th:text="${hardLimits.maxBalls()}"></dd>
+                <dt>Highest win per round</dt><dd th:text="${hardLimits.maxWinPerRound()}"></dd>
+                <dt>Second approver</dt><dd th:text="${requireSecondApprover} ? 'Required' : 'Off (development only)'" th:classappend="${requireSecondApprover} ? '' : 'bad-text'"></dd>
+                <dt th:if="${keyIds != null}">Signing keys (ids)</dt><dd th:if="${keyIds != null}" class="mono" th:text="${keyIds}"></dd>
+                <dt th:if="${originalKey != null}">Original ROUND_SIGNING_KEY</dt><dd th:if="${originalKey != null}" th:text="${originalKey}"></dd>
+                <dt th:if="${legacyCounted != null}">Still signed only with it</dt>
+                <dd th:if="${legacyLeft != null}" th:text="|rounds ${legacyLeft.tables()['game_round']}, transactions ${legacyLeft.tables()['wallet_transaction']}, odds versions ${legacyLeft.tables()['odds_history']}, as counted ${#temporals.format(legacyLeft.countedAt(), 'yyyy-MM-dd HH:mm')} UTC${legacyLeft.done() ? ': none left, the re-signing job has stopped' : ' (signed again by a background job; counted at the end of each sweep)'}|"></dd>
+                <dd th:if="${legacyCounted == false}" class="muted">Not counted yet: the re-signing job counts once the key lists are set, at the end of its first sweep.</dd>
+                <dt th:if="${legacyEvidence != null}">Kept as evidence, never signed again</dt>
+                <dd th:if="${legacyEvidence != null}" th:text="|rounds ${legacyEvidence['game_round']}, transactions ${legacyEvidence['wallet_transaction']}, odds versions ${legacyEvidence['odds_history']}|"></dd>
+                <dt th:if="${moneyOnOriginalKey != null}">Money still to move on it</dt>
+                <dd th:if="${moneyOnOriginalKey != null}" th:text="|${moneyOnOriginalKey} (settle it before LEGACY_KEY_UNTIL is set: the server refuses to start otherwise)|"
+                    th:classappend="${moneyOnOriginalKeyOpen} ? 'bad-text' : ''"></dd>
+            </dl>
+        </div>
+        <div class="card">
+            <div class="card-head"><div><h2>PAM connection</h2><p class="muted">From the server configuration, so wallet calls can't be redirected from here.</p></div></div>
+            <dl class="facts">
+                <dt>Address</dt><dd class="mono wrap" th:text="${pamUrl}"></dd>
+                <dt>API key</dt><dd class="mono" th:text="${pamKey}"></dd>
+                <dt>Secret</dt><dd>Configured, never shown</dd>
+                <dt>Timeout</dt><dd th:text="|${pamTimeout} ms|"></dd>
+            </dl>
+            <form class="form-actions" sec:authorize="hasRole('ADMIN')" th:action="@{/admin/settings/test-pam}" method="post">
+                <button type="submit" class="secondary">Test connection</button>
+            </form>
+        </div>
+    </div>
+</section>
+</body>
+</html>

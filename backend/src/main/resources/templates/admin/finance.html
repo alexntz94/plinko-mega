@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::head/title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Finance · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Finance</h1>
+            <p>What the platform made from the game. <strong>GGR</strong> (gross gaming revenue) = bets − wins; <strong>margin</strong> = GGR as a share of bets. Days are counted in <span th:text="${zone}">UTC</span> (<code>REPORTING_TIME_ZONE</code>).
+                <span class="muted small">Figures as of <span th:text="${#temporals.format(asOf, 'HH:mm:ss')}"></span> UTC, from the daily totals (today's are up to a minute behind; kept a minute;
+                <a th:href="@{/admin/finance(from=${from}, to=${to}, refresh=1)}">refresh now</a>).</span></p>
+        </div>
+        <div class="page-actions"><a class="button secondary" th:href="@{/admin/finance/wallet-check}">Check against the wallet</a>
+            <a class="button secondary" th:href="@{/admin/finance.csv(from=${from}, to=${to})}">Export daily CSV</a></div>
+    </div>
+
+    <form class="filters" method="get" th:action="@{/admin/finance}" data-autosubmit>
+        <span class="date-range"><span>From</span><input type="date" name="from" th:value="${from}" aria-label="From date"><span class="dash">–</span><input type="date" name="to" th:value="${to}" aria-label="To date"></span>
+    </form>
+
+    <div data-live="finance" data-live-every="60">
+    <p class="muted" th:if="${totals.isEmpty()}">No rounds in this period.</p>
+
+    <div th:each="t : ${totals}">
+        <h2 th:text="|${t.currency()} · ${from} to ${to}|">EUR</h2>
+        <div class="tiles">
+            <div class="tile" th:classappend="${t.ggr().signum() >= 0} ? 'good' : 'bad'">
+                <span class="label">Platform revenue (GGR)</span>
+                <strong th:text="|${#numbers.formatDecimal(t.ggr(), 1, 'COMMA', 2, 'POINT')} ${t.currency()}|"></strong>
+                <span class="muted small" th:text="|margin ${t.margin()}% of bets|"></span>
+            </div>
+            <div class="tile"><span class="label">Bets</span><strong th:text="${#numbers.formatDecimal(t.bet(), 1, 'COMMA', 2, 'POINT')}"></strong></div>
+            <div class="tile"><span class="label">Paid to players</span><strong th:text="${#numbers.formatDecimal(t.win(), 1, 'COMMA', 2, 'POINT')}"></strong></div>
+            <div class="tile"><span class="label">Actual RTP</span><strong th:text="|${t.rtp()}%|"></strong>
+                <span class="muted small" th:text="|${t.rounds()} rounds · ${t.players()} players|"></span></div>
+        </div>
+
+        <h3>Revenue per day</h3>
+        <svg th:with="chart=${charts.get(t.currency())}" class="chart" viewBox="0 0 1200 245" role="img" th:attr="aria-label=|Daily GGR in ${t.currency()}|">
+            <text x="60" y="14" class="axis-label" th:text="|highest day: ${chart.max()} ${t.currency()}|"></text>
+            <line x1="60" x2="1190" th:attr="y1=${chart.zeroY()},y2=${chart.zeroY()}" class="zero-line"/>
+            <text x="54" th:attr="y=${chart.zeroY() + 4}" class="axis-label" text-anchor="end">0</text>
+            <rect th:each="b : ${chart.bars()}" th:attr="x=${b.x()},y=${b.y()},width=${b.width()},height=${b.height()}"
+                  th:class="${b.positive()} ? 'bar-pos' : 'bar-neg'"><title th:text="|${b.day()}: ${b.ggr()} ${t.currency()}|"></title></rect>
+            <text x="60" y="238" class="axis-label" th:text="${from}"></text>
+            <text x="1190" y="238" class="axis-label" text-anchor="end" th:text="${to}"></text>
+        </svg>
+        <p class="muted small">Green: the platform won that day. Red: players won more than they bet. Hover a bar for the amount. Single days swing a lot; the total over weeks is what to judge.</p>
+    </div>
+
+    <div th:unless="${totals.isEmpty()}">
+        <h2>Checks</h2>
+        <div class="tiles">
+            <div class="tile" th:classappend="${mismatches == 0} ? 'good' : 'bad'">
+                <span class="label">Rounds whose wallet debit/credit differs from the round</span><strong th:text="${mismatches}">0</strong>
+                <span class="muted small" th:text="${reconciledAll} ? |Each finished round checked once, in the background (rounds since ${reconciledFrom})| : |Checking the rounds since ${reconciledFrom}...|"></span>
+            </div>
+        </div>
+        <div class="table-wrap" th:unless="${open.isEmpty()}"><table class="compact">
+            <thead><tr><th>Not settled</th><th>Currency</th><th class="num">Rounds</th><th class="num">Bets</th><th class="num">Wins</th></tr></thead>
+            <tbody>
+            <tr th:each="o : ${open}">
+                <td th:text="${o.label() == 'CREDIT_PENDING'} ? 'Win owed (credit retrying)' : (${o.label() == 'ROLLBACK_PENDING'} ? 'Bet being refunded' : 'Blocked: data tampered')"></td>
+                <td th:text="${o.currency()}"></td><td class="num" th:text="${o.rounds()}"></td>
+                <td class="num" th:text="${o.bet()}"></td><td class="num" th:text="${o.win()}"></td>
+            </tr>
+            </tbody>
+        </table></div>
+
+        <h2>By day</h2>
+        <div class="table-wrap"><table>
+            <thead><tr><th>Day (UTC)</th><th>Currency</th><th class="num">Rounds</th><th class="num">Players</th><th class="num">Bets</th><th class="num">Wins</th><th class="num">GGR</th><th class="num">RTP</th></tr></thead>
+            <tbody>
+            <tr th:each="d : ${daily}">
+                <td th:text="${d.label()}"></td><td th:text="${d.currency()}"></td>
+                <td class="num" th:text="${d.rounds()}"></td><td class="num" th:text="${d.players()}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(d.bet(), 1, 'COMMA', 2, 'POINT')}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(d.win(), 1, 'COMMA', 2, 'POINT')}"></td>
+                <td class="num" th:classappend="${d.ggr().signum() < 0} ? 'bad-text'" th:text="${#numbers.formatDecimal(d.ggr(), 1, 'COMMA', 2, 'POINT')}"></td>
+                <td class="num" th:text="|${d.rtp()}%|"></td>
+            </tr>
+            </tbody>
+        </table></div>
+
+        <div class="two-col">
+            <div>
+                <h2>By risk level</h2>
+                <div class="table-wrap"><table class="compact">
+                    <thead><tr><th>Risk</th><th>Cur.</th><th class="num">Bets</th><th class="num">GGR</th><th class="num">RTP</th></tr></thead>
+                    <tbody><tr th:each="l : ${byRisk}"><td th:text="${l.label()}"></td><td th:text="${l.currency()}"></td>
+                        <td class="num" th:text="${#numbers.formatDecimal(l.bet(), 1, 'COMMA', 2, 'POINT')}"></td>
+                        <td class="num" th:classappend="${l.ggr().signum() < 0} ? 'bad-text'" th:text="${#numbers.formatDecimal(l.ggr(), 1, 'COMMA', 2, 'POINT')}"></td>
+                        <td class="num" th:text="|${l.rtp()}%|"></td></tr></tbody>
+                </table></div>
+            </div>
+            <div>
+                <h2>By rows</h2>
+                <div class="table-wrap"><table class="compact">
+                    <thead><tr><th>Rows</th><th>Cur.</th><th class="num">Bets</th><th class="num">GGR</th><th class="num">RTP</th></tr></thead>
+                    <tbody><tr th:each="l : ${byRows}"><td th:text="${l.label()}"></td><td th:text="${l.currency()}"></td>
+                        <td class="num" th:text="${#numbers.formatDecimal(l.bet(), 1, 'COMMA', 2, 'POINT')}"></td>
+                        <td class="num" th:classappend="${l.ggr().signum() < 0} ? 'bad-text'" th:text="${#numbers.formatDecimal(l.ggr(), 1, 'COMMA', 2, 'POINT')}"></td>
+                        <td class="num" th:text="|${l.rtp()}%|"></td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <div>
+                <h2>Players who won most</h2>
+                <div class="table-wrap"><table class="compact">
+                    <thead><tr><th>Player</th><th class="num">Rounds</th><th class="num">Player net</th></tr></thead>
+                    <tbody><tr th:each="p : ${winners}" th:if="${p.ggr().signum() < 0}"><td th:text="${p.label()}"></td><td class="num" th:text="${p.rounds()}"></td>
+                        <td class="num" th:text="|+${#numbers.formatDecimal(p.ggr().negate(), 1, 'COMMA', 2, 'POINT')} ${p.currency()}|"></td></tr></tbody>
+                </table></div>
+            </div>
+            <div>
+                <h2>Players who lost most</h2>
+                <div class="table-wrap"><table class="compact">
+                    <thead><tr><th>Player</th><th class="num">Rounds</th><th class="num">Player net</th></tr></thead>
+                    <tbody><tr th:each="p : ${losers}" th:if="${p.ggr().signum() > 0}"><td th:text="${p.label()}"></td><td class="num" th:text="${p.rounds()}"></td>
+                        <td class="num" th:text="|−${#numbers.formatDecimal(p.ggr(), 1, 'COMMA', 2, 'POINT')} ${p.currency()}|"></td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+    </div>
+</section>
+</body>
+</html>

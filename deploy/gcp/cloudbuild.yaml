@@ -1,0 +1,30 @@
+# Builds the images for Google Cloud and pushes them to Artifact Registry ("deploy.sh build").
+# The source sent to Cloud Build is filtered by .gcloudignore: no secrets, no .env, no local builds.
+steps:
+  - id: backend
+    name: gcr.io/cloud-builders/docker
+    env: [DOCKER_BUILDKIT=1]
+    args: [build, --pull, -t, '${_REPO}/backend:${_TAG}', backend]
+    waitFor: ['-']
+  # nginx with the backend next to it in the same Cloud Run service, and the visitor's address taken from the
+  # load balancer's header (deploy/nginx/client-ip-lb.conf)
+  - id: web
+    name: gcr.io/cloud-builders/docker
+    env: [DOCKER_BUILDKIT=1]
+    args: [build, --pull, -t, '${_REPO}/web:${_TAG}', -f, deploy/nginx/Dockerfile,
+           --build-arg, BACKEND=127.0.0.1:9080, --build-arg, CLIENT_IP=client-ip-lb.conf, .]
+    waitFor: ['-']
+  # only used for the one-off database users job (it has the MySQL client and deploy/mysql/01-users.sh)
+  - id: db-setup
+    name: gcr.io/cloud-builders/docker
+    env: [DOCKER_BUILDKIT=1]
+    args: [build, --pull, -t, '${_REPO}/db-setup:${_TAG}', -f, deploy/mysql/Dockerfile, .]
+    waitFor: ['-']
+images:
+  - '${_REPO}/backend:${_TAG}'
+  - '${_REPO}/web:${_TAG}'
+  - '${_REPO}/db-setup:${_TAG}'
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1800s

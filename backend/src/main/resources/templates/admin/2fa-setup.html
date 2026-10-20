@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Set up 2FA · Plinko Admin</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/admin-assets/logo.svg}">
+    <link rel="stylesheet" th:href="@{/admin-assets/admin.css}">
+</head>
+<body class="auth">
+<form class="auth-panel" th:action="@{/admin/2fa/setup}" method="post" autocomplete="off">
+    <div class="auth-brand"><img class="brand-mark" src="/admin-assets/logo.svg" alt="" width="28" height="28">Plinko Admin</div>
+    <h1>Set up two-factor authentication</h1>
+    <p>Two-factor authentication is required for every admin. Scan this code with your authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, …):</p>
+    <img class="qr" th:src="${qrCode}" alt="QR code for your authenticator app" width="220" height="220">
+    <details class="small">
+        <summary>Can't scan? Enter the key manually</summary>
+        <p class="secret" th:text="${secret}">ABCD EFGH</p>
+        <p class="muted">Type: time-based, 6 digits, 30 seconds.</p>
+    </details>
+    <div class="flash error" th:if="${error}" th:text="${error}"></div>
+    <label>Code from the app <input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" required autofocus></label>
+    <button class="block" type="submit">Confirm</button>
+</form>
+</body>
+</html>

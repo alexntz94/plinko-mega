@@ -1,0 +1,8 @@
+# Build context for the images built from the repo root (web, db): never send secrets, git history or local builds.
+.env
+.env.*
+secrets/
+.git/
+**/node_modules/
+**/dist/
+backend/target/

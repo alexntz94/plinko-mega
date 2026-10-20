@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Wallet transactions · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Wallet transactions</h1>
+            <p>Every call to the PAM: the bet taken (debit), the win paid (credit) and refunds (rollback).</p>
+        </div>
+        <div class="page-actions"><a class="button secondary" th:href="${links.csv()}">Export CSV</a></div>
+    </div>
+
+    <form class="filters" method="get" th:action="@{/admin/transactions}" data-autosubmit>
+        <input type="search" name="q" th:value="${filter.q()}" placeholder="Transaction id, round id, PAM id or username" maxlength="128" aria-label="Search">
+        <select name="type" aria-label="Type">
+            <option value="">All types</option>
+            <option th:each="t : ${ {'DEBIT','CREDIT','ROLLBACK'} }" th:value="${t}" th:text="${#strings.capitalize(#strings.toLowerCase(t))}" th:selected="${t == filter.type()}">DEBIT</option>
+        </select>
+        <select name="status" aria-label="Status">
+            <option value="">All statuses</option>
+            <option th:each="s : ${ {'OK','FAILED','PENDING'} }" th:value="${s}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(s, '_', ' ')))}" th:selected="${s == filter.status()}">OK</option>
+        </select>
+        <span class="date-range"><span>From</span><input type="date" name="from" th:value="${filter.from()}" aria-label="From date"><span class="dash">–</span><input type="date" name="to" th:value="${filter.to()}" aria-label="To date"></span>
+        <span class="spacer"></span>
+        <a class="clear" th:if="${links.filtered()}" th:href="@{/admin/transactions}">Clear filters</a>
+    </form>
+
+    <div data-live="transactions">
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'time', 'Time (UTC)', '')}"></th:block>
+                    <th>Transaction</th>
+                    <th>Round</th>
+                    <th>Player</th>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'type', 'Type', '')}"></th:block>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'amount', 'Amount', 'num')}"></th:block>
+                    <th:block th:replace="~{admin/fragments :: sort(${links}, 'status', 'Status', '')}"></th:block>
+                    <th class="num">Attempts</th>
+                    <th>Error</th>
+                </tr></thead>
+                <tbody>
+                <tr th:each="row : ${result.items()}" th:with="t=${row.tx()}">
+                    <td th:text="${#temporals.format(t.createdAt(), 'yyyy-MM-dd HH:mm:ss')}"></td>
+                    <td class="mono small" th:text="${#strings.substring(t.id(), 0, 8)}" th:title="${t.id()}"></td>
+                    <td><a class="mono" th:href="@{/admin/rounds/{id}(id=${t.roundId()})}" th:text="${#strings.substring(t.roundId(), 0, 8)}"></a></td>
+                    <td><a th:href="@{/admin/players/{id}(id=${t.playerId()})}" th:text="${row.playerName() ?: row.playerExternalId()}"></a></td>
+                    <td th:text="${t.type()}"></td>
+                    <td class="num" th:text="${t.amount()}"></td>
+                    <td><span class="status" th:classappend="${t.status()}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(t.status(), '_', ' ')))}"></span></td>
+                    <td class="num" th:text="${t.attempts()}"></td>
+                    <td class="small muted wrap" th:text="${t.error() ?: ''}"></td>
+                </tr>
+                <tr th:if="${result.items().isEmpty()}"><td colspan="9" class="empty">No wallet transactions match these filters.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div th:replace="~{admin/fragments :: pager(${result}, ${links})}"></div>
+    </div>
+</section>
+</body>
+</html>

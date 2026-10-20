@@ -1,0 +1,9 @@
+# Trivy findings checked and accepted, each limited to the files it was checked for (CI passes this file).
+misconfigurations:
+  - id: AVD-KSV-0118
+    paths:
+      - deploy/gcp/migrate.yaml
+      - deploy/gcp/db-setup.yaml
+    statement: >-
+      The Cloud Run jobs declare no security context, but their images run as non-root users set in the Dockerfiles
+      (65532 for the backend, 999 for the database setup), so the jobs never run as root.

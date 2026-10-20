@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<head><title>Mock PAM · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Mock PAM</h1>
+            <p>Test wallets for the built-in fake PAM. Pick a game, then open it here or on your phone; each launch gets a new single-use token. This page doesn't exist when MOCK_PAM_ENABLED is false.</p>
+        </div>
+    </div>
+    <div class="table-wrap"><table>
+        <thead><tr><th>Player id</th><th>Username</th><th class="num">Balance</th><th>Game</th><th>Launch</th></tr></thead>
+        <tbody>
+        <tr th:each="w : ${wallets}">
+            <td class="mono" th:text="${w.player_id}"></td>
+            <td th:text="${w.username}"></td>
+            <td class="num" th:text="|${w.balance} ${w.currency}|"></td>
+            <td>
+                <select class="game-select styled" th:attr="data-game-select=${w.player_id}" aria-label="Game to play">
+                    <option value="">Default</option>
+                    <option th:each="t : ${themes}" th:value="${t.key}" th:text="${t.value}"></option>
+                </select>
+            </td>
+            <td class="launch">
+                <a class="button small" target="_blank" rel="noopener noreferrer" th:attr="data-game-link=${w.player_id}"
+                   th:href="@{/admin/mock-pam/{id}/open(id=${w.player_id})}">Open game</a>
+                <a class="button small secondary" th:attr="data-game-link=${w.player_id}"
+                   th:href="@{/admin/mock-pam/{id}/qr(id=${w.player_id})}">QR for phone</a>
+            </td>
+        </tr>
+        </tbody>
+    </table></div>
+    <div class="card">
+        <div class="card-head"><h2>New test wallet</h2></div>
+        <form th:action="@{/admin/mock-pam}" method="post">
+            <input type="hidden" name="formToken" th:value="${formToken}">
+            <div class="form-row">
+                <label>Username <input name="username" required maxlength="64"></label>
+                <label>Currency <input th:value="${platformCurrency}" disabled aria-describedby="currency-hint"></label>
+                <label>Balance <input name="balance" value="1000" required inputmode="decimal"></label>
+                <div class="form-actions"><button type="submit">Create wallet</button></div>
+            </div>
+            <p class="hint" id="currency-hint">Test wallets use the platform currency (Settings).</p>
+        </form>
+    </div>
+</section>
+</body>
+</html>

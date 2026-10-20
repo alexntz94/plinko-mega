@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head><title>Player · Plinko Admin</title></head>
+<body>
+<section>
+    <a class="back" th:href="@{/admin/players}">Players</a>
+    <div class="page-head">
+        <div>
+            <h1 th:text="${player.username() ?: player.externalId()}">Player</h1>
+            <p class="mono small" th:text="${player.externalId()}"></p>
+        </div>
+        <div class="page-actions">
+            <span class="status" th:classappend="${player.blocked()} ? 'TAMPERED' : 'COMPLETED'" th:text="${player.blocked()} ? 'Blocked' : 'Allowed'"></span>
+        </div>
+    </div>
+    <div class="card"><dl class="facts" data-live="player-facts">
+        <dt>PAM player id</dt><dd th:text="${player.externalId()}"></dd>
+        <dt>Currency</dt><dd th:text="${player.currency()}"></dd>
+        <dt>Balance</dt><dd><span th:text="${player.lastBalance() == null} ? '–' : |${player.lastBalance()} ${player.currency()}|"></span>
+            <span class="muted small" th:text="|from the PAM at ${#temporals.format(player.lastSeenAt(), 'HH:mm:ss')} UTC (after the last round or refresh)|"></span>
+            <span class="status live" th:if="${activeNow}">Active now</span></dd>
+        <dt>First seen (UTC)</dt><dd th:text="${#temporals.format(player.createdAt(), 'yyyy-MM-dd HH:mm')}"></dd>
+        <dt>Last seen (UTC)</dt><dd th:text="${#temporals.format(player.lastSeenAt(), 'yyyy-MM-dd HH:mm')}"></dd>
+        <dt>Status</dt><dd th:text="${player.blocked()} ? 'Blocked from playing' : 'Allowed to play'"></dd>
+    </dl></div>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Responsible gambling shown</h2>
+            <p class="muted">What the game reported showing this player (review 7.4): reality checks shown and continued, and the session clock.</p></div></div>
+        <p class="muted" th:if="${gameEvents.isEmpty()}">Nothing reported yet.</p>
+        <dl class="facts" th:unless="${gameEvents.isEmpty()}">
+            <th:block th:each="e : ${gameEvents}">
+                <dt th:text="${e.type() == 'REALITY_CHECK_SHOWN'} ? 'Reality check shown' : (${e.type() == 'REALITY_CHECK_CONTINUED'} ? 'Reality check, player continued' : 'Session clock shown')">Reality check shown</dt>
+                <dd th:text="|${e.count()} times, last ${#temporals.format(e.last(), 'yyyy-MM-dd HH:mm:ss')} UTC|"></dd>
+            </th:block>
+        </dl>
+    </div>
+
+    <div class="card" sec:authorize="hasRole('OPERATOR')">
+        <div class="card-head"><div><h2>Actions</h2><p class="muted">Blocking stops new rounds at once; the reason is kept in the audit log.</p></div>
+            <form th:action="@{/admin/players/{id}/refresh-balance(id=${player.id()})}" method="post">
+                <button type="submit" class="secondary">Get live balance from PAM</button>
+            </form></div>
+        <form th:action="@{/admin/players/{id}/block(id=${player.id()})}" method="post" class="toolbar">
+            <input type="hidden" name="blocked" th:value="${!player.blocked()}">
+            <input name="reason" required maxlength="300" placeholder="Reason, kept in the audit log" class="grow" aria-label="Reason">
+            <button type="submit" th:classappend="${player.blocked()} ? '' : 'danger'" th:text="${player.blocked()} ? 'Unblock player' : 'Block player'"
+                    data-confirm="Are you sure?">Block</button>
+        </form>
+    </div>
+
+    <div class="section-head"><h2>Latest rounds</h2><a th:href="@{/admin/rounds(player=${player.id()})}">All rounds of this player, with filters</a></div>
+    <div class="table-wrap"><table data-live="player-rounds">
+        <thead><tr><th>Time (UTC)</th><th>Round</th><th class="num">Rows</th><th>Risk</th><th class="num">Balls</th><th class="num">Bet</th><th class="num">Win</th><th>Status</th><th>Signature</th></tr></thead>
+        <tbody>
+        <tr th:each="r : ${rounds}">
+            <td th:text="${#temporals.format(r.createdAt(), 'yyyy-MM-dd HH:mm:ss')}"></td>
+            <td><a th:href="@{/admin/rounds/{id}(id=${r.id()})}" th:text="${#strings.substring(r.id(), 0, 8)}"></a></td>
+            <td class="num" th:text="${r.rows()}"></td>
+            <td th:text="${riskNames[r.risk()]}"></td>
+            <td class="num" th:text="${r.balls()}"></td>
+            <td class="num" th:text="${r.totalBet()}"></td>
+            <td class="num" th:text="${r.totalWin() ?: '–'}"></td>
+            <td><span class="status" th:classappend="${r.status()}" th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(r.status(), '_', ' ')))}"></span></td>
+            <td th:with="verdict=${verdicts.of(r)}" th:text="${verdict.isEmpty()} ? '–' : ${verdict}"
+                th:classappend="${verdicts.bad(verdict)} ? 'bad-text' : 'muted'"></td>
+        </tr>
+        </tbody>
+    </table></div>
+</section>
+</body>
+</html>

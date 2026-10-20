@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Plinko demo</title>
+    <meta name="description" th:content="|Play Plinko with ${credits} free demo credits. Pick a theme. No real money.|">
+    <!-- the card shown when the link is shared (WhatsApp, Telegram, iMessage, Slack, Facebook, X) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Plinko">
+    <meta property="og:title" content="Plinko – free demo">
+    <meta property="og:description" th:content="|Play with ${credits} free credits. Pick a theme. No real money.|">
+    <meta property="og:url" th:content="${site} + 'demo'">
+    <meta property="og:image" th:content="${site} + 'demo-card.jpg'">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Plinko and some of its themes">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="/icon.ico">
+    <link rel="stylesheet" href="/demo.css">
+</head>
+<body>
+<main>
+    <header>
+        <h1>Plinko</h1>
+        <p>Pick a look and play with <strong th:text="${credits}">1,000</strong> demo credits. No real money.</p>
+    </header>
+    <ul class="themes" th:if="${!themes.isEmpty()}">
+        <li th:each="theme : ${themes}">
+            <!-- a POST: link previewers and crawlers never make a demo wallet (review 2.5) -->
+            <form method="post" action="/demo/play">
+                <input type="hidden" name="theme" th:value="${theme.key}">
+                <button type="submit" th:aria-label="|Play ${theme.value}|">
+                    <img th:src="@{/themes/{id}/preview.png(id=${theme.key},v=${versions[theme.key]})}" th:alt="${theme.value}" width="640" height="292" loading="lazy">
+                    <span th:text="${theme.value}">Theme</span>
+                </button>
+            </form>
+        </li>
+    </ul>
+    <p class="empty" th:if="${themes.isEmpty()}">The demo is closed right now.</p>
+    <footer>Every ball is decided by the server, the same way as with real money.</footer>
+</main>
+</body>
+</html>

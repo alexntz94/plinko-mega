@@ -1,0 +1,30 @@
+{
+  "name": "Toxic Lab",
+  "title": "Toxic Lab Plinko",
+  "background": "#020604",
+  "accent": "#39ff7a",
+  "text": "#c8ffd8",
+  "playText": "#39ff7a",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Share Tech Mono", "file": "share-tech-mono.woff2", "weight": "400" },
+  "board": {
+    "fx": "toxic",
+    "peg": "item_peg.png",
+    "pegFlash": "#c6ff3a",
+    "trail": "#c6ff3a",
+    "slotRadius": 2,
+    "slotArt": true,
+    "slots": [
+      { "face": "#0b3a1e", "text": "#c8ffd8" },
+      { "face": "#1d8a45", "text": "#ffffff" },
+      { "face": "#c6ff3a", "text": "#04140a" },
+      { "face": "#ffd21e", "text": "#04140a" },
+      { "face": "#ff3b2f", "text": "#ffffff" }
+    ]
+  },
+  "ui": { "style": "glass", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": { "labelY": -9, "valueY": 43, "controlY": 32, "dragBarY": 32, "riskLeftX": 34, "riskRightX": 220, "halfX": 166, "doubleX": 218 }
+}

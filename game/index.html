@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="robots" content="noindex">
+    <title>Plinko</title>
+    <link rel="icon" id="favicon" href="/icon.ico">
+</head>
+<body>
+    <div id="loader" class="loader"><div class="spinner"></div><span id="loader-text">0%</span></div>
+    <div id="message" class="message" hidden></div>
+    <!-- demo server only (the session says so): a permanent label, and a way back in when the credits run out -->
+    <div id="demo-badge" class="demo-badge" hidden>DEMO – no real money</div>
+    <a id="demo-again" class="demo-again" href="/demo" hidden>Start a new demo</a>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+.env
+backend/target/
+.DS_Store
+*.iml
+.idea/
+secrets/
+
+# local tooling, not part of the product: theme drawing sources and Claude Code skills
+design/
+.claude/
+
+# Google Cloud deployment settings (deploy/gcp/config.env.example is the template)
+deploy/gcp/config.env
+deploy/gcp/images.env
+deploy/gcp/casinos/*.env
+
+# load test and Lighthouse output (scripts/loadtest.sh, scripts/lighthouse.sh)
+loadtest-out/
+lighthouse-out/
+.lighthouseci/
+__pycache__/

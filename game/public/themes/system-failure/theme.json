@@ -1,0 +1,29 @@
+{
+  "name": "System Failure",
+  "title": "System Failure Plinko",
+  "background": "#05060a",
+  "accent": "#ff2bd6",
+  "text": "#f4f7ff",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Chakra Petch", "file": "chakra-petch.woff2", "weight": "600" },
+  "board": {
+    "fx": "glitch",
+    "peg": "item_peg.png",
+    "pegFlash": "#00f0ff",
+    "trail": "#ff2bd6",
+    "slotRadius": 8,
+    "slotArt": true,
+    "slots": [
+      { "face": "#2a2f3c", "text": "#f4f7ff" },
+      { "face": "#00c8e0", "text": "#05060a" },
+      { "face": "#2fe07a", "text": "#05060a" },
+      { "face": "#e6ef1a", "text": "#05060a" },
+      { "face": "#e01cb8", "text": "#ffffff" }
+    ]
+  },
+  "ui": { "style": "glass", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": { "labelY": -9, "valueY": 43, "controlY": 32, "dragBarY": 32, "riskLeftX": 34, "riskRightX": 220, "halfX": 166, "doubleX": 218 }
+}

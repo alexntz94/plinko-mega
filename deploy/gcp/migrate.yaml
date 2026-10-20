@@ -1,0 +1,39 @@
+# Applies the database migrations as the schema owner, then exits ("deploy.sh migrate", before every new
+# backend). Only this job ever holds the owner's password. Rendered by deploy.sh.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: plinko-migrate
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/network-interfaces: '[{"network":"plinko","subnetwork":"plinko-run"}]'
+        run.googleapis.com/vpc-access-egress: private-ranges-only
+    spec:
+      taskCount: 1
+      template:
+        spec:
+          maxRetries: 0
+          timeoutSeconds: 900
+          serviceAccountName: plinko-migrate@${PROJECT_ID}.iam.gserviceaccount.com
+          containers:
+            - name: migrate
+              image: ${BACKEND_IMAGE}
+              command: [java]
+              args: [-Dloader.main=com.plinko.migration.Migrator, -cp, /app/app.jar,
+                     org.springframework.boot.loader.launch.PropertiesLauncher]
+              env:
+                - {name: DB_URL, value: "jdbc:mysql://${DB_IP}:3306/plinko?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&sslMode=REQUIRED"}
+                - {name: DB_NAME, value: plinko}
+                - {name: DB_USERNAME, value: plinko_app}
+                - {name: DB_OWNER_USERNAME, value: plinko_owner}
+              resources:
+                limits: {cpu: "1", memory: 512Mi}
+              volumeMounts:
+                - {name: db-owner-password, mountPath: /secrets/DB_OWNER_PASSWORD}
+          volumes:
+            - name: db-owner-password
+              secret: {secretName: plinko-db-owner-password, items: [{key: latest, path: DB_OWNER_PASSWORD}]}

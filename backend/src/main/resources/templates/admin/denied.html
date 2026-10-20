@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="utf-8">
+    <title>Access denied · Plinko Admin</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/admin-assets/logo.svg}">
+    <link rel="stylesheet" th:href="@{/admin-assets/admin.css}">
+</head>
+<body class="auth">
+<div class="auth-panel">
+    <div class="auth-brand"><img class="brand-mark" src="/admin-assets/logo.svg" alt="" width="28" height="28">Plinko Admin</div>
+    <h1>Access denied</h1>
+    <p sec:authorize="hasAuthority('ROLE_ENROLL')">You must set up two-factor authentication first. <a th:href="@{/admin/2fa/setup}">Set it up now</a>.</p>
+    <p sec:authorize="!hasAuthority('ROLE_ENROLL')">Your role does not allow this action.</p>
+    <p class="auth-foot"><a th:href="@{/admin}">Back to the dashboard</a></p>
+</div>
+</body>
+</html>

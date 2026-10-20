@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Forgot password · Plinko Admin</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/admin-assets/logo.svg}">
+    <link rel="stylesheet" th:href="@{/admin-assets/admin.css}">
+</head>
+<body class="auth">
+<div class="auth-panel">
+    <div class="auth-brand"><img class="brand-mark" src="/admin-assets/logo.svg" alt="" width="28" height="28">Plinko Admin</div>
+    <h1>Forgot password</h1>
+    <div th:if="${sent}">
+        <div class="flash ok">Request received. If the account exists, the other admins can now see it on their Admins page.</div>
+        <p>An admin will give you a <strong>temporary password</strong> in person or over a trusted channel. It works for 24 hours and you will choose a new password right after signing in. Your authenticator app stays the same.</p>
+        <p class="muted small">Nobody will ever send you a reset link by email or chat. Treat any such message as an attack.</p>
+    </div>
+    <form th:unless="${sent}" th:action="@{/admin/forgot}" method="post" autocomplete="off">
+        <p>Enter your username. The other admins will be asked to reset your password.</p>
+        <label>Username <input name="username" required maxlength="64" autofocus></label>
+        <button class="block" type="submit">Request a reset</button>
+    </form>
+    <p class="auth-foot"><a th:href="@{/admin/login}">Back to sign in</a></p>
+    <p class="muted small">Lost your phone too, or you are the only admin? The server operator can run the recovery command described in the README.</p>
+</div>
+</body>
+</html>

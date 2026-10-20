@@ -1,0 +1,39 @@
+{
+  "name": "Shady Nana",
+  "title": "Shady Nana Plinko",
+  "background": "#1a0d1f",
+  "accent": "#e8b13a",
+  "text": "#f3ead8",
+  "playText": "#1a0d1f",
+  "retina": true,
+  "sounds": ["click", "change", "ball", "hit", "clack", "noScore", "score", "big", "huge", "golden", "win", "lose", "bigWin", "result"],
+  "video": { "wide": "background.mp4", "tall": "background_p.mp4" },
+  "music": "music.mp3",
+  "font": { "family": "Lilita One", "file": "lilita-one.woff2", "weight": "400" },
+  "board": {
+    "fx": "nana",
+    "peg": "item_peg.png",
+    "pegFlash": "#e8b13a",
+    "trail": "#e8b13a",
+    "slotRadius": 7,
+    "slotArt": true,
+    "slots": [
+      { "face": "#4a2152", "text": "#f3ead8" },
+      { "face": "#6b3a74", "text": "#f3ead8" },
+      { "face": "#f3ead8", "text": "#1a0d1f" },
+      { "face": "#7fd6b0", "text": "#1a0d1f" },
+      { "face": "#e8b13a", "text": "#1a0d1f" }
+    ]
+  },
+  "ui": { "style": "glass", "drop": "button_drop.png", "controls": "button_controls.png" },
+  "layout": {
+    "labelY": -9,
+    "valueY": 43,
+    "controlY": 32,
+    "dragBarY": 32,
+    "riskLeftX": 34,
+    "riskRightX": 220,
+    "halfX": 166,
+    "doubleX": 218
+  }
+}

@@ -1,0 +1,18 @@
+# Review 7.7: weekly update proposals for every dependency the product ships, each tested by CI before merging.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    schedule: {interval: weekly}
+  - package-ecosystem: npm
+    directory: /game
+    schedule: {interval: weekly}
+  - package-ecosystem: docker
+    directories: [/backend, /deploy/nginx, /deploy/mysql]
+    schedule: {interval: weekly}
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: {interval: weekly}
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}

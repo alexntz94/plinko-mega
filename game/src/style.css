@@ -1,0 +1,66 @@
+@font-face {
+  font-family: 'Azonix';
+  src: url('/css/fonts/azonix-webfont.woff2') format('woff2'), url('/css/fonts/azonix-webfont.woff') format('woff');
+  font-display: block;
+}
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--theme-bg, #0c011a); -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
+/* sized in code to the visible screen (window.innerWidth/innerHeight), never to the page: after a rotation iPhone can
+   keep the page wider than the screen, and an area that follows the page would then stay too big */
+#game { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; overflow: hidden; }
+/* The canvas always fills the game area exactly, so it can never stick out of the screen and make the phone zoom the
+   page (iPhone does that if anything is wider than the screen while it rotates). Its pixels are set to match in code. */
+#game canvas { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.loader { position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  font: 22px/1 'Azonix', system-ui, sans-serif; color: var(--theme-accent, #fff); transition: opacity .3s ease; }
+.loader.done { opacity: 0; pointer-events: none; }
+.spinner { width: 56px; height: 56px; border-radius: 50%; border: 5px solid rgba(255, 255, 255, .15); border-top-color: var(--theme-accent, #fff);
+  box-shadow: 0 0 18px -4px var(--theme-accent, transparent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.message { position: fixed; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center;
+  font: 20px/1.5 'Azonix', system-ui, sans-serif; color: #fff; background: var(--theme-bg, #0c011a); }
+.message[hidden] { display: none; }
+.demo-badge { position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 4; pointer-events: none; padding: 3px 10px;
+  border-radius: 999px; font: 11px/1.4 system-ui, sans-serif; letter-spacing: .04em; color: #fff; background: rgba(0, 0, 0, .55); white-space: nowrap; }
+.demo-again { position: fixed; left: 50%; top: calc(50% + 70px); transform: translateX(-50%); z-index: 7; padding: 12px 22px; border-radius: 10px;
+  font: 18px/1 system-ui, sans-serif; font-weight: 600; color: #fff; text-decoration: none; background: var(--theme-accent, #7a3cff); }
+.demo-again:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.demo-badge[hidden], .demo-again[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+
+/* review 7.5: the player's round history, over the game, in the theme's colours */
+.history-panel { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(0, 0, 0, .6); }
+.history-panel[hidden] { display: none; }
+.history-box { width: min(560px, 100%); max-height: min(640px, 100%); display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 14px; background: var(--theme-bg, #111); color: #fff; box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+  border: 1px solid rgba(255, 255, 255, .12); font: 15px/1.4 system-ui, sans-serif; }
+.history-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; }
+.history-head h2 { margin: 0; font-size: 19px; }
+.history-note { margin: 0; padding: 0 16px 10px; color: rgba(255, 255, 255, .7); font-size: 13px; }
+.history-list { list-style: none; margin: 0; padding: 0 16px; overflow-y: auto; flex: 1; }
+.history-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, .1); }
+.history-line { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.history-line strong { color: var(--theme-accent, #ffd34d); }
+.history-id { grid-column: 1; color: rgba(255, 255, 255, .55); font-size: 12px; font-family: ui-monospace, monospace; word-break: break-all; }
+.history-list button { grid-column: 2; grid-row: 1 / span 2; }
+.history-panel button { font: inherit; font-weight: 600; color: #111; background: var(--theme-accent, #ffd34d); border: 0;
+  border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+.history-panel button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.history-more { margin: 10px 16px 16px; }
+
+/* review 7.4: session clock and reality check, when the market asks for them */
+.session-clock { position: fixed; top: 6px; left: 10px; z-index: 5; padding: 4px 10px; border-radius: 8px; pointer-events: none;
+  font: 600 13px/1.3 system-ui, sans-serif; color: #fff; background: rgba(0, 0, 0, .5); }
+.session-clock[hidden] { display: none; }
+.reality-check { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0, 0, 0, .7); }
+.reality-check[hidden] { display: none; }
+.reality-check > div { width: min(420px, 100%); padding: 20px; border-radius: 14px; background: var(--theme-bg, #111); color: #fff;
+  border: 1px solid rgba(255, 255, 255, .15); font: 16px/1.45 system-ui, sans-serif; }
+.reality-check h2 { margin: 0 0 8px; font-size: 20px; }
+.reality-check button { font: inherit; font-weight: 600; margin: 12px 8px 0 0; padding: 10px 16px; border: 0; border-radius: 8px; cursor: pointer;
+  color: #111; background: var(--theme-accent, #ffd34d); }
+.reality-check button.secondary { color: #fff; background: rgba(255, 255, 255, .15); }
+.reality-check button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }

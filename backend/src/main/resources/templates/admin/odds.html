@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout :: layout(~{::title}, ~{::section})}" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head><title>Odds · Plinko Admin</title></head>
+<body>
+<section>
+    <div class="page-head">
+        <div>
+            <h1>Odds</h1>
+            <p>Multipliers and landing chances for every board. Changes are proposals: they apply only after another admin approves them.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <h2>Set RTP</h2>
+                <p class="muted">Type the return to player you want. The server rebuilds the tables: small payouts stay, the big prizes adjust until the RTP is exactly your target.</p>
+            </div>
+        </div>
+        <form method="get" th:action="@{/admin/odds}" class="toolbar">
+            <input type="hidden" name="rows" th:value="${rows}">
+            <span class="input-suffix">
+                <input name="targetRtp" th:value="${targetRtp}" inputmode="decimal" required aria-label="Target RTP">
+                <span>%</span>
+            </span>
+            <span class="segmented-control" role="radiogroup" aria-label="Which tables">
+                <label><input type="radio" name="scope" value="all" th:checked="${scope == 'all'}"><span>All 21 tables</span></label>
+                <label><input type="radio" name="scope" value="rows" th:checked="${scope == 'rows'}"><span th:text="|Only ${rows} rows|">Only 8 rows</span></label>
+            </span>
+            <button type="submit" class="secondary">Preview</button>
+            <span class="toolbar-note" th:text="|Allowed: ${limits.minRtp()}–${limits.maxRtp()}%|">Allowed: 85–99.7%</span>
+        </form>
+        <div class="flash warn" th:if="${bulkPending}">An RTP change (<a th:href="@{/admin/changes}" th:text="|#${bulkPending.id()}|"></a>) is waiting for approval.</div>
+        <div th:if="${preview}">
+            <div class="table-wrap">
+                <table class="compact">
+                    <thead><tr><th>Rows</th><th>Risk</th><th class="num">RTP now</th><th class="num">New RTP</th><th class="num">Top prize now</th><th class="num">New top prize</th><th>New multipliers (centre → edge)</th></tr></thead>
+                    <tbody>
+                    <tr th:each="p : ${preview}">
+                        <td th:text="${p.rows()}"></td>
+                        <td th:text="${p.risk()}"></td>
+                        <td class="num" th:text="${p.currentRtp() != null} ? |${p.currentRtp()}%| : 'blocked'"></td>
+                        <td class="num" th:text="|${p.newRtp()}%|"></td>
+                        <td class="num" th:text="${p.currentTop() != null} ? |${p.currentTop().toPlainString()}x| : 'blocked'"></td>
+                        <td class="num" th:text="|${p.newTop().toPlainString()}x|"></td>
+                        <td class="small wrap" th:text="${p.newMultipliers()}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <form class="form-actions" sec:authorize="hasRole('OPERATOR')" th:action="@{/admin/odds/target-rtp}" method="post">
+                <input type="hidden" name="targetRtp" th:value="${targetRtp}">
+                <input type="hidden" name="scope" th:value="${scope}">
+                <input type="hidden" name="rows" th:value="${rows}">
+                <button type="submit" th:disabled="${bulkPending != null}" data-confirm="Propose these tables? They apply only after another admin approves.">Propose these tables</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="flash warn" th:if="${bonusShare}" th:text="|Bonuses are on and add ${bonusShare}% on top of each table. RTP values on this page are totals (table plus bonuses), except the hand editor below, which shows the table alone.|"></div>
+    <h2>RTP by table</h2>
+    <div class="table-wrap narrow-table">
+        <table class="compact">
+            <thead><tr><th>Board</th><th class="num" th:each="name : ${riskNames}" th:text="${name}"></th></tr></thead>
+            <tbody>
+            <tr th:each="entry : ${overview}" th:classappend="${entry.key == rows} ? 'selected'">
+                <td><a th:href="@{/admin/odds(rows=${entry.key})}" th:text="|${entry.key} rows|"></a></td>
+                <td class="num" th:each="rtp : ${entry.value}" th:text="${rtp != null} ? |${rtp}%| : 'Blocked'" th:classappend="${rtp == null} ? 'bad-text'"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-head">
+        <div>
+            <h2>Edit one board by hand</h2>
+            <p class="muted">Each position has a <strong>multiplier</strong> (win = bet × multiplier) and a <strong>probability</strong>: the chance, in %, that a ball lands on either slot of it.
+                RTP = Σ multiplier × probability.</p>
+        </div>
+        <nav class="tabs" aria-label="Board size">
+            <a th:each="r : ${rowOptions}" th:href="@{/admin/odds(rows=${r})}" th:text="|${r} rows|" th:classappend="${r == rows} ? 'active'"></a>
+        </nav>
+    </div>
+    <p class="muted small" th:text="|Hard limits from the server configuration: RTP ${limits.minRtp()}–${limits.maxRtp()}%, multiplier up to ${limits.maxMultiplier()}x, win per round up to ${limits.maxWinPerRound()}.|"></p>
+
+    <div class="risk-grid">
+        <form th:each="view : ${risks}" class="card odds-form" th:action="@{/admin/odds/propose}" method="post"
+              th:attr="data-defaults=${view.defaultMultipliers()},data-natural=${view.naturalProbabilities()},data-max-rtp=${limits.maxRtp()},data-min-rtp=${limits.minRtp()}">
+            <div class="card-head">
+                <h3 th:text="|${view.name()} risk|">Low risk</h3>
+                <span class="rtp-badge"><span class="muted">RTP</span> <strong class="rtp">–</strong></span>
+            </div>
+            <div class="flash warn" th:if="${view.pending()}">
+                Change <a th:href="@{/admin/changes}" th:text="|#${view.pending().id()}|"></a>
+                by <span th:text="${view.pending().requestedBy()}"></span> is waiting for approval.
+            </div>
+            <input type="hidden" name="rows" th:value="${rows}">
+            <input type="hidden" name="risk" th:value="${view.risk()}">
+            <table class="odds-table">
+                <colgroup><col class="c-pos"><col class="c-mult"><col class="c-prob"><col class="c-share"></colgroup>
+                <thead><tr><th>Slot</th><th class="num">Multiplier</th><th class="num">Chance %</th><th class="num">RTP share</th></tr></thead>
+                <tbody>
+                <tr th:each="prize : ${view.table().prizes()}">
+                    <td class="muted" th:text="${prize.index() == 0} ? 'Centre' : (${prize.index() == view.table().prizes().size() - 1} ? 'Edges' : |±${prize.index()}|)"></td>
+                    <td><input name="multiplier" th:value="${prize.multiplier().stripTrailingZeros().toPlainString()}" inputmode="decimal" required aria-label="Multiplier"></td>
+                    <td><input name="probability" th:value="${prize.probability().stripTrailingZeros().toPlainString()}" inputmode="decimal" required aria-label="Chance in percent"></td>
+                    <td class="num share muted">–</td>
+                </tr>
+                </tbody>
+                <tfoot>
+                <tr><td>Total</td><td></td><td class="num total-probability">–</td><td></td></tr>
+                </tfoot>
+            </table>
+            <p class="validation small"></p>
+            <div class="card-actions" sec:authorize="hasRole('OPERATOR')">
+                <span class="quiet-actions">
+                    <button type="button" class="link load-natural">Use physical chances</button>
+                    <button type="button" class="link load-defaults">Use standard multipliers</button>
+                </span>
+                <button type="submit" th:disabled="${view.pending() != null}">Propose change</button>
+            </div>
+        </form>
+    </div>
+    <script th:src="@{/admin-assets/odds.js}" defer></script>
+</section>
+</body>
+</html>

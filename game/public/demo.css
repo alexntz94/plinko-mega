@@ -1,0 +1,27 @@
+/* The demo lobby (/demo): one card per theme that is switched on. Served from the theme previews, no scripts. */
+@font-face {
+  font-family: 'Azonix';
+  src: url('/css/fonts/azonix-webfont.woff2') format('woff2');
+  font-display: swap;
+}
+:root { --bg: #160f2b; --card: #221840; --text: #f4efff; --muted: #b9add6; --accent: #ffcf3f; }
+* { box-sizing: border-box; }
+html { background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+body { margin: 0; }
+main { max-width: 1120px; margin: 0 auto; padding: 40px 16px 32px; }
+header { margin-bottom: 28px; }
+h1 { margin: 0 0 6px; font: 56px/1 'Azonix', system-ui, sans-serif; color: var(--accent); }
+header p { margin: 0; max-width: 60ch; color: var(--muted); font-size: 18px; }
+header strong { color: var(--text); }
+.themes { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.themes button { width: 100%; padding: 0; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.themes a, .themes button { display: block; border-radius: 14px; overflow: hidden; background: var(--card); color: var(--text); text-decoration: none;
+  transition: transform .15s ease, box-shadow .15s ease; }
+.themes a:hover, .themes button:hover { transform: translateY(-3px); box-shadow: 0 10px 28px -12px rgba(0, 0, 0, .7); }
+.themes a:focus-visible, .themes button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.themes img { display: block; width: 100%; height: auto; aspect-ratio: 640 / 292; object-fit: cover; background: #000; }
+.themes span { display: block; padding: 12px 16px 14px; font-size: 18px; font-weight: 600; }
+.empty { color: var(--muted); }
+footer { margin-top: 32px; color: var(--muted); font-size: 14px; }
+@media (max-width: 480px) { main { padding-top: 28px; } h1 { font-size: 40px; } header p { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { .themes a, .themes button { transition: none; } .themes a:hover, .themes button:hover { transform: none; } }

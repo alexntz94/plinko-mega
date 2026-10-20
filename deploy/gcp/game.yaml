@@ -1,0 +1,100 @@
+# The game: nginx (the only way in) with the backend next to it in the same instance. nginx serves the game and
+# forwards only the 3 game API calls to the backend on 127.0.0.1:9080. The backend's admin port (9081) is not
+# reachable from outside: Cloud Run only sends traffic to nginx's port. Rendered by deploy.sh (${...} values).
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: plinko-game
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+  annotations:
+    # only through the HTTPS load balancer (and Cloud Armor); the run.app address refuses visitors
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "${GAME_MAX_INSTANCES}"
+        # CPU stays on between requests: the backend's background checks and payout retries keep running
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/container-dependencies: '{"web":["backend"]}'
+        # private network: Cloud SQL's private address, and the PAM through Cloud NAT's fixed address
+        run.googleapis.com/network-interfaces: '[{"network":"plinko","subnetwork":"plinko-run"}]'
+        run.googleapis.com/vpc-access-egress: all-traffic
+    spec:
+      serviceAccountName: plinko-game@${PROJECT_ID}.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 60
+      containers:
+        - name: web
+          image: ${WEB_IMAGE}
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits: {cpu: "1", memory: 512Mi}
+          startupProbe:
+            httpGet: {path: /healthz, port: 8080}
+        - name: backend
+          image: ${BACKEND_IMAGE}
+          env:
+            - {name: SERVER_PORT, value: "9080"}
+            - {name: ADMIN_PORT, value: "9081"}
+            # every secret is a file in a folder of its own (Cloud Run mounts one secret per folder)
+            - {name: SPRING_CONFIG_IMPORT, value: "optional:configtree:/secrets/*/"}
+            - {name: DB_URL, value: "jdbc:mysql://${DB_IP}:3306/plinko?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&sslMode=REQUIRED"}
+            - {name: DB_NAME, value: plinko}
+            - {name: DB_USERNAME, value: plinko_app}
+            # review 3.9: up to GAME_MAX_INSTANCES x 12 connections (10 x 12 = 120 by default), well under the database's limit
+            - {name: DB_POOL_SIZE, value: "12"}
+            - {name: DB_POOL_MIN_IDLE, value: "2"}
+            - {name: SPRING_FLYWAY_ENABLED, value: "false"}
+            # admin accounts are made by the admin service only; this public service never holds the admin password
+            - {name: ADMIN_BOOTSTRAP, value: "false"}
+            - {name: PAM_BASE_URL, value: "${PAM_BASE_URL}"}
+            - {name: PAM_ALLOW_HTTP, value: "false"}
+            - {name: MOCK_PAM_ENABLED, value: "false"}
+            - {name: REQUIRE_SECOND_APPROVER, value: "true"}
+            - {name: REPORTING_TIME_ZONE, value: "${REPORTING_TIME_ZONE}"}
+            # retiring the original ROUND_SIGNING_KEY (README, Keys): empty = not yet
+            - {name: LEGACY_KEY_UNTIL, value: "${LEGACY_KEY_UNTIL}"}
+            - {name: LEGACY_KEY_SUSPECTED_LEAK, value: "${LEGACY_KEY_SUSPECTED_LEAK}"}
+            - {name: LEGACY_RESIGN, value: "${LEGACY_RESIGN}"}
+            # settlement limits per currency (README, Settling a blocked round): empty = 1,000 and 100 in every currency
+            - {name: SETTLEMENT_MAX_AMOUNTS, value: "${SETTLEMENT_MAX_AMOUNTS}"}
+            - {name: SETTLEMENT_OTHER_AMOUNTS, value: "${SETTLEMENT_OTHER_AMOUNTS}"}
+            - {name: COOKIE_SECURE, value: "true"}
+            - {name: GAME_URL, value: "https://${GAME_DOMAIN}/"}
+          resources:
+            limits: {cpu: "1", memory: 1Gi}
+          startupProbe:
+            httpGet: {path: /actuator/health, port: 9080}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 36
+          volumeMounts:
+            - {name: db-password, mountPath: /secrets/DB_PASSWORD}
+            - {name: round-signing-key, mountPath: /secrets/ROUND_SIGNING_KEY}
+            - {name: pam-api-key, mountPath: /secrets/PAM_API_KEY}
+            - {name: pam-secret, mountPath: /secrets/PAM_SECRET}
+            - {name: round-keys, mountPath: /secrets/ROUND_KEYS}
+            - {name: record-keys, mountPath: /secrets/RECORD_KEYS}
+            - {name: encryption-keys, mountPath: /secrets/ENCRYPTION_KEYS}
+      volumes:
+        - name: db-password
+          secret: {secretName: plinko-db-password, items: [{key: latest, path: DB_PASSWORD}]}
+        - name: round-signing-key
+          secret: {secretName: plinko-round-signing-key, items: [{key: latest, path: ROUND_SIGNING_KEY}]}
+        - name: pam-api-key
+          secret: {secretName: plinko-pam-api-key, items: [{key: latest, path: PAM_API_KEY}]}
+        - name: pam-secret
+          secret: {secretName: plinko-pam-secret, items: [{key: latest, path: PAM_SECRET}]}
+        - name: round-keys
+          secret: {secretName: plinko-round-keys, items: [{key: latest, path: ROUND_KEYS}]}
+        - name: record-keys
+          secret: {secretName: plinko-record-keys, items: [{key: latest, path: RECORD_KEYS}]}
+        - name: encryption-keys
+          secret: {secretName: plinko-encryption-keys, items: [{key: latest, path: ENCRYPTION_KEYS}]}

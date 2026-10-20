@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { label, textQuality, typeface } from './ui';
 import { Particles, shake } from './effects';
+import { goldText } from './paint';
 import type { BoardStyle, ThemeFx } from './theme';
 import { prizeIndexOfSlot, slotTier } from './rules';
 
@@ -15,6 +16,8 @@ const STATUS_MAX_WIDTH = 250;
 const PEG_RADIUS = 5;
 const BALL_REST = 14.5;            // how far above a peg's centre the ball sits when it touches it
 const BALL_RADIUS = BALL_REST - PEG_RADIUS;   // the ball's size for knocking into other balls
+/** The tail of a ball through 1, 2 and 3 gate bars. */
+const HEAT = ['#ffd76a', '#ff8a1a', '#ff3b7a'].map(colour => new GraphicsContext().circle(0, 0, 1).fill(colour));
 const SLOT_W = PEG_SPACING / 1.2;  // 37.5
 const SLOT_H = PEG_SPACING;
 const MAX_ROWS = 14;
@@ -132,8 +135,9 @@ export class Slot extends Container {
 
   /** A ball landed: the slot dips and lights up. */
   hit(): void {
-    // always dips from and back to its resting place, however many balls land at once
+    // always dips from and back to its resting place, however many balls land at once, and squashes like a drum
     gsap.killTweensOf(this);
+    gsap.fromTo(this.scale, { x: 1.25, y: 0.7 }, { x: 1, y: 1, duration: 0.5, ease: 'elastic.out(1.4, 0.35)', overwrite: true });
     gsap.timeline()
       .to(this, { y: this.baseY + 6, duration: 0.1, ease: 'power2.out' })
       .to(this, { y: this.baseY, duration: 0.25, ease: 'power2.inOut' });
@@ -190,6 +194,8 @@ export interface PegHit { row: number; rows: number; pan: number }
  * which a spring pulls back to nothing. Only the drawing uses the knock: the route, and so the slot, never changes.
  */
 interface Flight { sprite: Sprite; x: number; y: number; ox: number; oy: number; vx: number; vy: number; free: boolean; cooldown: number;
+  /** How many gate bars the ball has crossed so far: it burns hotter with each. */
+  heat: number;
   timeline?: gsap.core.Timeline }
 
 export class Board extends Container {
@@ -344,8 +350,10 @@ export class Board extends Container {
     const v = gate.view;
     gsap.killTweensOf(v.scale);
     gsap.fromTo(v.scale, { x: 1.12, y: 1.8 }, { x: 1, y: 1, duration: 0.45, ease: 'elastic.out(1.2, 0.4)' });
-    this.particles.burst(v.x, v.y - 8, [megaLook.accent, '#ffffff'], 14, 260);
-    this.particles.ring(v.x, v.y - 8, megaLook.accent, 26);
+    this.particles.burst(v.x, v.y - 8, [megaLook.accent, '#ffffff', '#ff8a1a'], 22, 320);
+    this.particles.ring(v.x, v.y, megaLook.accent, 34);
+    this.particles.ring(v.x, v.y, '#ffffff', 60);
+    shake(this, 3, 0.2);
     const pop = new Text({ text: '×' + multiplierText(boostSoFar), anchor: 0.5, resolution: textQuality(),
       style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: 24, fill: megaLook.accent,
         stroke: { color: megaLook.ink, width: 5 } } });
@@ -369,7 +377,7 @@ export class Board extends Container {
     const top = Math.max(...this.slots.map(slot => slot.tier));
     this.slots.forEach((slot, i) => {
       slot.glint.alpha = 0.4 * Math.max(0, Math.sin(this.time * 2.6 - i * 0.6)) ** 8;
-      if (slot.tier === top) slot.scale.set(1 + 0.06 * Math.max(0, Math.sin(this.time * 5)) ** 2);
+      if (slot.tier === top && !gsap.isTweening(slot.scale)) slot.scale.set(1 + 0.06 * Math.max(0, Math.sin(this.time * 5)) ** 2);
     });
     this.twinkle -= dt;
     if (this.twinkle <= 0) {
@@ -501,7 +509,7 @@ export class Board extends Container {
     const ball = new Sprite({ texture: this.ballTexture, anchor: 0.5 });
     ball.position.set(0, 0);
     this.ballLayer.addChild(ball);
-    const flight: Flight = { sprite: ball, x: 0, y: 0, ox: 0, oy: 0, vx: 0, vy: 0, free: true, cooldown: 0 };
+    const flight: Flight = { sprite: ball, x: 0, y: 0, ox: 0, oy: 0, vx: 0, vy: 0, free: true, cooldown: 0, heat: 0 };
     this.flights.add(flight);
 
     const radius = ball.texture.width / 2;
@@ -522,14 +530,16 @@ export class Board extends Container {
             flight.x = from.x + (to.x - from.x) * hop.t;
             flight.y = from.y + (to.y - from.y) * hop.t - height * 4 * hop.t * (1 - hop.t);
             ball.rotation = flight.x / radius;
-            this.streak(ball, radius);
+            this.streak(ball, radius, flight.heat);
           },
         });
       };
 
-      // appears and falls onto the first peg, speeding up
+      // bursts in at the top through a ring of light, and falls onto the first peg, speeding up
       ball.alpha = 0;
+      timeline.call(() => this.launch(points[0].y - PEG_SPACING * 0.9));
       timeline.to(ball, { alpha: 1, duration: 0.12 });
+      timeline.fromTo(ball.scale, { x: 0.2, y: 0.2 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)' }, 0);
       timeline.to(flight, { y: points[0].y, duration: 0.34, ease: 'power2.in' }, 0);
       timeline.call(() => this.touchPeg(ball, 0, 0, events.onPeg));
       // peg to peg: hops get a little quicker and flatter as the ball picks up speed
@@ -542,7 +552,12 @@ export class Board extends Container {
         // a ball on its way to something big: slow motion for its last rows (the game decides which)
         if (events.onDrama && i === Math.max(1, points.length - 3)) timeline.call(() => events.onDrama?.());
         const gate = passes.get(i);
-        if (gate) timeline.call(() => { gateBoost *= this.gateBoost; this.gatePass(gate, gateBoost); ball.scale.set(1 + 0.12 * Math.log2(gateBoost)); });
+        if (gate) timeline.call(() => {
+          gateBoost *= this.gateBoost;
+          flight.heat++;
+          this.gatePass(gate, gateBoost);
+          ball.scale.set(1 + 0.15 * flight.heat);
+        });
         // now and then the ball bounces up off a peg and comes down on it again before going on
         if (i < points.length - 2 && Math.random() < 0.18) {
           arc(points[i], points[i], PEG_SPACING * random(0.22, 0.32) * (1 - 0.4 * progress), pace * 0.62);
@@ -565,7 +580,7 @@ export class Board extends Container {
           if (!entered && flight.y > slotTop - radius * 0.3) {
             entered = true;
             this.slots[slot]?.hit();
-            this.landingEffect(slot, prizeIndexOfSlot(rows, slot));
+            this.landingEffect(slot, prizeIndexOfSlot(rows, slot), gateBoost);
             if (this.currentSpinSlots().includes(slot)) this.spinLanding(slot);
             events.onLand?.({ slot, prizeIndex: prizeIndexOfSlot(rows, slot), x: this.slotX(slot), y: this.slotY(), pan: this.pan(this.slotX(slot)) });
           }
@@ -658,6 +673,10 @@ export class Board extends Container {
       }
     }
     for (const f of flights) {
+      // a hot ball sheds sparks as it falls
+      if (f.heat > 0 && f.free && Math.random() < 0.25 * f.heat) {
+        this.particles.sparks(f.sprite.x, f.sprite.y, ['#ffd76a', '#ff8a1a', '#ff3b7a'][Math.min(f.heat, 3) - 1], 1, 18);
+      }
       const limit = BALL_RADIUS * 1.5;
       f.ox = Math.max(-limit, Math.min(limit, f.ox));
       f.oy = Math.max(-limit, Math.min(limit, f.oy));
@@ -666,8 +685,8 @@ export class Board extends Container {
   }
 
   /** A ball goes into its slot: a puff for small prizes, sparks, a fountain with a ring, and a shake for the top ones. */
-  private landingEffect(slot: number, prizeIndex: number): void {
-    const multiplier = this.multiplier(prizeIndex);
+  private landingEffect(slot: number, prizeIndex: number, gates = 1): void {
+    const multiplier = this.multiplier(prizeIndex) * gates;
     const face = slotLooks[slotTier(this.rows, prizeIndex)].face;
     const x = this.slotX(slot);
     const y = this.slotY() - SLOT_H / 2;
@@ -689,7 +708,49 @@ export class Board extends Container {
       gsap.delayedCall(0.12, () => this.particles.ring(x, this.slotY(), '#ffffff', 90));
       shake(this, 7);
     }
+    if (multiplier >= 2) this.particles.burst(x, y, ['#ff3b7a', '#ffd76a', '#2ec4ff', '#7dffa0', '#ffffff'], multiplier >= 5 ? 26 : 14, 360);
     if (multiplier >= 5) this.beam(x, face, multiplier >= 10);
+    if (multiplier >= 10) {
+      // a coin fountain and a double shockwave
+      this.particles.burst(x, y, ['#ffd76a', '#fff3b0', '#e9a91a'], 40, 620);
+      gsap.delayedCall(0.2, () => this.particles.ring(x, this.slotY(), '#ffd76a', 150));
+      gsap.delayedCall(0.35, () => this.particles.ring(x, this.slotY(), '#ffffff', 210));
+    }
+  }
+
+  private comboText: Text | null = null;
+
+  /** COMBO ×n over the board: winning balls in a row; each new one punches it bigger and hotter. */
+  combo(count: number): void {
+    if (count < 3) {
+      if (this.comboText) {
+        const old = this.comboText;
+        this.comboText = null;
+        gsap.killTweensOf([old, old.scale]);
+        gsap.to(old, { alpha: 0, duration: 0.3, onComplete: () => old.destroy() });
+      }
+      return;
+    }
+    if (!this.comboText) {
+      this.comboText = goldText('', 34);
+      this.comboText.position.set(0, PEG_SPACING * 0.2);
+      this.textLayer.addChild(this.comboText);
+    }
+    const text = this.comboText;
+    text.text = `COMBO ×${count}`;
+    text.alpha = 1;
+    const size = Math.min(1.6, 0.9 + count * 0.07);
+    gsap.killTweensOf(text.scale);
+    gsap.fromTo(text.scale, { x: size * 1.5, y: size * 1.5 }, { x: size, y: size, duration: 0.35, ease: 'back.out(3)' });
+    text.rotation = (Math.random() - 0.5) * 0.12;
+    this.particles.sparks(0, PEG_SPACING * 0.2, '#ffd76a', 8, 50);
+  }
+
+  /** A ball comes in: a ring of light opens at the top of the board and throws a few sparks. */
+  private launch(y: number): void {
+    const many = this.flights.size > 12;
+    this.particles.ring(0, y, this.pegFlashColour, many ? 16 : 28);
+    if (!many) this.particles.sparks(0, y, '#ffffff', 6, 26);
   }
 
   /** A column of light shooting up out of a slot that paid big, in the slot's colour with a white core. */
@@ -748,16 +809,23 @@ export class Board extends Container {
     if (multiplier >= 10) shake(this, 6);
   }
 
-  /** The theme's trail: small dots left behind the ball that shrink and fade, so a falling ball draws a streak. */
-  private streak(ball: Sprite, radius: number): void {
-    if (!this.trailDot) return;
-    const dot = new Graphics(this.trailDot);
+  /**
+   * The ball's comet tail: glowing dots that shrink and fade behind it. A ball through gate bars burns hotter: gold,
+   * then orange, then hot pink, with a longer, wider tail.
+   */
+  private streak(ball: Sprite, radius: number, heat: number): void {
+    const context = heat > 0 ? HEAT[Math.min(heat, HEAT.length) - 1] : this.trailDot;
+    if (!context) return;
+    const dot = new Graphics(context);
+    dot.blendMode = 'add';
     dot.position.copyFrom(ball.position);
-    dot.scale.set(radius * 0.6);
-    dot.alpha = 0.7;
+    const size = radius * (0.7 + 0.25 * heat);
+    const life = 0.32 + 0.12 * heat;
+    dot.scale.set(size);
+    dot.alpha = 0.85;
     this.trailLayer.addChild(dot);
-    gsap.to(dot, { alpha: 0, duration: 0.28, ease: 'power1.in', onComplete: () => dot.destroy() });
-    gsap.to(dot.scale, { x: radius * 0.12, y: radius * 0.12, duration: 0.28 });
+    gsap.to(dot, { alpha: 0, duration: life, ease: 'power1.in', onComplete: () => dot.destroy() });
+    gsap.to(dot.scale, { x: size * 0.15, y: size * 0.15, duration: life });
   }
 
   private pegColumn(row: number, x: number): number {
@@ -778,6 +846,7 @@ export class Board extends Container {
     if (peg) {
       const many = this.flights.size > 15;
       this.particles.sparks(peg.x, peg.y, this.pegFlashColour, many ? 2 : 4);
+      if (!many) this.particles.ring(peg.x, peg.y, this.pegFlashColour, 11);
       gsap.fromTo(peg.scale, { x: 1.35, y: 1.35 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)', overwrite: true });
     }
     if (flash) {

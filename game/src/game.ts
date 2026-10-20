@@ -437,6 +437,7 @@ export class Game extends Container {
     };
     const count = round.slots.length;
     const drops: Promise<void>[] = [];
+    let streak = 0;
     // one ball a round (the first worth it) gets slow motion: one heading for 10x or more, or for a SPIN slot
     const spinBalls = new Set((round.spins ?? []).map(spin => spin.ball));
     const dramaBall = this.holding || this.turbo || count > 30 ? -1
@@ -460,12 +461,16 @@ export class Game extends Container {
           this.ticker.add(this.money(win), multiplier);
           if (charging.includes(landing.prizeIndex)) this.meter.charge();
           landSound(multiplier, landing);
+          // winning balls in a row make a combo
+          streak = multiplier > 1 ? streak + 1 : 0;
+          this.board.combo(streak);
           this.ballsLeft = Math.max(0, this.ballsLeft - 1);
           this.bar.setPlaying(true, this.holding, this.ballsLeft);
         },
       }, round.paths?.[i] ?? null));
     }
     await Promise.all(drops);
+    this.board.combo(0);
 
     // every ball in a SPIN slot turns the wheel under the board, then a full meter's MEGA SPINs turn it gold
     const config = this.session.config.mega;

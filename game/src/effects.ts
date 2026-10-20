@@ -8,7 +8,7 @@ import { goldText } from './paint';
 
 export const calm = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 
-const MAX_PARTICLES = 350;     // above this, new effects are skipped (100 balls at once must stay smooth on a phone)
+const MAX_PARTICLES = 600;     // above this, new effects are skipped (100 balls at once must stay smooth on a phone)
 const shapes = new Map<string, GraphicsContext>();
 
 /** One shared shape per colour and kind: particles are cheap copies of it. */

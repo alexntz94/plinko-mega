@@ -52,8 +52,9 @@ class WinCheckTest {
     }
 
     /** A signed round as the game stores it. */
-    private GameRepository.Round round(String slots, String multipliers, String bonus, String win) {
+    private GameRepository.Round round(String slots, String multipliers, String plainBonus, String win) {
         BigDecimal totalWin = new BigDecimal(win);
+        String bonus = TestPaths.with(slots, plainBonus);
         String signature = signer.sign("r1", 7, 8, 2, bet, balls, totalBet, totalWin, "EUR", slots, multipliers, bonus, oddsRef, maxWin);
         return new GameRepository.Round("r1", 7, "s", 8, 2, bet, balls, totalBet, totalWin, "EUR", status, slots, multipliers,
                 null, signature, null, null, bonus, oddsRef, maxWin);
@@ -106,9 +107,9 @@ class WinCheckTest {
     }
 
     @Test
-    void freeBallsPass() {
-        // two free balls at 0.40: slot 8 (5.6) golden x2 = 11.2 -> 4.48, slot 4 (0.5) -> 0.20
-        assertThat(problem(round("4,3,0", "0.5,1,5.6", "free:0.40@8x11.2g2,0.40@4x0.5;meter:0/10:0.000000:start-7", "11.78"))).isNull();
+    void aMegaSpinPasses() {
+        // the balls pay 7.10, a MEGA SPIN for 0.40 stops on x25: 10.00
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "mega:0.40@6x25;meter:0/10:0.000000:start-7", "17.10"))).isNull();
     }
 
     @Test
@@ -159,7 +160,7 @@ class WinCheckTest {
         GameRepository.Round signedRound = round("4,3,0", "0.5,1,5.6", null, "7.10");
         java.util.function.Function<Instant, GameRepository.Round> playedAt = at -> new GameRepository.Round(signedRound.id(), 7, "s", 8, 2, bet,
                 balls, totalBet, signedRound.totalWin(), "EUR", status, signedRound.slots(), signedRound.multipliers(), null, signedRound.signature(),
-                at, at, null, oddsRef, maxWin);
+                at, at, signedRound.bonus(), oddsRef, maxWin);
         GameRepository.Round before = playedAt.apply(signedFrom.minusSeconds(60));
         GameRepository.Round after = playedAt.apply(signedFrom.plusSeconds(60));
         assertThat(datedCheck.problem(before, paid(before), player)).as("from before debits were signed").isNull();
@@ -177,7 +178,7 @@ class WinCheckTest {
         GameRepository.Round signed = round("4,3,0", "0.5,1,5.6", null, "7.10");
         Instant playedAt = Instant.now();
         GameRepository.Round round = new GameRepository.Round(signed.id(), 7, "s", 8, 2, bet, balls, totalBet, signed.totalWin(), "EUR",
-                RoundStatus.CREDIT_PENDING, signed.slots(), signed.multipliers(), null, signed.signature(), playedAt, playedAt, null, oddsRef, maxWin);
+                RoundStatus.CREDIT_PENDING, signed.slots(), signed.multipliers(), null, signed.signature(), playedAt, playedAt, signed.bonus(), oddsRef, maxWin);
         List<GameRepository.Transaction> owed = paid(round);
         assertThat(cutOff.problem(round, owed, player)).as("before the cutoff it is paid").isNull();
         Thread.sleep(Math.max(0, java.time.Duration.between(Instant.now(), until).toMillis()) + 200);
@@ -229,15 +230,16 @@ class WinCheckTest {
     }
 
     @Test
-    void aChangedFreeBallStakeIsCaught() {
+    void aChangedMegaSpinStakeIsCaught() {
         // the stake comes from the meter's pot, which is not recomputed here: changed in the database, the signature fails
-        GameRepository.Round round = round("4,3,0", "0.5,1,5.6", "free:0.40@8x5.6", "9.34");
+        GameRepository.Round round = round("4,3,0", "0.5,1,5.6", "mega:0.40@6x5", "9.10");
         GameRepository.Round edited = new GameRepository.Round(round.id(), 7, "s", 8, 2, bet, balls, totalBet, round.totalWin(), "EUR",
-                status, round.slots(), round.multipliers(), null, round.signature(), null, null, "free:40.00@8x5.6", oddsRef, maxWin);
+                status, round.slots(), round.multipliers(), null, round.signature(), null, null, TestPaths.with("4,3,0", "mega:40.00@6x5"),
+                oddsRef, maxWin);
         assertThat(check.problem(edited, paid(edited), player)).startsWith("C1");
         // and even re-signed by someone holding the key, it never pays above the round's limit
         maxWin = new BigDecimal("100.00");
-        assertThat(problem(round("4,3,0", "0.5,1,5.6", "free:40.00@8x5.6", "231.10"))).startsWith("C8");
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "mega:40.00@6x5", "207.10"))).startsWith("C8");
     }
 
     @Test

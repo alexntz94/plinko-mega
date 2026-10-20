@@ -2,7 +2,7 @@ import { Container, Graphics, type Text } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { label } from './ui';
-import { glassPanel, inkPanel } from './control';
+import { glassPanel, inkPanel } from './paint';
 
 /**
  * The bonus meter: how many charges the player has of how many fill it. The server keeps the real count (signed

@@ -37,13 +37,11 @@ export interface MeterInfo { enabled: boolean; charges: number; of: number; posi
 export interface Round { roundId: string; slots: number[]; multipliers: number[]; totalBet: number; totalWin: number; balance: number; boosts?: number[];
   /** the slot lit up for this round, and what it multiplies by (both null when the round has none) */
   hotSlot?: number | null; hotBoost?: number | null;
-  /** free balls a full bonus meter paid this round (dropped after the paid ones), each with its own stake */
-  freeSlots?: number[]; freeMultipliers?: number[]; freeBoosts?: number[]; freeBets?: number[];
   meter?: MeterInfo;
-  /** what each ball and free ball paid, exactly as the server added them up */
-  wins?: number[]; freeWins?: number[];
-  /** Plinko Mega: every paid ball's path (bit i set: bounce i+1 goes right), the gates each went through, the wheel
-   *  spins from SPIN slots and the MEGA SPINs a full meter paid */
+  /** what each ball paid, exactly as the server added them up */
+  wins?: number[];
+  /** every ball's path (bit i set: bounce i+1 goes right), the gates each went through, the wheel spins from SPIN
+   *  slots and the MEGA SPINs a full meter paid */
   paths?: number[]; gates?: number[]; spins?: Spin[]; megaSpins?: MegaSpin[] }
 export interface ApiError { status: number; code: string; message?: string; balance?: number }
 

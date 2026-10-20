@@ -10,12 +10,6 @@ export { prizeIndexOfSlot, slotTier };
 
 // Board geometry (same as the original game): pegs 45 apart, row r has 3 + r pegs, slots under the last row.
 export const PEG_SPACING = 45;
-/** A colour too dark to carry a dark outline (relative luminance under 0.2). */
-function isDark(colour: string): boolean {
-  const n = parseInt(colour.replace('#', ''), 16);
-  const lin = (c: number) => { const v = c / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
-  return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255) < 0.2;
-}
 /** The status line's widest: the top of the board, between the frame's edges. */
 const STATUS_MAX_WIDTH = 250;
 const PEG_RADIUS = 5;
@@ -192,7 +186,7 @@ export interface PegHit { row: number; rows: number; pan: number }
  * which a spring pulls back to nothing. Only the drawing uses the knock: the route, and so the slot, never changes.
  */
 interface Flight { sprite: Sprite; x: number; y: number; ox: number; oy: number; vx: number; vy: number; free: boolean; cooldown: number;
-  tracker?: Container; timeline?: gsap.core.Timeline }
+  timeline?: gsap.core.Timeline }
 
 export class Board extends Container {
   readonly field = new Container();     // pegs, slots and balls, in board coordinates (x = 0 is the centre)
@@ -205,9 +199,7 @@ export class Board extends Container {
   private readonly particles = new Particles();
   private readonly flights = new Set<Flight>();
   private readonly pegFlashColour: string;
-  private readonly glowColour: string;
   private readonly fx: ThemeFx;
-  private subjects = 0;
   private hot: { slot: number; boost: number; glow: Graphics; badge: Text } | null = null;
   /** Called when two balls knock together (for the sound). */
   onClack: (() => void) | null = null;
@@ -233,7 +225,6 @@ export class Board extends Container {
     super();
     this.trailDot = style.trail ? new GraphicsContext().circle(0, 0, 1).fill(style.trail) : null;
     this.pegFlashColour = style.pegFlash;
-    this.glowColour = style.trail ?? style.pegFlash;
     this.fx = style.fx;
     this.frame = new Sprite({ texture: frame, anchor: 0.5 });
     this.framePortrait = new Sprite({ texture: framePortrait, anchor: 0.5 });
@@ -259,9 +250,7 @@ export class Board extends Container {
     }
     this.status.y = -10;
     gsap.fromTo(this.status, { alpha: 1 }, { alpha: 0.3, duration: 0.3, repeat: -1, yoyo: true, ease: 'none' });
-    this.drawBumpButton();
-    this.field.addChild(this.status, this.gateLayer, this.holeLayer, this.slotLayer, this.trailLayer, this.ballLayer, this.particles, this.textLayer,
-      this.bumpButton);
+    this.field.addChild(this.status, this.gateLayer, this.holeLayer, this.slotLayer, this.trailLayer, this.ballLayer, this.particles, this.textLayer);
     this.addChild(this.frame, this.framePortrait, this.field);
   }
 
@@ -284,7 +273,6 @@ export class Board extends Container {
     }
     this.setRisk(this.risk);
     this.drawMega();
-    this.bumpButton.position.set(this.slotX(rows) + PEG_SPACING * 0.2, PEG_SPACING * 1.2);
   }
 
   /** Plinko Mega's gates and SPIN slots (from the server's config; no gates when gateBoost is null). */
@@ -356,7 +344,19 @@ export class Board extends Container {
 
   /** How much faster balls fall after a bump (until the board is empty again). */
   private hurry = 1;
-  readonly bumpButton = new Container();
+  /** Turbo: every ball falls this much faster. */
+  speed = 1;
+
+  /** How many balls are in the air. */
+  inFlight(): number {
+    return this.flights.size;
+  }
+
+  /** The balls in the air hurry to their slots (PLAY's skip): no jolt, nothing about where they land changes. */
+  hurryAll(): void {
+    this.hurry = 3;
+    this.flights.forEach(f => f.timeline?.timeScale(this.hurry));
+  }
 
   /**
    * Plinko Mega's bump: the board jolts and the balls in the air hurry on. Looks only: their paths, and so where they
@@ -364,23 +364,10 @@ export class Board extends Container {
    */
   bump(): void {
     if (this.flights.size === 0) return;
-    this.hurry = Math.min(2.6, this.hurry * 1.5);
+    this.hurry = Math.min(2.6, Math.max(this.hurry, this.speed) * 1.5);
     this.flights.forEach(f => f.timeline?.timeScale(this.hurry));
     shake(this.field, 7);
     this.flights.forEach(f => { f.vx += random(-160, 160); f.vy -= random(60, 140); });
-    gsap.fromTo(this.bumpButton.scale, { x: 0.8, y: 0.8 }, { x: 1, y: 1, duration: 0.3, ease: 'back.out(3)' });
-  }
-
-  /** The bump button sits at the board's top right while balls are falling. */
-  private drawBumpButton(): void {
-    const b = this.bumpButton;
-    b.removeChildren().forEach(child => child.destroy({ children: true }));
-    b.addChild(new Graphics().circle(0, 0, 26).fill(megaLook.ink).stroke({ color: megaLook.accent, width: 3 }));
-    b.addChild(new Text({ text: 'BUMP', anchor: 0.5, resolution: textQuality(),
-      style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: 13, fill: megaLook.accent } }));
-    b.eventMode = 'static';
-    b.cursor = 'pointer';
-    b.visible = false;
   }
 
   /** Called when a ball goes through a gate, with what its gates multiply it by so far (for the sound). */
@@ -427,14 +414,18 @@ export class Board extends Container {
   }
 
   /** Places the frame and the board for the current orientation (same rules as the original game). */
-  layout(view: Viewport): void {
+  layout(view: Viewport, place: { x: number; y: number; fit: number } | null = null): void {
     const { w, h } = this.contentSize();
     // on wide phones the top and bottom of the stage are cut off: keep the pegs, the slots and the status line inside
     const visibleH = view.stageH - 2 * view.offsetY;
     const max = view.landscape ? { w: 1000, h: Math.min(510, visibleH - 110) } : { w: 570, h: 440 };
-    const scale = Math.min(1, max.w / w, max.h / h);
-    const x = view.landscape ? view.stageW * 0.57 : view.stageW / 2;
-    const centreY = view.landscape ? view.stageH / 2 : view.stageH * 0.37;
+    // Plinko Mega places the board itself (room for the wheel and the control bar) and shrinks it, frame and all
+    const fitTo = place?.fit ?? 1;
+    const scale = Math.min(1, max.w / w, max.h / h) * fitTo;
+    const x = place?.x ?? (view.landscape ? view.stageW * 0.57 : view.stageW / 2);
+    const centreY = place?.y ?? (view.landscape ? view.stageH / 2 : view.stageH * 0.37);
+    this.frame.scale.set(fitTo);
+    this.framePortrait.scale.set(fitTo);
     this.frame.visible = view.landscape;
     this.framePortrait.visible = !view.landscape;
     this.frame.position.set(x, centreY);
@@ -473,23 +464,20 @@ export class Board extends Container {
     const ball = new Sprite({ texture: this.ballTexture, anchor: 0.5 });
     ball.position.set(0, 0);
     if (golden) ball.tint = GOLD;   // a golden ball (decided by the server) looks golden from the start
-    else if (tint) ball.tint = tint;   // e.g. a free ball from the bonus meter
+    else if (tint) ball.tint = tint;
     this.ballLayer.addChild(ball);
     const flight: Flight = { sprite: ball, x: 0, y: 0, ox: 0, oy: 0, vx: 0, vy: 0, free: true, cooldown: 0 };
     this.flights.add(flight);
-    this.bumpButton.visible = true;
-    if (this.fx === 'cctv') this.track(flight);
 
     const radius = ball.texture.width / 2;
     // every ball has its own pace, but within a ball the hops change smoothly (no random jerks from peg to peg)
     const pace = random(0.27, 0.31);
     const slotTop = this.slotY() - SLOT_H / 2;
-    const hoverAt = this.fx === 'gravity' && rows >= 6 && Math.random() < 0.25 ? 2 + Math.floor(Math.random() * (rows - 4)) : -1;
 
     return new Promise(resolve => {
       const timeline = gsap.timeline({ onComplete: resolve });
       flight.timeline = timeline;
-      if (this.hurry > 1) timeline.timeScale(this.hurry);
+      if (Math.max(this.hurry, this.speed) > 1) timeline.timeScale(Math.max(this.hurry, this.speed));
       /** One arc from a to b: steady sideways speed, and up-then-down like under gravity; the ball rolls as it moves. */
       const arc = (from: { x: number; y: number }, to: { x: number; y: number }, height: number, duration: number) => {
         const hop = { t: 0 };
@@ -519,28 +507,9 @@ export class Board extends Container {
         timeline.call(() => this.touchPeg(ball, i, column, events.onPeg));
         const gate = passes.get(i);
         if (gate) timeline.call(() => { gateBoost *= this.gateBoost; this.gatePass(gate, gateBoost); ball.scale.set(1 + 0.12 * Math.log2(gateBoost)); });
-        // now and then the ball bounces up off a peg and comes down on it again before going on (Bad Bounce: often,
-        // and badly)
-        const bad = this.fx === 'bounce';
-        if (i < points.length - 2 && Math.random() < (bad ? 0.4 : 0.18)) {
-          arc(points[i], points[i], PEG_SPACING * random(0.22, 0.32) * (bad ? 1.6 : 1) * (1 - 0.4 * progress), pace * (bad ? 0.75 : 0.62));
-          timeline.call(() => this.touchPeg(ball, i, column, events.onPeg));
-        }
-        // Gravity Issues: once in a while a ball loses its gravity, floats up glowing, and drops back onto its peg
-        if (i === hoverAt) {
-          const at = points[i];
-          const lift = PEG_SPACING * random(0.9, 1.4);
-          const hover = { t: 0 };
-          timeline.call(() => this.particles.ring(at.x, at.y, this.glowColour, 22));
-          timeline.to(hover, {
-            t: 1, duration: random(0.9, 1.2), ease: 'sine.inOut',
-            onUpdate: () => {
-              flight.x = at.x + Math.sin(hover.t * Math.PI * 2) * 5;
-              flight.y = at.y - lift * Math.sin(hover.t * Math.PI);
-              ball.rotation += 0.03;
-              if (Math.random() < 0.35) this.particles.sparks(ball.x, ball.y, this.glowColour, 1, 14);
-            },
-          });
+        // now and then the ball bounces up off a peg and comes down on it again before going on
+        if (i < points.length - 2 && Math.random() < 0.18) {
+          arc(points[i], points[i], PEG_SPACING * random(0.22, 0.32) * (1 - 0.4 * progress), pace * 0.62);
           timeline.call(() => this.touchPeg(ball, i, column, events.onPeg));
         }
       }
@@ -549,7 +518,7 @@ export class Board extends Container {
       const end = { x: landX, y: slotTop + radius * 2.4 };
       const height = PEG_SPACING * 0.16;
       let entered = false;
-      timeline.call(() => { flight.free = false; this.holeLayer.addChild(ball); this.untrack(flight); });
+      timeline.call(() => { flight.free = false; this.holeLayer.addChild(ball); });
       const fall = { t: 0 };
       timeline.to(fall, {
         t: 1, duration: pace * 0.95, ease: 'none',
@@ -571,7 +540,7 @@ export class Board extends Container {
       timeline.call(() => {
         this.flights.delete(flight);
         ball.destroy();
-        if (this.flights.size === 0) { this.hurry = 1; this.bumpButton.visible = false; }
+        if (this.flights.size === 0) this.hurry = 1;
       });
     });
   }
@@ -658,43 +627,7 @@ export class Board extends Container {
       f.ox = Math.max(-limit, Math.min(limit, f.ox));
       f.oy = Math.max(-limit, Math.min(limit, f.oy));
       f.sprite.position.set(f.x + f.ox, f.y + f.oy);
-      // the camera's box follows its ball a moment behind, like a real tracker
-      if (f.tracker) f.tracker.position.set(f.tracker.x + (f.sprite.x - f.tracker.x) * Math.min(1, dt * 14),
-        f.tracker.y + (f.sprite.y - f.tracker.y) * Math.min(1, dt * 14));
     }
-  }
-
-  /** Big Brother: a red tracking box locks onto a falling ball (a few at a time, so a big drop stays readable). */
-  private track(flight: Flight): void {
-    const tracked = [...this.flights].filter(f => f.tracker).length;
-    if (tracked >= 5) return;
-    this.subjects = (this.subjects % 99) + 1;
-    const r = 15;
-    const l = 7;
-    const box = new Graphics();
-    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      box.moveTo(sx * r, sy * (r - l)).lineTo(sx * r, sy * r).lineTo(sx * (r - l), sy * r);
-    }
-    box.stroke({ color: '#ff2a2a', width: 2 });
-    box.moveTo(-3, 0).lineTo(3, 0).moveTo(0, -3).lineTo(0, 3).stroke({ color: '#ff2a2a', width: 1, alpha: 0.8 });
-    const tag = label(`SUBJ ${String(this.subjects).padStart(2, '0')}`, 11, 'left', { fill: '#ff2a2a' });
-    tag.position.set(r + 3, -r - 2);
-    const tracker = new Container();
-    tracker.addChild(box, tag);
-    tracker.position.set(0, 0);
-    this.textLayer.addChild(tracker);
-    flight.tracker = tracker;
-    gsap.fromTo(tracker.scale, { x: 2.2, y: 2.2 }, { x: 1, y: 1, duration: 0.25, ease: 'power2.out' });
-    gsap.fromTo(box, { alpha: 1 }, { alpha: 0.45, duration: 0.18, repeat: 3, yoyo: true });
-  }
-
-  private untrack(flight: Flight): void {
-    const tracker = flight.tracker;
-    if (!tracker) return;
-    flight.tracker = undefined;
-    gsap.killTweensOf(tracker.scale);
-    gsap.to(tracker.scale, { x: 0.5, y: 0.5, duration: 0.2, ease: 'power2.in' });
-    gsap.to(tracker, { alpha: 0, duration: 0.2, onComplete: () => tracker.destroy({ children: true }) });
   }
 
   /** A ball goes into its slot: a puff for small prizes, sparks, a fountain with a ring, and a shake for the top ones. */
@@ -703,33 +636,10 @@ export class Board extends Container {
     const face = slotLooks[slotTier(this.rows, prizeIndex)].face;
     const x = this.slotX(slot);
     const y = this.slotY() - SLOT_H / 2;
-    if (this.fx === 'gravity') {
-      // everything is pulled into the slot instead of thrown out of it
-      const strength = multiplier < 1 ? 0 : multiplier < 2 ? 1 : multiplier < 10 ? 2 : 3;
-      this.particles.implode(x, y, [face, '#ffffff', this.glowColour], [5, 10, 18, 32][strength], [24, 40, 60, 90][strength]);
-      if (strength >= 2) this.particles.ring(x, this.slotY(), this.glowColour, [0, 0, 50, 90][strength], true);
-      if (strength === 3) shake(this, 6);
-      return;
-    }
-    if ((this.fx === 'comic' || this.fx === 'cartoon' || this.fx === 'viral' || this.fx === 'nana' || this.fx === 'shurda' || this.fx === 'inked' || this.fx === 'glitch' || this.fx === 'holy' || this.fx === 'toxic') && multiplier >= 2) this.comicWord(x, y, multiplier);
-    if (this.fx === 'scam' && multiplier >= 2) this.scamStamp(x, y, multiplier);
-    if (this.fx === 'cctv' && multiplier >= 2) this.report(x, y, multiplier);
-    if (this.fx === 'noir' && multiplier >= 2) this.gunshots(x, y, multiplier);
-    if (this.fx === 'clown' && multiplier >= 2) this.jackInTheBox(x, y, multiplier);
     if (this.fx === 'loteria') {
       // marigold petals out of every landing; a card is called on a good one
       this.particles.burst(x, y, ['#f59a1b', '#e3197c', '#f7f1e3'], multiplier < 1 ? 4 : multiplier < 2 ? 8 : 14, multiplier < 2 ? 140 : 220);
       if (multiplier >= 2) this.callCard(x, y, multiplier);
-    }
-    if (this.fx === 'riot') {
-      // spray paint is bright: dark slots spray the theme's red instead
-      const n = parseInt(face.slice(1), 16);
-      const light = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
-      this.particles.splat(x, y - 4, light < 0.3 ? this.pegFlashColour : face, multiplier < 1 ? 7 : multiplier < 2 ? 10 : multiplier < 10 ? 14 : 22);
-    }
-    if (this.fx === 'bounce') {
-      this.particles.steam(x, y, multiplier < 2 ? 3 : 6);
-      if (multiplier >= 1) this.particles.sparks(x, y, this.pegFlashColour, 5, 22);
     }
     if (multiplier < 1) {
       this.particles.sparks(x, y, '#8a9097', 4, 12);
@@ -830,216 +740,6 @@ export class Board extends Container {
   /** A word pops out of a good landing in an inked starburst: comic sound effects (Rat Race), cartoon yelps (Bad
    * Dentist), social-media alerts (Doomscroll) or the Shurda gym's cheers. Colours: [burst, word] for small and big wins,
    * each pair at least 4.5:1 apart so the word reads at a glance. */
-  private comicWord(x: number, y: number, multiplier: number): void {
-    const WORDS: Record<string, [string[], string[], [string, string], [string, string]]> = {
-      comic: [['POW!', 'BAM!', 'ZING!', 'KER-PLINK!'], ['KA-CHING!', 'JACKPOT!', 'WHAM!'], ['#b8281c', '#ffffff'], ['#f2c230', '#15120e']],
-      cartoon: [['OUCH!', 'YANK!', 'CRACK!', 'OOF!'], ['GOLD TOOTH!', 'AAARGH!', 'JACKPOT!'], ['#efe7d6', '#15120e'], ['#b3121b', '#efe7d6']],
-      viral: [['+1K LIKES', 'SHARED!', '♥ +99', 'NEW FOLLOWER'], ['VIRAL!', 'TRENDING!', '1M VIEWS'], ['#19d3ff', '#15120e'], ['#ff2e93', '#15120e']],
-      nana: [['BINGO!', 'OH MY!', 'NICE, DEAR', 'TEA TIME!'], ["NANA'S CUT!", 'JACKPOT, DEAR!', 'BINGO BINGO!'], ['#e8b13a', '#2a1530'], ['#b01c30', '#f3ead8']],
-      shurda: [['SHURDA!', 'NICE SOCKS!', 'SOCK IT!', 'PUMP IT!'], ['SHURDALIFE!', 'SOCK JACKPOT!', 'BIGGER ICE CREAM!'], ['#ffd23f', '#111111'], ['#f0388c', '#15120e']],
-      glitch: [['ERROR 404', 'OVERFLOW!', 'BUG FOUND', 'LAG SPIKE'], ['SYSTEM HACKED!', 'JACKPOT.EXE', 'CRITICAL WIN!'], ['#00f0ff', '#05060a'], ['#ff2bd6', '#05060a']],
-      holy: [['AMEN!', 'BLESSED', 'GLORY!', 'HEAVENLY'], ['HALLELUJAH!', 'DIVINE WIN!', 'MIRACLE!'], ['#d9a93a', '#15120e'], ['#a8122a', '#f3ead6']],
-      toxic: [['MUTATION!', 'IT LIVES!', 'TOXIC!', 'GLOWING!'], ['BREACH!', 'OUTBREAK!', 'SPECIMEN 13!'], ['#39ff7a', '#04140a'], ['#ffd21e', '#04140a']],
-      inked: [['HOLD FAST', 'NO REGRETS', 'LUCKY 13', 'BORN WILD'], ['DAMNED LUCKY!', 'BORN LUCKY', 'TRUE LOVE'], ['#efe4cc', '#000000'], ['#c1121f', '#efe4cc']],
-    };
-    const [small, big, cSmall, cBig] = WORDS[this.fx] ?? WORDS.comic;
-    const words = multiplier >= 10 ? big : small;
-    const word = words[Math.floor(Math.random() * words.length)];
-    const size = multiplier >= 10 ? 30 : 22;
-    const group = new Container();
-    const [burstColour, wordColour] = multiplier >= 10 ? cBig : cSmall;
-    // light letters get a dark outline; dark letters none (an outline the same colour as the letters fills them in)
-    const text = label(word, size, 'center', { fill: wordColour, stroke: { color: '#15120e', width: isDark(wordColour) ? 0 : 5, join: 'round' } });
-    text.anchor.set(0.5, 0.5);
-    // the burst fits the word: even its inner points (0.62 of the radius) clear the letters, so a long word never
-    // spills onto the board, where dark letters vanish
-    const inner = 0.62;
-    const base = size * (multiplier >= 10 ? 2.4 : 2);
-    const rx = Math.max(base * 1.3, (text.width / 2 + size * 0.45) / inner);
-    const ry = Math.max(base, (text.height / 2 + size * 0.3) / inner);
-    const burst = new Graphics();
-    const spikes = 14;
-    const pts: number[] = [];
-    for (let i = 0; i < spikes * 2; i++) {
-      const a = (i / (spikes * 2)) * Math.PI * 2;
-      const k = i % 2 ? inner : 1;
-      pts.push(Math.cos(a) * rx * k, Math.sin(a) * ry * k);
-    }
-    burst.poly(pts).fill('#15120e');
-    burst.poly(pts.map(v => v * 0.9 - 2)).fill(burstColour).stroke({ color: '#15120e', width: 3 });
-    group.addChild(burst, text);
-    // very long words: the whole burst is scaled down to a sensible size rather than growing past the board
-    const fit = Math.min(1, 150 / rx);
-    // above the landing's amount (shown just over the slot), never on it
-    group.position.set(x + (Math.random() - 0.5) * 30, y - 48 - ry * fit - Math.random() * 14);
-    group.rotation = (Math.random() - 0.5) * 0.4;
-    this.textLayer.addChild(group);
-    gsap.timeline({ onComplete: () => group.destroy({ children: true }) })
-      .fromTo(group.scale, { x: 0.1 * fit, y: 0.1 * fit }, { x: fit, y: fit, duration: 0.22, ease: 'back.out(3)' })
-      .to(group, { alpha: 0, y: group.y - 20, duration: 0.35, ease: 'power1.in' }, 0.75);
-  }
-
-  /** The Scam Squad: a rubber stamp slams down over a good landing, slightly crooked ("TOTALLY LEGIT!"; 10x and up a
-   * big gold "100% REAL!"). Only on wins: a loss is never mocked. */
-  private scamStamp(x: number, y: number, multiplier: number): void {
-    const big = multiplier >= 10;
-    const words = big ? ['100% REAL!', 'CERTIFIED!', 'BIG SCORE!'] : ['TOTALLY LEGIT!', 'TRUST ME!', 'GENUINE!', 'NO REFUNDS!'];
-    const word = words[Math.floor(Math.random() * words.length)];
-    const ink = big ? '#9e1208' : '#0b5c5e';
-    const text = label(word, big ? 28 : 20, 'center', { fill: ink, letterSpacing: 1 });
-    text.anchor.set(0.5, 0.5);
-    const w = text.width + 30;
-    const h = text.height + 18;
-    const stamp = new Graphics()
-      .roundRect(-w / 2, -h / 2, w, h, 8).fill({ color: big ? '#ffc23a' : '#f6e7c4', alpha: 0.96 })
-      .roundRect(-w / 2, -h / 2, w, h, 8).stroke({ color: ink, width: 4 })
-      .roundRect(-w / 2 + 6, -h / 2 + 6, w - 12, h - 12, 5).stroke({ color: ink, width: 2 });
-    const group = new Container();
-    group.addChild(stamp, text);
-    group.position.set(x + (Math.random() - 0.5) * 24, y - 64 - Math.random() * 16);
-    group.rotation = (Math.random() < 0.5 ? -1 : 1) * (0.12 + Math.random() * 0.14);
-    this.textLayer.addChild(group);
-    if (big) shake(this, 4);
-    gsap.timeline({ onComplete: () => group.destroy({ children: true }) })
-      .from(group.scale, { x: 1.9, y: 1.9, duration: 0.14, ease: 'power3.in' })
-      .from(group, { alpha: 0, duration: 0.08 }, 0)
-      .to(group.scale, { x: 1.06, y: 0.94, duration: 0.06, yoyo: true, repeat: 1 }, 0.14)
-      .to(group, { alpha: 0, y: group.y - 16, duration: 0.35, ease: 'power1.in' }, 0.95);
-  }
-
-  /** Big Brother: a good landing is filed as a classified report: a paper slip with redacted lines, and a red stamp
-   * slams onto it ("CLASSIFIED"; 10x and up "TOP SECRET"). Only on wins. */
-  private report(x: number, y: number, multiplier: number): void {
-    const big = multiplier >= 10;
-    const words = big ? ['TOP SECRET', 'EYES ONLY', 'SUBJECT FLAGGED'] : ['CLASSIFIED', 'ON FILE', 'APPROVED', 'MONITORED'];
-    const word = words[Math.floor(Math.random() * words.length)];
-    const ink = '#b3121b';
-    const text = label(word, big ? 26 : 19, 'center', { fill: ink, letterSpacing: 2 });
-    text.anchor.set(0.5, 0.5);
-    const w = text.width + 26;
-    const h = text.height + 12;
-    const stamp = new Graphics()
-      .rect(-w / 2, -h / 2, w, h).stroke({ color: ink, width: 3 })
-      .rect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8).stroke({ color: ink, width: 1 });
-    const stampGroup = new Container();
-    stampGroup.addChild(stamp, text);
-    stampGroup.rotation = (Math.random() < 0.5 ? -1 : 1) * (0.1 + Math.random() * 0.1);
-    // the slip: a case number and blacked-out lines under the stamp
-    const pw = w + 22;
-    const ph = h + 34;
-    const paper = new Graphics().rect(-pw / 2, -ph / 2, pw, ph).fill('#ece6d6').stroke({ color: '#15120e', width: 2 });
-    const bars = new Graphics();
-    for (let i = 0; i < 3; i++) bars.rect(-pw / 2 + 10, -ph / 2 + 22 + i * 13, (pw - 20) * (0.55 + Math.random() * 0.45), 7);
-    bars.fill('#15120e');
-    const no = label(`FILE ${1000 + Math.floor(Math.random() * 9000)}`, 11, 'left', { fill: '#15120e' });
-    no.position.set(-pw / 2 + 8, -ph / 2 + 4);
-    const group = new Container();
-    group.addChild(paper, bars, no, stampGroup);
-    stampGroup.y = 6;
-    group.position.set(x + (Math.random() - 0.5) * 24, y - 52 - ph / 2 - Math.random() * 12);
-    group.rotation = (Math.random() - 0.5) * 0.14;
-    const fit = Math.min(1, 170 / pw);
-    group.scale.set(fit);
-    this.textLayer.addChild(group);
-    if (big) shake(this, 4);
-    gsap.timeline({ onComplete: () => group.destroy({ children: true }) })
-      .from(group, { alpha: 0, y: group.y + 14, duration: 0.12 })
-      .from(stampGroup.scale, { x: 2, y: 2, duration: 0.14, ease: 'power3.in' }, 0.12)
-      .from(stampGroup, { alpha: 0, duration: 0.06 }, 0.12)
-      .to(group, { alpha: 0, y: group.y - 16, duration: 0.35, ease: 'power1.in' }, 1.0);
-  }
-
-  /** Fatal Attraction: a good landing is a shot fired into the board above the slot: a red-orange muzzle flash, then a
-   * bullet hole with cracks running out as through glass, which lingers and fades. 10x and up: three shots. */
-  private gunshots(x: number, y: number, multiplier: number): void {
-    const shots = multiplier >= 10 ? 3 : 1;
-    for (let i = 0; i < shots; i++) {
-      const hx = x + (shots > 1 ? (i - 1) * 34 + (Math.random() - 0.5) * 10 : (Math.random() - 0.5) * 16);
-      const hy = y - 78 - Math.random() * 18 - (shots > 1 ? Math.abs(i - 1) * -10 : 0);
-      gsap.delayedCall(i * 0.16, () => this.bulletHole(hx, hy, multiplier >= 10 ? 8.5 : 7));
-    }
-    if (shots > 1) gsap.delayedCall(0.05, () => shake(this, 5));
-  }
-
-  private bulletHole(x: number, y: number, r: number): void {
-    const flash = new Graphics().circle(0, 0, r * 5).fill({ color: '#ff5a2a', alpha: 0.5 }).circle(0, 0, r * 2.6).fill({ color: '#ffb070', alpha: 0.7 });
-    flash.position.set(x, y);
-    const hole = new Graphics();
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
-      const len = r * (2.6 + Math.random() * 2.6);
-      const bend = a + (Math.random() - 0.5) * 0.6;
-      hole.moveTo(Math.cos(a) * r, Math.sin(a) * r)
-        .lineTo(Math.cos(a) * len * 0.55, Math.sin(a) * len * 0.55)
-        .lineTo(Math.cos(bend) * len, Math.sin(bend) * len);
-    }
-    hole.stroke({ color: '#ffffff', width: 1, alpha: 0.75 });
-    hole.circle(0, 0, r * 1.9).stroke({ color: '#ffffff', width: 0.8, alpha: 0.35 });
-    hole.circle(0, 0, r * 1.15).fill({ color: '#ffffff', alpha: 0.35 }).circle(0, 0, r).fill('#000000')
-      .circle(r * 0.15, r * 0.2, r * 0.55).fill({ color: '#5c0409', alpha: 0.8 });
-    hole.position.set(x, y);
-    hole.rotation = Math.random() * Math.PI;
-    this.textLayer.addChild(hole, flash);
-    gsap.timeline({ onComplete: () => flash.destroy() })
-      .from(flash.scale, { x: 0.3, y: 0.3, duration: 0.06 })
-      .to(flash, { alpha: 0, duration: 0.18, ease: 'power2.out' });
-    gsap.timeline({ onComplete: () => hole.destroy() })
-      .from(hole.scale, { x: 0.6, y: 0.6, duration: 0.08, ease: 'power3.out' })
-      .to(hole, { alpha: 0, duration: 0.6, ease: 'power1.in' }, 1.4);
-  }
-
-  /** Clown Business: a good landing springs a jack-in-the-box over the slot: the lid flips, a clown head boings up
-   * on a zigzag spring, wobbles, and sinks back in. 10x and up: a taller spring, a bigger head, a shake. */
-  private jackInTheBox(x: number, y: number, multiplier: number): void {
-    const big = multiplier >= 10;
-    const s = big ? 1.35 : 1;
-    const group = new Container();
-    group.position.set(x, y - 6);
-    group.scale.set(s);
-    // the box: red with a cream band, the lid hinged at its back edge
-    const box = new Graphics()
-      .roundRect(-13, -16, 26, 16, 2).fill('#a3171c').stroke({ color: '#1a0a05', width: 1.6 })
-      .rect(-13, -10, 26, 4).fill('#efe2c2');
-    const lid = new Graphics().roundRect(0, -3, 26, 4, 1.5).fill('#c9973f').stroke({ color: '#1a0a05', width: 1.2 });
-    lid.position.set(-13, -16);
-    // the spring and the head on top of it
-    const spring = new Graphics();
-    const head = new Container();
-    const face = new Graphics()
-      .circle(-9, -2, 6).fill('#d8322e').circle(9, -2, 6).fill('#d8322e')                // hair tufts
-      .circle(0, 0, 10).fill('#f4ecdc').stroke({ color: '#1a0a05', width: 1.4 })          // porcelain face
-      .circle(-3.6, -2.5, 1.6).fill('#1a0a05').circle(3.6, -2.5, 1.6).fill('#1a0a05')     // eyes
-      .circle(0, 1, 2.6).fill('#d8322e')                                                   // nose
-      .moveTo(-5.5, 4).quadraticCurveTo(0, 9, 5.5, 4).stroke({ color: '#a3171c', width: 1.8 })
-      .moveTo(-4, -12).lineTo(0, -21).lineTo(4, -12).closePath().fill('#2b6b66');        // hat
-    head.addChild(face);
-    group.addChild(spring, head, box, lid);
-    this.textLayer.addChild(group);
-    const reach = big ? 46 : 32;
-    const state = { h: 0 };
-    const draw = () => {
-      spring.clear();
-      const turns = 6;
-      spring.moveTo(0, -16);
-      for (let i = 1; i <= turns; i++) spring.lineTo(i % 2 ? -5 : 5, -16 - state.h * i / turns);
-      spring.stroke({ color: '#c9973f', width: 1.8 });
-      head.position.set(0, -26 - state.h);
-    };
-    draw();
-    head.alpha = 0;
-    if (big) shake(this, 4);
-    gsap.timeline({ onComplete: () => group.destroy({ children: true }) })
-      .from(group, { alpha: 0, duration: 0.08 })
-      .to(lid, { rotation: -2.2, duration: 0.12, ease: 'power2.out' })
-      .set(head, { alpha: 1 }, '<')
-      .to(state, { h: reach, duration: 0.55, ease: 'elastic.out(1.2, 0.35)', onUpdate: draw }, '<')
-      .fromTo(head, { rotation: -0.35 }, { rotation: 0.35, duration: 0.14, repeat: 5, yoyo: true, ease: 'sine.inOut' }, '<0.1')
-      .to(state, { h: 0, duration: 0.25, ease: 'power2.in', onUpdate: draw }, '+=0.25')
-      .set(head, { alpha: 0 })
-      .to(lid, { rotation: 0, duration: 0.08 })
-      .to(group, { alpha: 0, duration: 0.25 }, '+=0.1');
-  }
-
   /** A golden ball lands: a gold fountain and ring, a shake, and the boost floating up over the slot. */
   private goldenLanding(slot: number, boost: number): void {
     const x = this.slotX(slot);
@@ -1079,14 +779,12 @@ export class Board extends Container {
   }
 
   private touchPeg(ball: Sprite, row: number, column: number, onPeg?: (peg: PegHit) => void): void {
-    const squash = this.fx === 'bounce' ? 0.16 : 0.07;
-    gsap.fromTo(ball.scale, { x: 1 + squash, y: 1 - squash }, { x: 1, y: 1, duration: this.fx === 'bounce' ? 0.16 : 0.1, ease: 'power1.out', overwrite: true });
+    gsap.fromTo(ball.scale, { x: 1.07, y: 0.93 }, { x: 1, y: 1, duration: 0.1, ease: 'power1.out', overwrite: true });
     const flash = this.pegFlashes[row]?.[column];
     const peg = this.pegs[row]?.[column];
     if (peg) {
       const many = this.flights.size > 15;
-      if (this.fx === 'bounce') this.particles.sparks(peg.x, peg.y + 3, this.pegFlashColour, many ? 3 : 6, 20);
-      else this.particles.sparks(peg.x, peg.y, this.pegFlashColour, many ? 2 : 4);
+      this.particles.sparks(peg.x, peg.y, this.pegFlashColour, many ? 2 : 4);
       gsap.fromTo(peg.scale, { x: 1.35, y: 1.35 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)', overwrite: true });
     }
     if (flash) {

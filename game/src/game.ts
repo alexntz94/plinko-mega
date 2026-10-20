@@ -3,14 +3,11 @@ import { gsap } from 'gsap';
 import { errorText, formatAmount, playRound, resumeSession, type ApiError, type HistoryEntry, type MeterInfo, type Round, type Session } from './api';
 import { HistoryPanel } from './historyPanel';
 import { ResponsiblePlay } from './responsible';
-import { Board, slotTier, type Landing, type PegHit } from './board';
+import { Board, type Landing, type PegHit } from './board';
 import { BigWin, winLevel } from './effects';
-import { Wheel } from './wheel';
+import { FortuneWheel } from './fortuneWheel';
+import { MegaControls } from './megaControls';
 import { Meter } from './meter';
-import { History } from './history';
-import { ControlCenter } from './control';
-import { Guide, guideSeen, type GuideStep } from './guide';
-import { Panel } from './panel';
 import { betLadder, nextBet, RISKS, round2 } from './rules';
 import { ExitDialog, Menu, Options, ResultScreen, type MotionSwitch } from './screens';
 import { isMuted, play as sound, setMuted } from './sound';
@@ -38,36 +35,24 @@ function cents(value: number): number {
 const wait = (seconds: number) => new Promise<void>(resolve => { gsap.delayedCall(seconds, resolve); });
 
 type Page = 'menu' | 'game' | 'result';
-/** The player's controls: the control center (one ball per drop, Hold & Drop) or the classic panel (balls slider). */
-type Controls = 'center' | 'classic';
-const CONTROLS_KEY = 'plinko.controls';
-
-/** The controls this player picked last time on this device; the classic panel until they pick (or if storage is blocked). */
-function savedControls(): Controls {
-  try { return window.localStorage.getItem(CONTROLS_KEY) === 'center' ? 'center' : 'classic'; } catch { return 'classic'; }
-}
 
 /**
- * The game. Outcomes come only from the server: the client sends rows, risk, bet and balls (the control center
- * always sends 1: a tap drops one ball, holding drops a stream; the classic panel sends its BALLS setting), and shows
- * the slots and balance it gets back. Nothing here can change what a round pays.
+ * Plinko Mega. Outcomes come only from the server: the client sends rows, risk, bet and balls and shows the paths,
+ * gates, wheel spins and balance it gets back. Nothing here can change what a round pays.
  */
 export class Game extends Container {
   private readonly menu: Menu;
   private readonly table = new Container();
   private readonly board: Board;
-  private readonly panel: ControlCenter;
-  private readonly classic: Panel;
-  private controls: Controls = savedControls();
-  private readonly history = new History();
   private readonly exitDialog: ExitDialog;
   private readonly result: ResultScreen;
   private readonly options: Options;
   private readonly bigWin: BigWin;
-  private readonly wheel: Wheel;
+  /** The fortune wheel under the board, and the control bar. */
+  private readonly wheel: FortuneWheel;
+  private readonly bar: MegaControls;
+  private ballsLeft = 0;          // balls dropped and not landed yet (PLAY shows them)
   private readonly meter: Meter;
-  private readonly guide: Guide;
-  private readonly accent: string;
 
   private readonly rowOptions: number[];
   private readonly ladder: number[];
@@ -77,18 +62,15 @@ export class Game extends Container {
   private bet: number;
   private risk = 0;
   private rows: number;
-  private balls = 1;              // 1 with the control center; the classic panel's BALLS setting otherwise
+  private balls = 1;              // balls per round (the drawer's BALLS)
   private requesting = false;     // a round request is on its way (only one at a time)
   private inAir = 0;              // rounds whose balls are still falling
   private replaying = false;      // an earlier round is being shown again (review 7.5): no bet, nothing paid
   private readonly historyPanel: HistoryPanel;
   private readonly responsible: ResponsiblePlay;
   private lastLaunch = 0;          // when the last round was asked for (the market's minimum time per round)
-  private holding = false;        // Hold & Drop is running
-  private pressed = false;
+  private holding = false;        // autoplay is running
   private queuedTaps = 0;         // taps that came while a request was on its way: played right after it
-  private holdTimer: gsap.core.Tween | null = null;
-  private spins = 0;
   private pendingWins = 0;        // wins of balls still in the air: on screen only once they land
   private lastWin = 0;
   private statusTimer: gsap.core.Tween | null = null;
@@ -111,63 +93,49 @@ export class Game extends Container {
     this.board = new Board(tex('item_plinko.png'), tex('item_plinko_p.png'), tex('item_ball.png'), theme.board,
       theme.board.peg ? tex(theme.board.peg) : null);
     const inkLook = theme.ui.style === 'ink' ? { ink: theme.ui.ink, panel: theme.ui.panel } : null;
-    const colours = { accent: theme.accent, text: theme.text, background: theme.background,
-      second: theme.board.slots?.[4]?.face ?? '#3d6fd6' };
-    this.panel = new ControlCenter(colours, {
-      dropDown: () => this.dropDown(),
-      dropUp: () => this.dropUp(),
-      bet: up => this.changeBet(up),
-      betPick: value => this.pickBet(value),
-      risk: index => this.changeRisk(index - this.risk),
-      rows: step => this.changeRows(this.rowOptions.indexOf(this.rows) + step),
-      info: () => this.openGuide(),
-    }, this.ladder, config.holdToDrop !== false, { glass: theme.ui.style === 'glass', drop: theme.ui.drop ? tex(theme.ui.drop) : null, ink: inkLook });
-    this.classic = new Panel({
-      stat: tex('item_stat_display.png'), half: tex('button_bet_half.png'), double: tex('button_bet_multiply.png'),
-      left: tex('button_arrow_left.png'), right: tex('button_arrow_right.png'), bar: tex('item_drag_bar.png'),
-      knob: tex('item_drag.png'), play: tex('button_blank.png'),
-    }, theme.layout, {
-      bet: up => this.changeBet(up),
-      risk: step => this.changeRisk(step),
-      rows: index => this.changeRows(index),
-      balls: index => this.changeBalls(index + 1),
-      play: () => this.play(),
-    }, this.rowOptions.length, config.maxBalls, theme.playText);
-    this.accent = theme.accent;
     this.meter = new Meter(theme.accent, theme.ui.style === 'glass' ? theme.background : null, inkLook);
     this.meter.set(session.meter?.enabled ?? false, session.meter?.charges ?? 0, session.meter?.of ?? 0);
-    this.table.addChild(this.board, this.history, this.panel, this.classic, this.meter);
 
     this.exitDialog = new ExitDialog({ exit: tex('item_exit.png'), exitPortrait: tex('item_exit_p.png'),
       ok: tex('button_confirm.png'), no: tex('button_cancel.png') }, theme.landscapeExitFromPortrait,
     () => { this.closeExit(); this.go('menu'); }, () => this.closeExit());
-    this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text], theme.board.fx);
+    this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text]);
     this.board.onClack = () => sound('clack', { volume: 0.5 });
     const mega = config.mega;
-    if (mega) this.board.setMega(mega.gates ?? {}, mega.gateBoost ?? null, mega.wheel ? mega.spinSlots ?? {} : {});
+    this.board.setMega(mega?.gates ?? {}, mega?.gateBoost ?? null, mega?.wheel ? mega.spinSlots ?? {} : {});
     this.board.onGate = () => sound('golden', { volume: 0.7 });
-    this.board.bumpButton.on('pointertap', () => { sound('clack'); this.board.bump(); });
-    this.wheel = new Wheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null);
+    this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
+      value => this.money(value));
     this.wheel.onTick = () => sound('hit', { volume: 0.35 });
+    this.wheel.visible = !!mega?.wheel;
+    this.wheel.setWheel(mega?.wheel ?? [], this.bet);
+    this.bar = new MegaControls({ gold: theme.wheel.title, ink: theme.wheel.ink, panel: theme.ui.panel, text: theme.text }, {
+      play: () => this.play(),
+      auto: () => { if (this.holding) this.stopHolding(); else if (this.page === 'game') void this.autoplay(); },
+      turbo: on => { this.board.speed = on ? 2 : 1; this.wheel.setHurry(on); },
+      bump: () => { sound('clack'); this.board.bump(); },
+      bet: up => this.changeBet(up),
+      risk: step => this.changeRisk(step),
+      balls: step => this.changeBalls(Math.min(config.maxBalls, Math.max(1, this.balls + step))),
+      rows: step => this.changeRows(this.rowOptions.indexOf(this.rows) + step),
+    });
+    this.table.addChild(this.board, this.wheel, this.meter, this.bar);
 
     this.result = new ResultScreen(tex('item_result.png'), tex('item_result_p.png'), tex('button_continue.png'), () => this.go('menu'));
     this.options = new Options({ settings: tex('button_settings.png'), soundOn: tex('button_sound_on.png'),
       soundOff: tex('button_sound_off.png'), fullscreen: tex('button_fullscreen.png'), exit: tex('button_exit.png') },
     isMuted, () => setMuted(!isMuted()), fullscreenToggle(), () => this.openExit(),
-    { texture: theme.ui.controls ? tex(theme.ui.controls) : null, colours: { accent: theme.accent, text: theme.text, background: theme.background,
-        ...(theme.ui.style === 'ink' ? { ring: theme.ui.ink, disc: theme.ui.panel } : {}) },
-      onTap: () => this.switchControls() }, motion,
+    { accent: theme.accent, text: theme.text, background: theme.background,
+      ...(theme.ui.style === 'ink' ? { ring: theme.ui.ink, disc: theme.ui.panel } : {}) }, motion,
     () => { if (!this.busy()) this.historyPanel.show(); });
     this.options.on('pointertap', () => sound('click'));
-    this.guide = new Guide({ accent: theme.accent, text: theme.text, background: theme.background });
-    this.showControls();
 
-    this.addChild(this.menu, this.table, this.wheel, this.bigWin, this.result, this.exitDialog, this.options, this.guide);
+    this.addChild(this.menu, this.table, this.bigWin, this.result, this.exitDialog, this.options);
     this.historyPanel = new HistoryPanel(value => this.money(value), entry => void this.replay(entry));
     this.responsible = new ResponsiblePlay(config, session.sessionId, value => this.money(value), () => { this.stopHolding(); this.go('menu'); });
     this.go('menu');
     window.addEventListener('keydown', event => {
-      if ((event.code === 'Space' || event.code === 'Enter') && this.page === 'game' && !this.exitDialog.visible && !this.guide.showing
+      if ((event.code === 'Space' || event.code === 'Enter') && this.page === 'game' && !this.exitDialog.visible
         && !this.historyPanel.open && !this.responsible.pausing && !(event.target instanceof HTMLButtonElement)) {
         event.preventDefault();
         this.play();
@@ -179,17 +147,23 @@ export class Game extends Container {
   layout(view: Viewport): void {
     this.view = view;
     this.menu.layout(view);
-    this.board.layout(view);
-    this.panel.layout(view);
-    this.classic.layout(view);
-    this.history.layout(view);
+    this.layoutBoard(view);
     this.exitDialog.layout(view);
     this.result.layout(view);
     this.bigWin.layout(view);
-    this.wheel.layout(view);
+    // portrait: board, wheel, bar from top to bottom; landscape: the board in the middle, the wheel on the right
+    const visibleH = view.stageH - 2 * view.offsetY;
+    if (view.landscape) this.wheel.place(view.stageW * 0.82 - view.offsetX * 0.5, view.stageH * 0.62, Math.min(140, visibleH * 0.23));
+    else this.wheel.place(view.stageW / 2, view.stageH * 0.735, Math.min(150, visibleH * 0.16));
+    this.bar.layout(view, view.landscape ? view.stageW * 0.45 : view.stageW / 2);
     this.meter.layout(view);
     this.options.layout(view);
-    this.guide.layout(view);
+  }
+
+  /** The board's place: room for the wheel and the control bar. */
+  private layoutBoard(view: Viewport): void {
+    this.board.layout(view, view.landscape ? { x: view.stageW * 0.45, y: view.stageH * 0.43, fit: 0.8 }
+      : { x: view.stageW / 2, y: view.stageH * 0.3, fit: 0.84 });
   }
 
   private go(page: Page): void {
@@ -201,13 +175,12 @@ export class Game extends Container {
     this.result.visible = page === 'result';
     this.options.setExit(page === 'game');
     this.responsible?.setVisible(page === 'game');
-    if (page !== 'game') { this.guide.close(); this.historyPanel.hide(); }
+    if (page !== 'game') this.historyPanel.hide();
   }
 
   /** From the start screen: a fresh table with the latest balance from the casino (no jingle: the theme's music plays). */
   private async start(): Promise<void> {
     this.go('game');
-    this.history.clear();
     this.board.clearAmounts();
     this.risk = 0;
     this.rows = this.rowOptions[0] ?? 8;
@@ -216,10 +189,8 @@ export class Game extends Container {
     this.pendingWins = 0;
     this.applyRows();
     this.refreshPanel();
-    this.panel.setPlaying(false);
-    this.classic.setPlaying(false);
+    this.syncControls();
     this.idleStatus();
-    this.firstGuide();
     try {
       const fresh = await resumeSession();
       if (!this.busy()) { this.balance = fresh.balance; this.refreshPanel(); }
@@ -282,55 +253,11 @@ export class Game extends Container {
     this.idleStatus();
   }
 
-  /** The player flips between the control center and the classic panel (not while balls are dropping). */
-  private switchControls(): void {
-    if (this.busy()) return;
-    this.controls = this.controls === 'center' ? 'classic' : 'center';
-    try { window.localStorage.setItem(CONTROLS_KEY, this.controls); } catch { /* remembered for this visit only */ }
-    this.showControls();
-    this.refreshPanel();
-    if (this.page === 'game') this.idleStatus();
-    if (this.controls === 'center') this.firstGuide();
-    else this.guide.close();
-  }
-
-  /** The first time this device uses the control center, explain it. */
-  private firstGuide(): void {
-    if (this.controls === 'center' && this.page === 'game' && !guideSeen()) this.openGuide();
-  }
-
-  /** Walks through the control center: drop, bet, risk, rows (each bubble points at the real part). */
-  private openGuide(): void {
-    if (this.busy() || this.controls !== 'center') return;
-    const at = (part: 'drop' | 'bet' | 'risk' | 'rows') => () => {
-      const spot = this.panel.spots()[part];
-      const a = this.toLocal(this.panel.toGlobal({ x: spot.x, y: spot.y }));
-      const b = this.toLocal(this.panel.toGlobal({ x: spot.x + spot.w, y: spot.y + spot.h }));
-      return { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y, round: spot.round };
-    };
-    const steps: GuideStep[] = [
-      { spot: at('drop'), text: this.session.config.holdToDrop !== false
-        ? 'Tap DROP to drop one ball. Hold it to keep dropping: let go or tap STOP to stop.'
-        : 'Tap DROP to drop one ball. Every tap plays one round.' },
-      { spot: at('bet'), text: 'Your bet for each ball. Tap the amount for a quick list, or use − and +.' },
-      { spot: at('risk'), text: 'Higher risk: bigger top prizes, but more balls land on small ones.' },
-      { spot: at('rows'), text: 'More rows: more bounces and a wider spread of prizes.' },
-    ];
-    this.guide.show(steps);
-  }
-
-  private showControls(): void {
-    const classic = this.controls === 'classic';
-    this.panel.visible = !classic;
-    this.classic.visible = classic;
-    if (!classic) this.balls = 1;   // the control center drops one ball at a time
-  }
-
   private applyRows(): void {
     this.board.setRows(this.rows, this.session.config.rows.find(r => r.rows === this.rows)?.prizes ?? []);
     this.board.setRisk(this.risk);
     this.markMeterSlots();
-    if (this.view) this.board.layout(this.view);
+    if (this.view) this.layoutBoard(this.view);
   }
 
   private money(value: number): string {
@@ -338,27 +265,13 @@ export class Game extends Container {
   }
 
   private refreshPanel(): void {
-    this.panel.setBalance(this.money(Math.max(0, round2(this.balance - this.pendingWins))));
-    this.panel.setBet(this.money(this.bet));
-    this.panel.setRisk(this.risk);
-    this.panel.setRows(this.rows);
-    this.panel.setWin(this.money(this.lastWin));
-    this.classic.setCredit(this.money(Math.max(0, round2(this.balance - this.pendingWins))));
-    this.classic.setBet(this.money(this.bet));
-    this.classic.setRisk(RISKS[this.risk]);
-    this.classic.setRows(this.rows);
-    this.classic.setBalls(this.balls);
-    this.classic.rowsSlider.set(Math.max(0, this.rowOptions.indexOf(this.rows)), false);
-    this.classic.ballsSlider.set(this.balls - 1, false);
-  }
-
-  /** A bet chosen in the quick picker (only values from the ladder). */
-  private pickBet(value: number): void {
-    if (this.busy() || !this.ladder.includes(value) || value === this.bet) return;
-    sound('click');
-    this.bet = value;
-    this.refreshPanel();
-    this.idleStatus();
+    this.bar.setBalance(this.money(Math.max(0, round2(this.balance - this.pendingWins))));
+    this.bar.setTotalBet(this.money(round2(this.bet * this.balls)));
+    this.bar.setWin(this.money(this.lastWin));
+    this.bar.setRisk(RISKS[this.risk]);
+    this.bar.setBalls(this.balls, this.money(this.bet));
+    this.bar.setRows(this.rows);
+    this.wheel.setStake(this.bet);
   }
 
   private idleStatus(): void {
@@ -373,37 +286,22 @@ export class Game extends Container {
     this.statusTimer = gsap.delayedCall(seconds, () => this.idleStatus());
   }
 
-  /** A tap: one round now. Earlier balls may still be falling; only one request is ever on its way. */
+  /** PLAY: stops autoplay; while balls fall, hurries them; otherwise plays a round. */
   private play(): void {
-    if (this.page !== 'game' || this.holding) return;
+    if (this.page !== 'game') return;
+    if (this.holding) { this.stopHolding(); return; }
+    if (this.board.inFlight() > 0) { this.board.hurryAll(); return; }
     void this.launchRound();
   }
 
   /**
-   * The drop button is pressed: one round at once, and if it is still held a moment later (and Hold & Drop is on),
-   * round after round until it is let go, the balance can't pay the next one, a round wins 10x or more, or an error.
+   * Autoplay: round after round until it is stopped, the balance can't pay the next one, a round wins 10x or more, or
+   * an error.
    */
-  private dropDown(): void {
-    if (this.page !== 'game') return;
-    if (this.holding) { this.stopHolding(); return; }   // the button shows STOP while holding: a tap stops
-    this.pressed = true;
-    void this.launchRound();
-    if (this.session.config.holdToDrop === false) return;
-    this.holdTimer?.kill();
-    this.holdTimer = gsap.delayedCall(0.35, () => { if (this.pressed) void this.holdLoop(); });
-  }
-
-  private dropUp(): void {
-    this.pressed = false;
-    this.holdTimer?.kill();
-    if (this.holding) this.stopHolding();
-  }
-
-  private async holdLoop(): Promise<void> {
+  private async autoplay(): Promise<void> {
     if (this.holding) return;
     this.holding = true;
     this.queuedTaps = 0;
-    this.spins = 0;
     this.syncControls();
     while (this.holding && this.page === 'game') {
       // the next drop when the last request is answered, and not faster than the balls can be told apart
@@ -411,8 +309,6 @@ export class Game extends Container {
       if (!this.holding) break;
       const round = await this.launchRound();
       if (!round) { this.stopHolding(); break; }
-      this.spins++;
-      this.board.setStatus(`SPINS ${this.spins}`);
       if (winLevel(round.totalWin, round.totalBet)) { this.stopHolding(); break; }
       await wait(Math.max(0.45, 0.06 * round.slots.length));
     }
@@ -471,9 +367,10 @@ export class Game extends Container {
     this.pendingWins = round2(this.pendingWins + round.totalWin);
     if (this.inAir === 0) this.board.clearAmounts();
     this.inAir++;
+    this.ballsLeft += round.slots.length;
     this.syncControls();
     this.refreshPanel();
-    void this.animateRound(round, this.rows, this.bet, this.meterPositions()).then(() => {
+    void this.animateRound(round, this.bet, this.meterPositions()).then(() => {
       this.inAir--;
       this.syncControls();
       if (this.inAir === 0 && !this.requesting && !this.holding) this.settle();
@@ -512,8 +409,8 @@ export class Game extends Container {
     }
   }
 
-  /** One round's balls (and free balls), each adding its own win as it lands. */
-  private async animateRound(round: Round, rows: number, bet: number, charging: number[]): Promise<void> {
+  /** One round's balls, each adding its own win as it lands, then its wheel spins and MEGA SPINs. */
+  private async animateRound(round: Round, bet: number, charging: number[]): Promise<void> {
     const land = (win: number) => {
       this.pendingWins = Math.max(0, round2(this.pendingWins - win));
       this.lastWin = win;
@@ -541,61 +438,37 @@ export class Game extends Container {
           const win = round.wins?.[i] ?? cents(bet * multiplier);
           land(win);
           this.board.showAmount(landing.slot, this.money(win), multiplier > 1);
-          this.history.add(landing.prizeIndex, slotTier(rows, landing.prizeIndex), multiplier);
           if (charging.includes(landing.prizeIndex)) this.meter.charge();
           landSound(multiplier, boost, landing);
+          this.ballsLeft = Math.max(0, this.ballsLeft - 1);
+          this.bar.setPlaying(true, this.holding, this.ballsLeft);
         },
       }, boost, null, round.paths?.[i] ?? null));
     }
     await Promise.all(drops);
 
-    // Plinko Mega: every ball in a SPIN slot spins the wheel, then a full meter's MEGA SPINs turn the gold wheel
+    // every ball in a SPIN slot turns the wheel under the board, then a full meter's MEGA SPINs turn it gold
     const config = this.session.config.mega;
-    for (const spin of round.spins ?? []) {
+    const spins = round.spins ?? [];
+    spins.forEach((_, i) => this.wheel.setSpins(i + 1));
+    for (let i = 0; i < spins.length; i++) {
+      const spin = spins[i];
       if (!config?.wheel?.[spin.segment]) { land(spin.win); continue; }
       sound('big');
-      await this.wheel.show(config.wheel, spin.segment, { gold: false, title: 'SPIN!', amount: this.money(spin.win), hurry: this.holding });
+      await this.wheel.turn(config.wheel, spin.segment, spin.win, { gold: false, title: 'SPIN' });
+      this.wheel.setSpins(spins.length - i - 1);
       land(spin.win);
-      if (spin.win > 0) sound(config.wheel[spin.segment].name ? 'bigWin' : 'score');
+      sound(config.wheel[spin.segment].name ? 'bigWin' : 'score');
     }
     for (const mega of round.megaSpins ?? []) {
       if (!config?.megaWheel?.[mega.segment]) { land(mega.win); continue; }
       this.meter.set(true, 0, this.session.meter?.of ?? 0);
       sound('huge');
-      await this.wheel.show(config.megaWheel, mega.segment, { gold: true, title: 'MEGA SPIN · ' + this.money(mega.stake),
-        amount: this.money(mega.win), hurry: this.holding });
+      await this.wheel.turn(config.megaWheel, mega.segment, mega.win, { gold: true, title: 'MEGA SPIN ' + this.money(mega.stake) });
       land(mega.win);
       sound(config.megaWheel[mega.segment].name ? 'bigWin' : 'win');
     }
 
-    // a full bonus meter pays free balls (decided by the server with the round), dropped after the paid ones
-    const free = round.freeSlots ?? [];
-    if (free.length > 0) {
-      // what each free ball is worth: the meter's pot, so a share of the bets that filled it (not the current bet)
-      const stakes = round.freeBets ?? [];
-      const same = stakes.length === free.length && stakes.every(s => Math.abs(s - stakes[0]) < 0.005);
-      this.board.setStatus(same ? `${free.length} FREE × ${this.money(stakes[0])}` : `FREE BALLS ×${free.length}!`);
-      sound('win');
-      await wait(1.1);
-      const freeDrops: Promise<void>[] = [];
-      for (let i = 0; i < free.length; i++) {
-        if (i > 0) await wait(0.25 * random(0.8, 1.2));
-        const multiplier = round.freeMultipliers?.[i] ?? 0;
-        const stake = round.freeBets?.[i] ?? 0;
-        if (!this.holding) this.board.setStatus(`FREE ${i + 1}/${free.length} · ${this.money(stake)}`);
-        freeDrops.push(this.board.dropBall(free[i], {
-          onPeg: pegSound,
-          onLand: landing => {
-            const win = round.freeWins?.[i] ?? cents(stake * multiplier);
-            land(win);
-            this.board.showAmount(landing.slot, this.money(win), win > stake);
-            this.history.add(landing.prizeIndex, slotTier(rows, landing.prizeIndex), multiplier);
-            landSound(multiplier, round.freeBoosts?.[i] ?? 1, landing);
-          },
-        }, round.freeBoosts?.[i] ?? 1, this.accent));
-      }
-      await Promise.all(freeDrops);
-    }
     // the server's meter count is the one that counts
     if (round.meter) this.applyMeter(round.meter);
     if (round.hotSlot != null) this.board.clearHot();
@@ -668,15 +541,11 @@ export class Game extends Container {
       this.board.setRisk(entry.risk);
       if (!entry.prizes) this.board.hideValues();
       this.board.setMeterPositions([]);
-      if (this.view) this.board.layout(this.view);
+      if (this.view) this.layoutBoard(this.view);
       this.board.setStatus('REPLAY · ROUND ' + round.roundId.slice(0, 8).toUpperCase());
       await wait(1.2);
-      const all = [...round.slots.map((slot, i) => ({ slot, boost: round.boosts?.[i] ?? 1, win: round.wins?.[i] ?? 0,
-        paid: (round.multipliers[i] ?? 0) > 1, multiplier: round.multipliers[i] ?? 0, accent: undefined as string | undefined,
-        path: round.paths?.[i] ?? null })),
-      ...(round.freeSlots ?? []).map((slot, i) => ({ slot, boost: round.freeBoosts?.[i] ?? 1, win: round.freeWins?.[i] ?? 0,
-        paid: (round.freeWins?.[i] ?? 0) > (round.freeBets?.[i] ?? 0), multiplier: round.freeMultipliers?.[i] ?? 0, accent: this.accent,
-        path: null }))];
+      const all = round.slots.map((slot, i) => ({ slot, boost: round.boosts?.[i] ?? 1, win: round.wins?.[i] ?? 0,
+        paid: (round.multipliers[i] ?? 0) > 1, multiplier: round.multipliers[i] ?? 0, path: round.paths?.[i] ?? null }));
       if (round.hotSlot != null && round.hotBoost != null) this.board.setHot(round.hotSlot, round.hotBoost);
       const drops: Promise<void>[] = [];
       for (let i = 0; i < all.length; i++) {
@@ -685,19 +554,15 @@ export class Game extends Container {
         drops.push(this.board.dropBall(ball.slot, {
           onPeg: pegSound,
           onLand: landing => { this.board.showAmount(landing.slot, this.money(ball.win), ball.paid); landSound(ball.multiplier, ball.boost, landing); },
-        }, ball.boost, ball.accent, ball.path));
+        }, ball.boost, null, ball.path));
       }
       await Promise.all(drops);
       const config = this.session.config.mega;
       for (const spin of round.spins ?? []) {
-        if (config?.wheel?.[spin.segment]) {
-          await this.wheel.show(config.wheel, spin.segment, { gold: false, title: 'SPIN!', amount: this.money(spin.win), hurry: true });
-        }
+        if (config?.wheel?.[spin.segment]) await this.wheel.turn(config.wheel, spin.segment, spin.win, { gold: false, title: 'SPIN' });
       }
       for (const mega of round.megaSpins ?? []) {
-        if (config?.megaWheel?.[mega.segment]) {
-          await this.wheel.show(config.megaWheel, mega.segment, { gold: true, title: 'MEGA SPIN', amount: this.money(mega.win), hurry: true });
-        }
+        if (config?.megaWheel?.[mega.segment]) await this.wheel.turn(config.megaWheel, mega.segment, mega.win, { gold: true, title: 'MEGA SPIN' });
       }
       this.board.setStatus('REPLAY · WON ' + this.money(round.totalWin));
       await wait(2.5);
@@ -711,12 +576,10 @@ export class Game extends Container {
     }
   }
 
-  /** Settings lock while any ball is in the air (the board can't change under them); the drop button stays live. */
+  /** Settings lock while any ball is in the air (the board can't change under them); PLAY stays live. */
   private syncControls(): void {
     const busy = this.busy();
-    this.panel.setPlaying(busy, this.holding);
-    this.classic.setPlaying(busy);
-    this.panel.setSpins(this.holding ? this.spins : null);
+    this.bar.setPlaying(busy, this.holding, this.ballsLeft);
     this.options.setExit(this.page === 'game', !busy);
   }
 
@@ -724,8 +587,6 @@ export class Game extends Container {
   tick(deltaMs: number): void {
     this.board.update(deltaMs);
   }
-
-
 
   private openExit(): void {
     this.exitDialog.visible = true;

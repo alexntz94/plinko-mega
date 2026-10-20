@@ -60,7 +60,7 @@ describe('texture atlas', () => {
   });
 
   it('holds the small pictures only, the same ones the build packs', () => {
-    for (const file of ['button_start.png', 'item_ball.png', 'item_peg.png', 'item_slot_3.png', 'item_drag_bar.png', 'item_stat_display.png']) {
+    for (const file of ['button_start.png', 'item_ball.png', 'item_peg.png', 'item_slot_3.png', 'item_gate.png', 'item_wheel_pointer.png']) {
       expect(inAtlas(file), file).toBe(true);
     }
     for (const file of ['background.png', 'logo.png', 'item_plinko.png', 'item_exit_p.png', 'item_result.png', 'logo_neon_1.png']) {

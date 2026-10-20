@@ -42,10 +42,9 @@ public record BonusSettings(Golden golden, Hot hot, Meter meter, Gates gates, Wh
 
     /**
      * charges: how many charges fill the meter; minMultiplier: a paid ball landing on a prize of at least this
-     * charges it; potShare: percent of that ball's bet put into the pot; freeBalls: how many free balls a full meter
-     * pays, sharing the pot as their stake.
+     * charges it; potShare: percent of that ball's bet put into the pot (a full meter spins the gold wheel for the pot).
      */
-    public record Meter(boolean enabled, int charges, BigDecimal minMultiplier, BigDecimal potShare, int freeBalls) {
+    public record Meter(boolean enabled, int charges, BigDecimal minMultiplier, BigDecimal potShare) {
     }
 
     /** boost: what every gate a ball goes through multiplies its prize by. */
@@ -73,7 +72,7 @@ public record BonusSettings(Golden golden, Hot hot, Meter meter, Gates gates, Wh
             new Boost(new BigDecimal("5"), new BigDecimal("12")),
             new Boost(new BigDecimal("10"), new BigDecimal("3")))),
             new Hot(false, new BigDecimal("20"), new BigDecimal("3")),
-            new Meter(false, 10, new BigDecimal("2"), new BigDecimal("30"), 10),
+            new Meter(false, 10, new BigDecimal("2"), new BigDecimal("10")),
             new Gates(false, new BigDecimal("2")),
             new Wheel(false, wheel(
                     "1", "28", "2", "26", "3", "18", "5", "13", "10", "8", "25", "4", "MINI:50", "2", "MAJOR:250", "0.75", "MEGA:1000", "0.25")),
@@ -81,7 +80,7 @@ public record BonusSettings(Golden golden, Hot hot, Meter meter, Gates gates, Wh
 
     /** Plinko Mega's starting point before an admin has saved anything: gates, the wheel and the meter's MEGA SPIN on. */
     public static final BonusSettings MEGA = new BonusSettings(OFF.golden(), OFF.hot(),
-            new Meter(true, 10, new BigDecimal("2"), new BigDecimal("10"), 1),
+            new Meter(true, 10, new BigDecimal("2"), new BigDecimal("10")),
             new Gates(true, OFF.gates().boost()), new Wheel(true, OFF.wheel().segments()), new Wheel(true, OFF.megaWheel().segments()));
 
     /** Segments from pairs of ("[NAME:]multiplier", "weight"). */

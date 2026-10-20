@@ -20,22 +20,6 @@ public class ThemeService {
 
     static {
         KNOWN.put("loteria-muerta", "Lotería Muerta");
-        KNOWN.put("drop-riot", "Drop Riot");
-        KNOWN.put("bad-bounce", "Bad Bounce");
-        KNOWN.put("gravity-issues", "Gravity Issues");
-        KNOWN.put("rat-race", "Rat Race");
-        KNOWN.put("doomscroll", "Doomscroll");
-        KNOWN.put("bad-dentist", "Bad Dentist");
-        KNOWN.put("shady-nana", "Shady Nana");
-        KNOWN.put("scam-squad", "The Scam Squad");
-        KNOWN.put("shurda", "Shurda Plinko");
-        KNOWN.put("inked-damned", "Inked & Damned");
-        KNOWN.put("system-failure", "System Failure");
-        KNOWN.put("holy-sin", "Holy Sin");
-        KNOWN.put("toxic-lab", "Toxic Lab");
-        KNOWN.put("big-brother", "Big Brother");
-        KNOWN.put("fatal-attraction", "Fatal Attraction");
-        KNOWN.put("clown-business", "Clown Business");
     }
 
     public record Themes(List<String> enabled, String defaultTheme) {

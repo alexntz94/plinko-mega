@@ -78,7 +78,6 @@
                 <label>Share of the bet into the pot
                     <span class="input-suffix"><input name="meterShare" th:value="${meterForm.potShare().stripTrailingZeros().toPlainString()}" inputmode="decimal" required aria-label="Share of the bet into the pot"><span>%</span></span>
                 </label>
-                <input type="hidden" name="meterFree" th:value="${meterForm.freeBalls()}">
             </div>
             <p class="muted small" th:text="|With the values shown, the meter adds ${meterShare} on top of the odds tables (it depends on how often each table pays the prize that charges it). A pot a player never fills is never paid.|"></p>
             <h3>Gold wheel (MEGA SPIN)</h3>

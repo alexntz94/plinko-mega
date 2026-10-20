@@ -4,9 +4,6 @@
 import { assetUrl } from './version';
 import { SOUND_NAMES, type SoundName } from './sound';
 
-export interface ThemeLayout {
-  labelY: number; valueY: number; controlY: number; dragBarY: number; riskLeftX: number; riskRightX: number; halfX: number; doubleX: number;
-}
 export interface ThemeFont { family: string; file: string | null; weight: string }
 export interface SlotStyle { face: string; text: string }
 export interface BoardStyle {
@@ -18,13 +15,10 @@ export interface BoardStyle {
   slotArt: boolean;              // prize slots drawn from item_slot_0..4.png (centre -> edge) instead of flat colour
   fx: ThemeFx;                   // the theme's signature effects (visual only)
 }
-/**
- * The control panel's look: 'flat' (the original), 'glass' (shaded panels, glossy buttons, a meter of cells) or 'ink'
- * (comic: flat colour, thick ink outlines, an offset ink shadow; `ink` and `panel` give its colours). `drop` and
- * `controls`: the theme's own drawings of the drop button and of the controls switch.
- */
-export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; drop: string | null; controls: string | null; ink: string; panel: string }
-export type ThemeFx = 'standard' | 'riot' | 'bounce' | 'gravity' | 'comic' | 'cartoon' | 'viral' | 'nana' | 'scam' | 'shurda' | 'inked' | 'glitch' | 'holy' | 'toxic' | 'cctv' | 'noir' | 'clown' | 'loteria';
+/** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
+ * thick ink outlines; `ink` and `panel` give its colours). */
+export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: string }
+export type ThemeFx = 'standard' | 'loteria';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -44,7 +38,6 @@ export interface Theme {
   font: ThemeFont;
   board: BoardStyle;
   retina: boolean;               // images come as name@2x.png, drawn at double density (backgrounds excepted)
-  layout: ThemeLayout;
   ui: ThemeUi;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
@@ -60,7 +53,6 @@ export interface Theme {
   path: string;
 }
 
-const DEFAULT_LAYOUT: ThemeLayout = { labelY: -5, valueY: 33, controlY: 20, dragBarY: 25, riskLeftX: 30, riskRightX: 205, halfX: 160, doubleX: 205 };
 const DEFAULT_FONT: ThemeFont = { family: 'Azonix', file: null, weight: 'normal' };
 const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard' };
 
@@ -88,14 +80,14 @@ function readBoard(json: unknown): BoardStyle {
     slots,
     slotRadius: Math.min(20, Math.max(0, number(b.slotRadius, DEFAULT_BOARD.slotRadius))),
     slotArt: b.slotArt === true,
-    fx: (['riot', 'bounce', 'gravity', 'comic', 'cartoon', 'viral', 'nana', 'scam', 'shurda', 'inked', 'glitch', 'holy', 'toxic', 'cctv', 'noir', 'clown', 'loteria'] as const).find(f => f === b.fx) ?? 'standard',
+    fx: b.fx === 'loteria' ? 'loteria' : 'standard',
   };
 }
 
 function readUi(json: unknown): ThemeUi {
   const u = (json ?? {}) as Record<string, unknown>;
   const style = u.style === 'glass' || u.style === 'ink' ? u.style : 'flat';
-  return { style, drop: fileName(u.drop, /\.png$/), controls: fileName(u.controls, /\.png$/), ink: colour(u.ink, '#111111'),
+  return { style, ink: colour(u.ink, '#111111'),
     panel: colour(u.panel, '#222222') };
 }
 
@@ -134,7 +126,6 @@ export async function loadTheme(id: string): Promise<Theme> {
     font: readFont(json.font),
     board: readBoard(json.board),
     retina: json.retina === true,
-    layout: { ...DEFAULT_LAYOUT, ...((json.layout ?? {}) as Partial<ThemeLayout>) },
     ui: readUi(json.ui),
     landscapeExitFromPortrait: json.landscapeExitFromPortrait === true,
     video: {

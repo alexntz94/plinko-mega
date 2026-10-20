@@ -62,7 +62,7 @@ public class BonusAdminController {
         model.addAttribute("meterForm", meterForm);
         model.addAttribute("share", BonusService.shareText(current, odds.all()));
         model.addAttribute("meterShare", BonusService.shareText(new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
-                new BonusSettings.Meter(true, meterForm.charges(), meterForm.minMultiplier(), meterForm.potShare(), meterForm.freeBalls())), odds.all()));
+                new BonusSettings.Meter(true, meterForm.charges(), meterForm.minMultiplier(), meterForm.potShare())), odds.all()));
         model.addAttribute("goldenShare", BonusService.shareText(new BonusSettings(new BonusSettings.Golden(true, form.chance(), form.boosts()), BonusSettings.OFF.hot())));
         model.addAttribute("hotShare", BonusService.shareText(new BonusSettings(BonusSettings.OFF.golden(), new BonusSettings.Hot(true, hotForm.chance(), hotForm.boost()))));
         // Plinko Mega: the gates, the wheel and the gold wheel (shown with the values in force, or the suggested ones)
@@ -88,7 +88,7 @@ public class BonusAdminController {
                           @RequestParam List<String> boostMultiplier, @RequestParam List<String> boostWeight,
                           @RequestParam(defaultValue = "false") boolean hotEnabled, @RequestParam String hotChance, @RequestParam String hotBoost,
                           @RequestParam(defaultValue = "false") boolean meterEnabled, @RequestParam String meterCharges,
-                          @RequestParam String meterMin, @RequestParam String meterShare, @RequestParam String meterFree,
+                          @RequestParam String meterMin, @RequestParam String meterShare,
                           @RequestParam(required = false) Boolean gatesEnabled, @RequestParam(required = false) String gateBoost,
                           @RequestParam(required = false) Boolean wheelEnabled, @RequestParam(required = false) List<String> wheelName,
                           @RequestParam(required = false) List<String> wheelMultiplier, @RequestParam(required = false) List<String> wheelWeight,
@@ -119,7 +119,7 @@ public class BonusAdminController {
             BonusSettings next = new BonusSettings(new BonusSettings.Golden(goldenEnabled, new BigDecimal(goldenChance.trim()), boosts),
                     new BonusSettings.Hot(hotEnabled, new BigDecimal(hotChance.trim()), new BigDecimal(hotBoost.trim())),
                     new BonusSettings.Meter(meterEnabled, Integer.parseInt(meterCharges.trim()), new BigDecimal(meterMin.trim()),
-                            new BigDecimal(meterShare.trim()), Integer.parseInt(meterFree.trim())), gates, wheel, gold);
+                            new BigDecimal(meterShare.trim())), gates, wheel, gold);
             long id = changes.proposeBonus(next, principal.getName());
             redirect.addFlashAttribute("message", "Change #" + id + " proposed. It takes effect after another admin approves it.");
         } catch (NumberFormatException e) {

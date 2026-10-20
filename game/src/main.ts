@@ -17,20 +17,15 @@ const IMAGES = [
   'button_confirm.png', 'button_cancel.png', 'item_exit.png', 'item_exit_p.png', 'button_continue.png',
   'item_result.png', 'item_result_p.png', 'button_fullscreen.png', 'button_sound_on.png', 'button_sound_off.png',
   'button_exit.png', 'button_settings.png',
-  // the classic panel (the player can switch to it)
-  'item_stat_display.png', 'button_blank.png', 'button_arrow_left.png', 'button_arrow_right.png', 'button_bet_half.png',
-  'button_bet_multiply.png', 'item_drag_bar.png', 'item_drag.png',
 ];
 
 const SLOT_ART = [0, 1, 2, 3, 4].map(tier => `item_slot_${tier}.png`);
 
-/** The images only some themes have: pegs, drawn slots, the drop button, the controls switch, a neon logo's layers. */
+/** The images only some themes have: pegs, drawn slots, a neon logo's layers, the wheel's hub and pointer, the gate. */
 function themeExtras(theme: Theme): string[] {
   return [
     ...(theme.board.peg ? [theme.board.peg] : []),
     ...(theme.board.slotArt ? SLOT_ART : []),
-    ...(theme.ui.drop ? [theme.ui.drop] : []),
-    ...(theme.ui.controls ? [theme.ui.controls] : []),
     ...neonLayers(theme).flat(),
     ...[theme.wheel.hub, theme.wheel.pointer, theme.wheel.gate].filter((file): file is string => file !== null),
   ];

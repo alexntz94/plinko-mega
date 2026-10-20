@@ -24,15 +24,10 @@ import tools.jackson.databind.ObjectMapper;
  * {@code rows + 1} slots picked uniformly, pays H times: every ball then pays {@code 1 + q * (H - 1) / (rows + 1)} times
  * as much on average, whatever the table. Both are drawn independently of each other and of the landing slot, so the
  * factors multiply. The bonus meter takes a share s of the bet of every paid ball that lands on a prize of at least
- * the minimum (probability f on that table) into a pot, and later plays the pot as free balls on the same kind of
- * board: on average every paid ball also funds {@code f * s} of a free ball, so the meter multiplies by
- * {@code 1 + f * s}. The total RTP of a table is its own RTP times the factor; the hard RTP limits apply to the total,
- * and base tables are rebuilt so the total stays on target. (A pot a player never fills is never paid, so over time
- * players get very slightly less than the total, never more.)
- * <p>
- * Plinko Mega: the meter's pot is money (a share of the bet of every charging ball) and a full meter pays it as one
- * MEGA SPIN of the gold wheel, worth pot * segment: every paid ball adds {@code f * s * E[gold wheel]} to the return,
- * whatever the table it is later paid on. A ball through g gates pays its prize times boost^g; every path to a slot is
+ * the minimum (probability f on that table) into a pot of money, and a full meter pays it as one MEGA SPIN of the gold
+ * wheel, worth pot * segment: every paid ball adds {@code f * s * E[gold wheel]} to the return, whatever the table it
+ * is later paid on. (A pot a player never fills is never paid, so over time players get very slightly less than the
+ * total, never more.) A ball through g gates pays its prize times boost^g; every path to a slot is
  * equally likely, so the gates multiply a slot's prize by a known average (see {@link MegaBoard#gateFactor}) and the
  * table's return by the probability-weighted mean of those. A ball in a SPIN slot also spins the wheel for bet *
  * segment: it adds {@code P(SPIN slot) * E[wheel]}. Total RTP = table RTP * golden/hot factor * gate factor + what the
@@ -126,9 +121,6 @@ public class BonusService {
             if (meter.potShare() == null || meter.potShare().signum() <= 0 || meter.potShare().compareTo(OddsTable.HUNDRED) > 0
                     || meter.potShare().stripTrailingZeros().scale() > 2) {
                 errors.add("The share of the bet put into the pot must be above 0% and at most 100%, with at most 2 decimals");
-            }
-            if (meter.freeBalls() < 1 || meter.freeBalls() > 50) {
-                errors.add("A full meter pays between 1 and 50 free balls");
             }
         }
         BonusSettings.Gates gates = bonus.gates();

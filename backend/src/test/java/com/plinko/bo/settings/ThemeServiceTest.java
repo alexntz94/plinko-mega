@@ -6,14 +6,11 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-/** Which themes are on: every theme is, unless an admin switched it off; themes added later start switched on. */
+/** Which themes are on and which is the default (Plinko Mega ships one theme, Lotería Muerta). */
 class ThemeServiceTest {
-
-    private static final List<String> ALL = List.copyOf(ThemeService.KNOWN.keySet());
 
     private static ThemeService with(Map<String, String> values) {
         SettingsService settings = mock(SettingsService.class);
@@ -21,34 +18,26 @@ class ThemeServiceTest {
         return new ThemeService(settings);
     }
 
-    private static String allBut(String... off) {
-        return ALL.stream().filter(id -> !List.of(off).contains(id)).collect(Collectors.joining(","));
+    @Test
+    void aFreshInstallPlaysLoteriaMuerta() {
+        ThemeService.Themes themes = with(Map.of()).current();
+        assertThat(themes.enabled()).containsExactly("loteria-muerta");
+        assertThat(themes.defaultTheme()).isEqualTo("loteria-muerta");
+        assertThat(with(Map.of()).resolve("old-theme")).isEqualTo("loteria-muerta");
     }
 
     @Test
-    void aFreshInstallHasEveryThemeOn() {
-        assertThat(with(Map.of()).current().enabled()).isEqualTo(ALL);
+    void namesThatAreNotThemesAreIgnored() {
+        ThemeService.Themes themes = with(Map.of("game.themes", "old-theme,loteria-muerta", "game.theme.default", "old-theme")).current();
+        assertThat(themes.enabled()).containsExactly("loteria-muerta");
+        assertThat(themes.defaultTheme()).isEqualTo("loteria-muerta");
     }
 
     @Test
-    void aListSavedBeforeTheKnownListCountsUnnamedThemesAsNew() {
-        // saved before "inked-damned" existed: it is new, so on
-        String saved = allBut("inked-damned");
-        assertThat(with(Map.of("game.themes", saved)).current().enabled()).isEqualTo(ALL);
-    }
-
-    @Test
-    void aThemeSwitchedOffStaysOff() {
-        String known = String.join(",", ALL);
-        assertThat(with(Map.of("game.themes", allBut("rat-race"), "game.themes.known", known)).current().enabled())
-                .doesNotContain("rat-race").hasSize(ALL.size() - 1);
-    }
-
-    @Test
-    void aThemeAddedAfterTheLastSaveStartsOn() {
-        // the admin switched rat-race off when inked-damned didn't exist yet
-        String known = allBut("inked-damned");
-        Map<String, String> values = Map.of("game.themes", allBut("rat-race", "inked-damned"), "game.themes.known", known);
-        assertThat(with(values).current().enabled()).contains("inked-damned").doesNotContain("rat-race");
+    void aChoiceMustBeKnownThemesWithTheDefaultOn() {
+        ThemeService themes = with(Map.of());
+        assertThat(themes.validate(List.of(), "loteria-muerta")).isNotEmpty();
+        assertThat(themes.validate(List.of("old-theme"), "old-theme")).containsExactly("Unknown theme");
+        assertThat(themes.validate(List.of("loteria-muerta"), "loteria-muerta")).isEmpty();
     }
 }

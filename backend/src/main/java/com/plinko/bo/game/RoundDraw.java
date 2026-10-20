@@ -15,12 +15,11 @@ import com.plinko.model.OddsTable;
  * Review 7.8: deciding a round's balls, apart from taking the bet and paying. Pure: every random draw comes from the
  * {@link Dice}, so a test can fix them and check the result, the win and the stored text exactly.
  * <p>
- * The draws happen in a fixed order (the hot slot, then each paid ball's slot, golden roll, path and wheel spin, then
- * each MEGA SPIN), and the stored text is written by {@link RoundWin.Text}, the same class that reads it back.
+ * The draws happen in a fixed order (the hot slot, then each ball's slot, golden roll, path and wheel spin, then each
+ * MEGA SPIN), and the stored text is written by {@link RoundWin.Text}, the same class that reads it back.
  * <p>
- * Plinko Mega: the slot is drawn from the odds table as always, then a path to it; the gates the path goes through
- * multiply the prize. A ball in a SPIN slot also spins the wheel for its bet, and a full meter pays its pot as a MEGA
- * SPIN of the gold wheel (instead of free balls).
+ * The slot is drawn from the odds table, then a path to it; the gates the path goes through multiply the prize. A ball
+ * in a SPIN slot also spins the wheel for its bet, and a full meter pays its pot as a MEGA SPIN of the gold wheel.
  */
 final class RoundDraw {
 
@@ -56,8 +55,7 @@ final class RoundDraw {
 
     /** Everything decided, as the game shows it and as it is stored and signed. */
     record Result(List<Integer> slots, List<BigDecimal> multipliers, List<BigDecimal> boosts, List<BigDecimal> wins,
-                  Integer hotSlot, BigDecimal hotBoost, List<Integer> freeSlots, List<BigDecimal> freeMultipliers,
-                  List<BigDecimal> freeBoosts, List<BigDecimal> freeBets, List<BigDecimal> freeWins,
+                  Integer hotSlot, BigDecimal hotBoost,
                   int chargesAfter, BigDecimal potAfter, String meterPrev, BigDecimal totalWin,
                   String slotText, String multiplierText, String bonusText,
                   List<Integer> paths, List<Integer> gates, List<Spin> spins, List<MegaSpin> megaSpins) {
@@ -88,7 +86,6 @@ final class RoundDraw {
         BigDecimal totalWin = BigDecimal.ZERO;
         // what each ball paid, exactly as added up into the win (the game shows these, never its own sums)
         List<BigDecimal> wins = new ArrayList<>();
-        List<BigDecimal> freeWins = new ArrayList<>();
         for (int ball = 0; ball < balls; ball++) {
             int slot = dice.slot(table);
             BigDecimal boost = dice.golden(bonusSettings);
@@ -142,10 +139,6 @@ final class RoundDraw {
             text.mega(stake, segment, pays);
             totalWin = totalWin.add(megaWin);
         }
-        List<Integer> freeSlots = List.of();
-        List<BigDecimal> freeMultipliers = List.of();
-        List<BigDecimal> freeBoosts = List.of();
-        List<BigDecimal> freeBets = List.of();
         // the meter state continues from exactly one earlier state (signed, and unique in the database)
         String meterPrev = meterSettings == null ? null : meterBefore.prev();
         if (meterSettings != null) {
@@ -157,8 +150,7 @@ final class RoundDraw {
             text.capped(paid.capped());
         }
         totalWin = paid.total();
-        return new Result(slots, multipliers, boosts, wins, hotSlot >= 0 ? hotSlot : null, hotBoost, freeSlots, freeMultipliers, freeBoosts,
-                freeBets, freeWins, charges, pot, meterPrev, totalWin,
+        return new Result(slots, multipliers, boosts, wins, hotSlot >= 0 ? hotSlot : null, hotBoost, charges, pot, meterPrev, totalWin,
                 slots.stream().map(String::valueOf).collect(Collectors.joining(",")),
                 multipliers.stream().map(BigDecimal::toPlainString).collect(Collectors.joining(",")), text.text(),
                 paths, gates, spins, megaSpins);

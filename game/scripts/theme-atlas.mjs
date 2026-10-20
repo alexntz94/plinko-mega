@@ -19,7 +19,7 @@ import pngjs from 'pngjs';
 const { PNG } = pngjs;
 
 /** The small pictures: buttons, the ball, the slider, the stat plate, pegs and slot art. Bigger ones stay single files. */
-const SMALL = /^(button_[a-z0-9_]+|item_ball|item_drag|item_drag_bar|item_stat_display|item_peg|item_slot_[0-4])$/;
+const SMALL = /^(button_[a-z0-9_]+|item_ball|item_peg|item_gate|item_wheel_pointer|item_slot_[0-4])$/;
 const MAX_SIDE = 640;     // a picture larger than this on either side stays a single file
 const MAX_ATLAS = 2048;   // every WebGL device takes textures this size
 const GAP = 2;            // transparent pixels between pictures, so smooth scaling never picks up a neighbour's edge

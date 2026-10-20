@@ -187,7 +187,7 @@ class AdminHttpTest {
             Map.entry("boostMultiplier", "2"), Map.entry("boostWeight", "100"), Map.entry("multiplier", "1"), Map.entry("probability", "1"),
             Map.entry("action", "close"), Map.entry("balance", "10"), Map.entry("code", "000000"), Map.entry("confirmPassword", "x"),
             Map.entry("currency", "EUR"), Map.entry("currentPassword", "not-the-password"), Map.entry("defaultBet", "1"),
-            Map.entry("defaultTheme", "drop-riot"), Map.entry("goldenChance", "0"), Map.entry("hotBoost", "1"), Map.entry("hotChance", "0"),
+            Map.entry("defaultTheme", "loteria-muerta"), Map.entry("goldenChance", "0"), Map.entry("hotBoost", "1"), Map.entry("hotChance", "0"),
             Map.entry("maxBalls", "10"), Map.entry("maxBet", "10"), Map.entry("minBet", "0.10"), Map.entry("meterCharges", "3"),
             Map.entry("meterFree", "1"), Map.entry("meterMin", "2"), Map.entry("meterShare", "1"), Map.entry("newPassword", "x"),
             Map.entry("password", "x"), Map.entry("reason", "role matrix test"), Map.entry("role", "VIEWER"), Map.entry("targetRtp", "96"),

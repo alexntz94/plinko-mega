@@ -30,25 +30,17 @@ vi.mock('../src/board', async () => {
   }
   return { Board, slotTier };
 });
-vi.mock('../src/control', async () => {
+vi.mock('../src/fortuneWheel', async () => {
   const { Stub } = await import('./stubs');
-  return { ControlCenter: class ControlCenter extends Stub {} };
+  return { FortuneWheel: class FortuneWheel extends Stub { turn() { this.calls.push(['turn']); return Promise.resolve(); } } };
 });
-vi.mock('../src/panel', async () => {
+vi.mock('../src/megaControls', async () => {
   const { Stub } = await import('./stubs');
-  return { Panel: class Panel extends Stub { rowsSlider = { set: () => undefined }; ballsSlider = { set: () => undefined }; } };
-});
-vi.mock('../src/wheel', async () => {
-  const { Stub } = await import('./stubs');
-  return { Wheel: class Wheel extends Stub { show() { this.calls.push(['show']); return Promise.resolve(); } } };
+  return { MegaControls: class MegaControls extends Stub {} };
 });
 vi.mock('../src/meter', async () => {
   const { Stub } = await import('./stubs');
   return { Meter: class Meter extends Stub {} };
-});
-vi.mock('../src/history', async () => {
-  const { Stub } = await import('./stubs');
-  return { History: class History extends Stub {} };
 });
 vi.mock('../src/historyPanel', async () => {
   const { Stub } = await import('./stubs');
@@ -60,10 +52,6 @@ vi.mock('../src/effects', async () => {
     BigWin: class BigWin extends Stub {},
     winLevel: (win: number, bet: number) => (bet > 0 && win / bet >= 10 ? 'BIG WIN' : null),
   };
-});
-vi.mock('../src/guide', async () => {
-  const { Stub } = await import('./stubs');
-  return { Guide: class Guide extends Stub { showing = false; }, guideSeen: () => true };
 });
 vi.mock('../src/screens', async () => {
   const { Stub } = await import('./stubs');
@@ -96,24 +84,22 @@ const METER: MeterInfo = { enabled: true, charges: 1, of: 5, positions: { '8:0':
 function session(balance: number, extra: Partial<Session['config']> = {}): Session {
   const prizes = (rows: number) => Array.from({ length: rows / 2 + 1 }, (_, i) => [0.5 + i, 0.4 + 2 * i, 0.2 + 3 * i]);
   return {
-    sessionId: 's1', player: { username: 'alice' }, currency: 'EUR', currencySymbol: '€', balance, theme: 'drop-riot',
+    sessionId: 's1', player: { username: 'alice' }, currency: 'EUR', currencySymbol: '€', balance, theme: 'loteria-muerta',
     config: { minBet: 0.1, maxBet: 100, defaultBet: 1, maxBalls: 100, rows: [{ rows: 8, prizes: prizes(8) }, { rows: 10, prizes: prizes(10) }],
       holdToDrop: true, ...extra },
     meter: METER,
   };
 }
 
-/** A server answer: slots and wins per ball, free balls, the balance after the round. */
-function round(start: number, bet: number, wins: number[], free: { slots: number[]; bets: number[]; wins: number[] } | null = null,
-               totalWin?: number, meter?: MeterInfo): Round {
+/** A server answer: slots and wins per ball, the balance after the round. */
+function round(start: number, bet: number, wins: number[], free: null = null, totalWin?: number, meter?: MeterInfo): Round {
   const sum = (values: number[]) => Math.round(values.reduce((a, b) => a + b, 0) * 100) / 100;
-  const win = totalWin ?? sum([...wins, ...(free?.wins ?? [])]);
+  const win = totalWin ?? sum(wins);
   const totalBet = Math.round(bet * wins.length * 100) / 100;
   return {
     roundId: 'r' + Math.random(), slots: wins.map((_, i) => i % 9), multipliers: wins.map(w => w / bet), totalBet, totalWin: win,
     balance: Math.round((start - totalBet + win) * 100) / 100, boosts: wins.map(() => 1), hotSlot: null, hotBoost: null,
-    freeSlots: free?.slots ?? [], freeMultipliers: free?.wins.map((w, i) => w / free.bets[i]) ?? [], freeBoosts: free?.slots.map(() => 1) ?? [],
-    freeBets: free?.bets ?? [], wins, freeWins: free?.wins ?? [], meter,
+    wins, meter,
   };
 }
 
@@ -127,23 +113,34 @@ function deferred<T>() {
 
 let fatal: string[];
 
-/** A game on its table (the start screen's button pressed), with the classic panel, whose actions it returns. */
+interface BarActions { play(): void; auto(): void; bet(up: boolean): void; risk(step: number): void; balls(step: number): void; rows(step: number): void }
+
+/**
+ * A game on its table (the start screen's button pressed), and its control bar's actions; balls(index) and rows(index)
+ * choose a value by its place (index 0: 1 ball, the fewest rows), stepping the bar's − and + there.
+ */
 async function table(start: number, extra: Partial<Session['config']> = {}, fresh?: Partial<Session>) {
   fatal = [];
   resume.mockResolvedValueOnce({ ...session(start, extra), ...fresh });
   const game = new Game(session(start, extra), THEME, () => ({}) as never, text => fatal.push(text));
   (one('Menu').args[3] as () => void)();
   await vi.advanceTimersByTimeAsync(0);
-  return { game, actions: one('Panel').args[2] as { bet(up: boolean): void; risk(step: number): void; rows(index: number): void;
-    balls(index: number): void; play(): void } };
+  const bar = one('MegaControls').args[1] as BarActions;
+  let balls = 0;
+  let rows = 0;
+  return { game, bar, actions: {
+    bet: (up: boolean) => bar.bet(up), risk: (step: number) => bar.risk(step), play: () => bar.play(),
+    balls: (index: number) => { bar.balls(index - balls); balls = index; },
+    rows: (index: number) => { bar.rows(index - rows); rows = index; },
+  } };
 }
 
-const classic = () => one('Panel');
+const controls = () => one('MegaControls');
 const board = () => one('Board');
-const credit = () => classic().last('setCredit');
+const credit = () => controls().last('setBalance');
 const statuses = () => board().calledWith('setStatus').map(c => c[0] as string);
 /** Every balance the panel showed, as numbers. */
-const credits = () => classic().calledWith('setCredit').map(c => Number(String(c[0]).replace(/[€,]/g, '')));
+const credits = () => controls().calledWith('setBalance').map(c => Number(String(c[0]).replace(/[€,]/g, '')));
 
 beforeEach(() => {
   reset();
@@ -165,12 +162,11 @@ describe('the balance shown is the server\'s (review 5.7 #5)', () => {
     expect(credit()).toBe('€87.65');
   });
 
-  it('a 100-ball round with free balls ends on exactly the server\'s balance, never showing more on the way', async () => {
+  it('a 100-ball round ends on exactly the server\'s balance, never showing more on the way', async () => {
     const { actions } = await table(500);
     for (let i = 0; i < 99; i++) actions.balls(i + 1);    // the BALLS slider to 100
     const cents = [0.07, 0.13, 0.29, 0, 1.1, 0.01, 0.33];
-    const answer = round(500, 1, Array.from({ length: 100 }, (_, i) => cents[i % cents.length]),
-      { slots: [1, 4, 6], bets: [0.43, 0.43, 0.43], wins: [0.17, 4.3, 0.09] });
+    const answer = round(500, 1, Array.from({ length: 100 }, (_, i) => cents[i % cents.length]));
     play.mockResolvedValueOnce(answer);
     actions.play();
     await vi.advanceTimersByTimeAsync(0);
@@ -183,15 +179,15 @@ describe('the balance shown is the server\'s (review 5.7 #5)', () => {
     expect(Math.max(...during)).toBeLessThanOrEqual(answer.balance);
     expect(during).toEqual([...during].sort((a, b) => a - b));
     expect(credit()).toBe('€' + answer.balance.toFixed(2));
-    expect(board().calledWith('dropBall')).toHaveLength(103);
+    expect(board().calledWith('dropBall')).toHaveLength(100);
   });
 
   it('Plinko Mega: wheel spins and a MEGA SPIN are added as they stop, and the round ends on the server\'s balance', async () => {
     const mega = { gates: { '8': [[3, 0], [5, 5], [7, 2]] }, spinSlots: { '8': [0, 8] }, gateBoost: 2,
       wheel: [{ multiplier: 2 }, { multiplier: 5 }, { name: 'MINI', multiplier: 50 }, { multiplier: 1 }],
       megaWheel: [{ multiplier: 1 }, { multiplier: 3 }, { name: 'MEGA', multiplier: 100 }, { multiplier: 2 }] };
-    const { actions } = await table(100, { mega });
-    actions.balls(2);
+    const { actions, bar } = await table(100, { mega });
+    bar.balls(2);
     const base = round(100, 1, [0.3, 0.6, 2.4]);
     const spins = [{ ball: 0, segment: 2, multiplier: 50, win: 50 }];
     const megaSpins = [{ stake: 1.5, segment: 1, multiplier: 3, win: 4.5 }];
@@ -205,7 +201,7 @@ describe('the balance shown is the server\'s (review 5.7 #5)', () => {
     expect(board().calledWith('dropBall')).toHaveLength(3);
     expect(Math.max(...credits())).toBeLessThanOrEqual(answer.balance);
     expect(credit()).toBe('€' + answer.balance.toFixed(2));
-    expect(one('Wheel').calledWith('show')).toHaveLength(2);
+    expect(one('FortuneWheel').calledWith('turn')).toHaveLength(2);
   });
 
   it('a capped round (balls worth more than the round pays) never shows more than the server paid', async () => {
@@ -302,8 +298,8 @@ describe('quick taps (review 5.7 #3)', () => {
     play.mockReturnValueOnce(answer.promise);
     actions.play();
     await vi.advanceTimersByTimeAsync(0);
-    expect(classic().last('setPlaying')).toBe(true);
-    const betBefore = classic().last('setBet');
+    expect(controls().last('setPlaying')).toBe(true);
+    const betBefore = controls().last('setTotalBet');
     actions.bet(true);
     actions.risk(1);
     actions.rows(1);
@@ -311,29 +307,29 @@ describe('quick taps (review 5.7 #3)', () => {
     answer.resolve(round(100, 1, [0.5, 1, 2]));
     await vi.advanceTimersByTimeAsync(0);
     actions.bet(true);    // balls still falling
-    expect(classic().last('setBet')).toBe(betBefore);
-    expect(classic().last('setRows')).toBe(8);
-    expect(classic().last('setRisk')).toBe('LOW');
-    expect(classic().last('setBalls')).toBe(1);
+    expect(controls().last('setTotalBet')).toBe(betBefore);
+    expect(controls().last('setRows')).toBe(8);
+    expect(controls().last('setRisk')).toBe('LOW');
+    expect(controls().last('setBalls')).toBe(1);
     await vi.runAllTimersAsync();
-    expect(classic().last('setPlaying')).toBe(false);
+    expect(controls().last('setPlaying')).toBe(false);
     actions.bet(true);
-    expect(classic().last('setBet')).toBe('€2.00');
+    expect(controls().last('setTotalBet')).toBe('€2.00');
   });
 });
 
 describe('bet steps, ½ and 2X (review 5.7 #3)', () => {
   it('½ and 2X step along the ladder and stop at the limits', async () => {
     const { actions } = await table(1000, { minBet: 0.2, maxBet: 50, defaultBet: 0.75 });
-    expect(classic().last('setBet')).toBe('€0.75');
+    expect(controls().last('setTotalBet')).toBe('€0.75');
     actions.bet(true);
-    expect(classic().last('setBet')).toBe('€1.00');
+    expect(controls().last('setTotalBet')).toBe('€1.00');
     for (let i = 0; i < 20; i++) actions.bet(true);
-    expect(classic().last('setBet')).toBe('€50.00');
+    expect(controls().last('setTotalBet')).toBe('€50.00');
     for (let i = 0; i < 20; i++) actions.bet(false);
-    expect(classic().last('setBet')).toBe('€0.20');
+    expect(controls().last('setTotalBet')).toBe('€0.20');
     actions.bet(false);
-    expect(classic().last('setBet')).toBe('€0.20');
+    expect(controls().last('setTotalBet')).toBe('€0.20');
     play.mockResolvedValueOnce(round(1000, 0.2, [0]));
     actions.play();
     await vi.advanceTimersByTimeAsync(0);

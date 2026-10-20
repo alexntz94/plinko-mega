@@ -22,7 +22,7 @@ class BonusValidationTest {
 
     private static final BonusSettings.Golden GOLDEN = new BonusSettings.Golden(true, new BigDecimal("1"), BonusSettings.OFF.golden().boosts());
     private static final BonusSettings.Hot HOT = new BonusSettings.Hot(true, new BigDecimal("20"), new BigDecimal("3"));
-    private static final BonusSettings.Meter METER = new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("30"), 10);
+    private static final BonusSettings.Meter METER = new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("30"));
 
     private static BigDecimal d(String value) {
         return value == null ? null : new BigDecimal(value);
@@ -32,8 +32,8 @@ class BonusValidationTest {
         return new BonusSettings(GOLDEN, new BonusSettings.Hot(true, d(chance), d(boost)), METER);
     }
 
-    private static BonusSettings meter(int charges, String minMultiplier, String potShare, int freeBalls) {
-        return new BonusSettings(GOLDEN, HOT, new BonusSettings.Meter(true, charges, d(minMultiplier), d(potShare), freeBalls));
+    private static BonusSettings meter(int charges, String minMultiplier, String potShare) {
+        return new BonusSettings(GOLDEN, HOT, new BonusSettings.Meter(true, charges, d(minMultiplier), d(potShare)));
     }
 
     private static BonusSettings golden(String chance, BonusSettings.Boost... boosts) {
@@ -56,18 +56,16 @@ class BonusValidationTest {
                 Arguments.of(hot("20", null), "Hot slot boost"),
                 Arguments.of(hot("20", "1"), "Hot slot boost"),
                 Arguments.of(hot("20", "3.123"), "Hot slot boost"),
-                Arguments.of(meter(2, "2", "30", 10), "between 3 and 100 charges"),
-                Arguments.of(meter(101, "2", "30", 10), "between 3 and 100 charges"),
-                Arguments.of(meter(10, null, "30", 10), "prize to charge it"),
-                Arguments.of(meter(10, "1", "30", 10), "prize to charge it"),
-                Arguments.of(meter(10, "1001", "30", 10), "prize to charge it"),
-                Arguments.of(meter(10, "2.123", "30", 10), "prize to charge it"),
-                Arguments.of(meter(10, "2", null, 10), "share of the bet"),
-                Arguments.of(meter(10, "2", "0", 10), "share of the bet"),
-                Arguments.of(meter(10, "2", "101", 10), "share of the bet"),
-                Arguments.of(meter(10, "2", "30.123", 10), "share of the bet"),
-                Arguments.of(meter(10, "2", "30", 0), "between 1 and 50 free balls"),
-                Arguments.of(meter(10, "2", "30", 51), "between 1 and 50 free balls"),
+                Arguments.of(meter(2, "2", "30"), "between 3 and 100 charges"),
+                Arguments.of(meter(101, "2", "30"), "between 3 and 100 charges"),
+                Arguments.of(meter(10, null, "30"), "prize to charge it"),
+                Arguments.of(meter(10, "1", "30"), "prize to charge it"),
+                Arguments.of(meter(10, "1001", "30"), "prize to charge it"),
+                Arguments.of(meter(10, "2.123", "30"), "prize to charge it"),
+                Arguments.of(meter(10, "2", null), "share of the bet"),
+                Arguments.of(meter(10, "2", "0"), "share of the bet"),
+                Arguments.of(meter(10, "2", "101"), "share of the bet"),
+                Arguments.of(meter(10, "2", "30.123"), "share of the bet"),
                 Arguments.of(golden(null, boost("2", "100")), "between 0% and 10%"),
                 Arguments.of(golden("-1", boost("2", "100")), "between 0% and 10%"),
                 Arguments.of(golden("1.123", boost("2", "100")), "at most 2 decimals"),

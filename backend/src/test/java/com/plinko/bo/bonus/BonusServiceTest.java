@@ -31,7 +31,7 @@ class BonusServiceTest {
     private static final BonusSettings DEFAULT_ON = golden("1", "2", "60", "3", "25", "5", "12", "10", "3");
     private static final BonusSettings HOT_ONLY = new BonusSettings(BonusSettings.OFF.golden(), new BonusSettings.Hot(true, new BigDecimal("20"), new BigDecimal("3")));
     private static final BonusSettings BOTH = new BonusSettings(DEFAULT_ON.golden(), HOT_ONLY.hot());
-    private static final BonusSettings.Meter METER = new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("30"), 10);
+    private static final BonusSettings.Meter METER = new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("30"));
     private static final BonusSettings ALL = new BonusSettings(DEFAULT_ON.golden(), HOT_ONLY.hot(), METER);
 
     @Test
@@ -99,13 +99,11 @@ class BonusServiceTest {
         assertThat(BonusService.factor(ALL, table).doubleValue()).isCloseTo(1.0185 * (1 + 0.4 / 9), within(1e-12));
         assertThat(bonus.validate(ALL)).isEmpty();
         assertThat(bonus.validate(new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
-                new BonusSettings.Meter(true, 2, new BigDecimal("2"), new BigDecimal("50"), 10)))).anyMatch(e -> e.contains("between 3 and 100 charges"));
+                new BonusSettings.Meter(true, 2, new BigDecimal("2"), new BigDecimal("50"))))).anyMatch(e -> e.contains("between 3 and 100 charges"));
         assertThat(bonus.validate(new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
-                new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("0"), 10)))).anyMatch(e -> e.contains("above 0%"));
+                new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("0"))))).anyMatch(e -> e.contains("above 0%"));
         assertThat(bonus.validate(new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
-                new BonusSettings.Meter(true, 10, new BigDecimal("1"), new BigDecimal("50"), 10)))).anyMatch(e -> e.contains("above 1x"));
-        assertThat(bonus.validate(new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
-                new BonusSettings.Meter(true, 10, new BigDecimal("2"), new BigDecimal("50"), 51)))).anyMatch(e -> e.contains("between 1 and 50 free balls"));
+                new BonusSettings.Meter(true, 10, new BigDecimal("1"), new BigDecimal("50"))))).anyMatch(e -> e.contains("above 1x"));
     }
 
     @Test

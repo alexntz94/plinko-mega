@@ -44,7 +44,7 @@ class RealRoundsPassWinCheckTest {
     private static final BonusSettings BONUSES = new BonusSettings(
             new BonusSettings.Golden(true, new BigDecimal("25"), BonusSettings.OFF.golden().boosts()),
             new BonusSettings.Hot(true, new BigDecimal("40"), new BigDecimal("3")),
-            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30"), 4));
+            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")));
 
     private final PlinkoProperties base = TestFixtures.properties();
     /** A low win limit per round (40), so caps happen; maxRtp as given (the forced-cap run needs bonuses no real odds allow). */
@@ -206,7 +206,7 @@ class RealRoundsPassWinCheckTest {
         lastPam.set(pam);
         when(repository.lastRoundAt(anyLong())).thenAnswer(i -> Optional.ofNullable(lastRoundAt.get()));
         when(repository.findSession(anyString())).thenReturn(Optional.of(new GameRepository.Session("s", 7, "tok",
-                Instant.now().plusSeconds(3600), "drop-riot")));
+                Instant.now().plusSeconds(3600), "loteria-muerta")));
         when(repository.findPlayer(7)).thenReturn(Optional.of(player));
         when(repository.claimRound(anyLong(), anyString(), anyLong())).thenReturn(true);
         doAnswer(i -> {
@@ -307,7 +307,8 @@ class RealRoundsPassWinCheckTest {
         assertThat(again.slots()).isEqualTo(first.slots());
         assertThat(again.totalWin()).isEqualByComparingTo(first.totalWin());
         assertThat(again.wins()).isEqualTo(first.wins());
-        assertThat(again.freeSlots()).isEqualTo(first.freeSlots());
+        assertThat(again.paths()).isEqualTo(first.paths());
+        assertThat(again.spins()).isEqualTo(first.spins());
         assertThat(transactions.stream().filter(t -> "DEBIT".equals(t.type())).count()).isEqualTo(1);
         assertThat(paid).hasSize(1);
         // the same id for a different bet is refused; an id that is not a UUID too

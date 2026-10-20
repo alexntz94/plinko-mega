@@ -108,15 +108,12 @@ public class GameService {
     /**
      * multipliers are what each ball paid (prize x golden boost x hot boost); boosts says which balls were golden
      * (1 = normal ball); hotSlot is the slot lit up for this round (null when none) and hotBoost what it multiplies by.
-     * free* describe the free balls a full bonus meter paid in this round (dropped after the paid balls; each with
-     * its own stake from the pot); meter is the player's meter after the round. Plinko Mega: paths (each paid ball's
-     * path, see MegaBoard), gates (how many gates each went through), spins (wheel spins from SPIN slots) and megaSpins
-     * (MEGA SPINs paid by a full meter).
+     * meter is the player's meter after the round; paths (each ball's path, see MegaBoard), gates (how many gates each
+     * went through), spins (wheel spins from SPIN slots) and megaSpins (MEGA SPINs paid by a full meter).
      */
     public record PlayResponse(String roundId, List<Integer> slots, List<BigDecimal> multipliers, BigDecimal totalBet,
                                BigDecimal totalWin, BigDecimal balance, List<BigDecimal> boosts, Integer hotSlot, BigDecimal hotBoost,
-                               List<Integer> freeSlots, List<BigDecimal> freeMultipliers, List<BigDecimal> freeBoosts,
-                               List<BigDecimal> freeBets, MeterView meter, List<BigDecimal> wins, List<BigDecimal> freeWins,
+                               MeterView meter, List<BigDecimal> wins,
                                List<Integer> paths, List<Integer> gates, List<SpinView> spins, List<MegaSpinView> megaSpins) {
     }
 
@@ -394,7 +391,7 @@ public class GameService {
                 : new MeterView(true, drawn.chargesAfter(), meterSettings.charges(), BonusService.meterPositions(setup.bonus()));
         return new PlayResponse(roundId, drawn.slots(), drawn.multipliers(), setup.totalBet(), drawn.totalWin(), balance, drawn.boosts(),
                 drawn.hotSlot(), drawn.hotBoost() == null ? null : drawn.hotBoost().stripTrailingZeros(),
-                drawn.freeSlots(), drawn.freeMultipliers(), drawn.freeBoosts(), drawn.freeBets(), meterAfter, drawn.wins(), drawn.freeWins(),
+                meterAfter, drawn.wins(),
                 drawn.paths(), drawn.gates(),
                 drawn.spins().stream().map(x -> new SpinView(x.ball(), x.segment(), x.multiplier(), x.win())).toList(),
                 drawn.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier(), x.win())).toList());
@@ -616,17 +613,12 @@ public class GameService {
             boosts.add(outcome.golden().getOrDefault(ball, BigDecimal.ONE).stripTrailingZeros());
             wins.add(RoundWin.ball(round.bet(), outcome.multipliers().get(ball)));
         }
-        List<Integer> freeSlots = outcome.free().stream().map(RoundWin.FreeBall::slot).toList();
-        List<BigDecimal> freeMultipliers = outcome.free().stream().map(f -> f.multiplier().stripTrailingZeros()).toList();
-        List<BigDecimal> freeBoosts = outcome.free().stream().map(f -> f.boost().stripTrailingZeros()).toList();
-        List<BigDecimal> freeBets = outcome.free().stream().map(RoundWin.FreeBall::stake).toList();
-        List<BigDecimal> freeWins = outcome.free().stream().map(f -> RoundWin.ball(f.stake(), f.multiplier())).toList();
-        List<Integer> gates = outcome.paths() == null ? null : outcome.paths().stream()
+        List<Integer> gates = outcome.paths().stream()
                 .map(path -> outcome.gateBoost() == null ? 0 : com.plinko.bo.odds.MegaBoard.gatesPassed(round.rows(), path)).toList();
         return new PlayResponse(round.id(), outcome.slots(), outcome.multipliers().stream().map(BigDecimal::stripTrailingZeros).toList(),
                 round.totalBet(), round.totalWin(), balance, boosts, outcome.hotSlot(),
-                outcome.hotBoost() == null ? null : outcome.hotBoost().stripTrailingZeros(), freeSlots, freeMultipliers, freeBoosts, freeBets,
-                meter, wins, freeWins, outcome.paths(), gates,
+                outcome.hotBoost() == null ? null : outcome.hotBoost().stripTrailingZeros(),
+                meter, wins, outcome.paths(), gates,
                 outcome.spins().stream().map(x -> new SpinView(x.ball(), x.segment(), x.multiplier().stripTrailingZeros(),
                         RoundWin.ball(round.bet(), x.multiplier()))).toList(),
                 outcome.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier().stripTrailingZeros(),

@@ -18,13 +18,12 @@ import java.util.Map;
  * <ul>
  * <li>{@code hot:<slot>x<boost>}: the round's hot slot;</li>
  * <li>{@code gold:<ball>x<boost>,...}: the paid balls that were golden;</li>
- * <li>{@code path:<path>,...}: Plinko Mega: every paid ball's path (see {@code MegaBoard}), one per ball;</li>
- * <li>{@code gates:<boost>}: Plinko Mega: what each gate a path goes through multiplies the prize by;</li>
- * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: Plinko Mega: balls in a SPIN slot and what their wheel spin paid
- *     (times the bet);</li>
- * <li>{@code mega:<stake>@<segment>x<multiplier>,...}: Plinko Mega: MEGA SPINs of the gold wheel paid by a full meter
- *     (each for its own stake from the pot);</li>
- * <li>{@code free:<stake>@<slot>x<multiplier>[g<boost>],...}: free balls paid by a full bonus meter;</li>
+ * <li>{@code path:<path>,...}: every ball's path (see {@code MegaBoard}), one per ball;</li>
+ * <li>{@code gates:<boost>}: what each gate a path goes through multiplies the prize by;</li>
+ * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: balls in a SPIN slot and what their wheel spin paid (times the
+ *     bet);</li>
+ * <li>{@code mega:<stake>@<segment>x<multiplier>,...}: MEGA SPINs of the gold wheel paid by a full meter (each for its
+ *     own stake from the pot);</li>
  * <li>{@code meter:...}: the meter state after the round (not part of the win);</li>
  * <li>{@code capped:<amount>}: the win before it was cut to the hard limit per round.</li>
  * </ul>
@@ -37,9 +36,6 @@ public final class RoundWin {
     /** What one ball pays: its stake times its multiplier, rounded down to the cent. */
     public static BigDecimal ball(BigDecimal stake, BigDecimal multiplier) {
         return stake.multiply(multiplier).setScale(2, RoundingMode.DOWN);
-    }
-
-    public record FreeBall(BigDecimal stake, int slot, BigDecimal multiplier, BigDecimal boost) {
     }
 
     /** A wheel spin: the paid ball whose SPIN slot started it, the segment it stopped on and what that pays. */
@@ -67,7 +63,8 @@ public final class RoundWin {
     }
 
     /**
-     * Writes a round's bonus parts in the stored format, always in the same order (hot, gold, free, meter, capped),
+     * Writes a round's bonus parts in the stored format, always in the same order (hot, gold, path, gates, spin, mega,
+     * meter, capped),
      * whatever order they are added in; null when the round had none.
      */
     public static final class Text {
@@ -77,7 +74,6 @@ public final class RoundWin {
         private String gates;
         private final List<String> spins = new ArrayList<>();
         private final List<String> megas = new ArrayList<>();
-        private final List<String> free = new ArrayList<>();
         private String meter;
         private String capped;
 
@@ -108,12 +104,6 @@ public final class RoundWin {
 
         public Text mega(BigDecimal stake, int segment, BigDecimal multiplier) {
             megas.add(stake.toPlainString() + "@" + segment + "x" + multiplier.stripTrailingZeros().toPlainString());
-            return this;
-        }
-
-        public Text free(BigDecimal stake, int slot, BigDecimal multiplier, BigDecimal boost) {
-            free.add(stake.toPlainString() + "@" + slot + "x" + multiplier.stripTrailingZeros().toPlainString()
-                    + (boost.compareTo(BigDecimal.ONE) > 0 ? "g" + boost.stripTrailingZeros().toPlainString() : ""));
             return this;
         }
 
@@ -148,9 +138,6 @@ public final class RoundWin {
             if (!megas.isEmpty()) {
                 parts.add("mega:" + String.join(",", megas));
             }
-            if (!free.isEmpty()) {
-                parts.add("free:" + String.join(",", free));
-            }
             if (meter != null) {
                 parts.add(meter);
             }
@@ -163,14 +150,14 @@ public final class RoundWin {
 
     /**
      * A stored outcome read back. golden: paid ball index to its boost; meter: the meter after the round (or null);
-     * capped: the win before the cap (or null); paths: every paid ball's path (null in rounds without paths); gateBoost:
+     * capped: the win before the cap (or null); paths: every ball's path; gateBoost:
      * what a gate multiplied by (null: no gates); spins and megaSpins: the wheel spins the round paid.
      */
     public record Outcome(List<Integer> slots, List<BigDecimal> multipliers, Integer hotSlot, BigDecimal hotBoost,
-                          Map<Integer, BigDecimal> golden, List<FreeBall> free, Meter meter, BigDecimal capped,
+                          Map<Integer, BigDecimal> golden, Meter meter, BigDecimal capped,
                           List<Integer> paths, BigDecimal gateBoost, List<Spin> spins, List<MegaSpin> megaSpins) {
 
-        /** The win before any cap: every paid ball and wheel spin at the bet, every free ball and MEGA SPIN at its own stake. */
+        /** The win before any cap: every ball and wheel spin at the bet, every MEGA SPIN at its own stake. */
         public BigDecimal raw(BigDecimal bet) {
             BigDecimal sum = BigDecimal.ZERO;
             for (BigDecimal multiplier : multipliers) {
@@ -181,9 +168,6 @@ public final class RoundWin {
             }
             for (MegaSpin mega : megaSpins) {
                 sum = sum.add(ball(mega.stake(), mega.multiplier()));
-            }
-            for (FreeBall free : free) {
-                sum = sum.add(ball(free.stake(), free.multiplier()));
             }
             return sum;
         }
@@ -211,7 +195,6 @@ public final class RoundWin {
         Integer hotSlot = null;
         BigDecimal hotBoost = null;
         Map<Integer, BigDecimal> golden = new HashMap<>();
-        List<FreeBall> free = new ArrayList<>();
         BigDecimal capped = null;
         Meter meter = null;
         List<Integer> paths = null;
@@ -274,36 +257,24 @@ public final class RoundWin {
                                     new BigDecimal(segmentAndMultiplier[1])));
                         }
                     }
-                    case "free" -> {
-                        for (String entry : value.split(",", -1)) {
-                            String[] stakeAndRest = entry.split("@", -1);
-                            String[] slotAndRest = stakeAndRest.length == 2 ? stakeAndRest[1].split("x", -1) : new String[0];
-                            String[] multiplierAndBoost = slotAndRest.length == 2 ? slotAndRest[1].split("g", -1) : new String[0];
-                            if (multiplierAndBoost.length < 1 || multiplierAndBoost.length > 2) {
-                                throw new IllegalArgumentException("free: " + entry);
-                            }
-                            free.add(new FreeBall(new BigDecimal(stakeAndRest[0]), Integer.parseInt(slotAndRest[0]),
-                                    new BigDecimal(multiplierAndBoost[0]),
-                                    multiplierAndBoost.length == 2 ? new BigDecimal(multiplierAndBoost[1]) : BigDecimal.ONE));
-                        }
-                    }
                     case "meter" -> {
                         // the meter state after the round (not part of the win): <charges>/<of>:<pot>:<previous state>
-                        // (rounds from before the meter chain have no previous state)
                         String[] fields = value.split(":", 3);
                         String[] count = fields[0].split("/", -1);
-                        if (fields.length < 2 || count.length != 2) {
+                        if (fields.length != 3 || count.length != 2) {
                             throw new IllegalArgumentException("meter: " + value);
                         }
-                        meter = new Meter(Integer.parseInt(count[0]), Integer.parseInt(count[1]), new BigDecimal(fields[1]),
-                                fields.length == 3 ? fields[2] : null);
+                        meter = new Meter(Integer.parseInt(count[0]), Integer.parseInt(count[1]), new BigDecimal(fields[1]), fields[2]);
                     }
                     case "capped" -> capped = new BigDecimal(value);
                     default -> throw new IllegalArgumentException("unknown bonus part: " + part);
                 }
             }
         }
-        return new Outcome(List.copyOf(slots), List.copyOf(multipliers), hotSlot, hotBoost, Map.copyOf(golden), List.copyOf(free), meter, capped,
-                paths == null ? null : List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins));
+        if (paths == null || paths.size() != slots.size()) {
+            throw new IllegalArgumentException("every ball needs its path");
+        }
+        return new Outcome(List.copyOf(slots), List.copyOf(multipliers), hotSlot, hotBoost, Map.copyOf(golden), meter, capped,
+                List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins));
     }
 }

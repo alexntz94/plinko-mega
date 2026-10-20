@@ -165,19 +165,15 @@ export class ResultScreen extends Container {
 
 export interface OptionTextures { settings: Texture; soundOn: Texture; soundOff: Texture; fullscreen: Texture; exit: Texture }
 
-/** The controls switch: the theme's own image, or one drawn in its colours (ring and disc: the drawn buttons' rim and
- * fill when they differ from accent and background, e.g. ink and panel for the comic-ink themes). */
-export interface ControlsSwitch {
-  texture: Texture | null;
-  colours: { accent: string; text: string; background: string; ring?: string; disc?: string };
-  onTap: () => void;
-}
+/** The colours of the buttons the game draws itself (ring and disc: their rim and fill when they differ from accent and
+ * background). */
+export interface DrawnColours { accent: string; text: string; background: string; ring?: string; disc?: string }
 
 /** The moving-background switch, when the theme has one: shows the action, like the sound button. */
 export interface MotionSwitch { moving: () => boolean; onTap: () => void }
 
 /** A dark disc with an accent ring, drawn on a canvas at double size like the themes' @2x images (84 across). */
-function drawnButton(c: ControlsSwitch['colours'], icon: (g: CanvasRenderingContext2D) => void): Texture {
+function drawnButton(c: DrawnColours, icon: (g: CanvasRenderingContext2D) => void): Texture {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 168;
   const g = canvas.getContext('2d')!;
@@ -192,22 +188,8 @@ function drawnButton(c: ControlsSwitch['colours'], icon: (g: CanvasRenderingCont
   return new Texture({ source: new CanvasSource({ resource: canvas, resolution: 2 }) });
 }
 
-/** The controls switch for themes without their own image: a mixer icon (three sliders). */
-function drawnSwitch(c: ControlsSwitch['colours']): Texture {
-  return drawnButton(c, g => {
-    g.lineCap = 'round';
-    [[-11, 0.3], [0, 0.7], [11, 0.45]].forEach(([dy, at]) => {
-      g.strokeStyle = c.text;
-      g.lineWidth = 3.5;
-      g.beginPath(); g.moveTo(26, 42 + dy); g.lineTo(58, 42 + dy); g.stroke();
-      g.fillStyle = c.accent;
-      g.beginPath(); g.arc(26 + 32 * at, 42 + dy, 5, 0, Math.PI * 2); g.fill();
-    });
-  });
-}
-
 /** Stop (two bars) while the background moves, start (a triangle) while it is still. */
-function drawnMotion(c: ControlsSwitch['colours'], moving: boolean): Texture {
+function drawnMotion(c: DrawnColours, moving: boolean): Texture {
   return drawnButton(c, g => {
     g.fillStyle = c.text;
     g.beginPath();
@@ -222,7 +204,7 @@ function drawnMotion(c: ControlsSwitch['colours'], moving: boolean): Texture {
 }
 
 /** The player's round history (review 7.5): a clock with an arrow running back round it. */
-function drawnHistory(c: ControlsSwitch['colours']): Texture {
+function drawnHistory(c: DrawnColours): Texture {
   return drawnButton(c, g => {
     g.lineCap = 'round';
     g.lineJoin = 'round';
@@ -249,13 +231,12 @@ export class Options extends Container {
   private readonly fullscreen: Button | null;
   private readonly motion: Button | null;
   private readonly rounds: Button;
-  private readonly switcher: Button;
   private readonly exit: Button;
   private open = false;
   private view: Viewport | null = null;
 
   constructor(t: OptionTextures, muted: () => boolean, toggleSound: () => void,
-              fullscreen: (() => void) | null, onExit: () => void, controls: ControlsSwitch, motion: MotionSwitch | null,
+              fullscreen: (() => void) | null, onExit: () => void, colours: DrawnColours, motion: MotionSwitch | null,
               onRounds: () => void) {
     super();
     this.gear = new Button(t.settings, () => this.toggle());
@@ -267,16 +248,15 @@ export class Options extends Container {
     this.fullscreen = fullscreen ? new Button(t.fullscreen, fullscreen) : null;
     this.exit = new Button(t.exit, () => { this.toggle(false); onExit(); });
     if (motion) {
-      const icons = { moving: drawnMotion(controls.colours, true), still: drawnMotion(controls.colours, false) };
+      const icons = { moving: drawnMotion(colours, true), still: drawnMotion(colours, false) };
       this.motion = new Button(motion.moving() ? icons.moving : icons.still, () => {
         motion.onTap();
         this.motion!.texture = motion.moving() ? icons.moving : icons.still;
       });
     } else this.motion = null;
-    this.rounds = new Button(drawnHistory(controls.colours), () => { this.toggle(false); onRounds(); });
-    this.switcher = new Button(controls.texture ?? drawnSwitch(controls.colours), () => { this.toggle(false); controls.onTap(); });
+    this.rounds = new Button(drawnHistory(colours), () => { this.toggle(false); onRounds(); });
     this.column.addChild(this.sound, ...(this.fullscreen ? [this.fullscreen] : []), ...(this.motion ? [this.motion] : []),
-      this.rounds, this.switcher, this.exit);
+      this.rounds, this.exit);
     this.column.visible = false;
     this.addChild(this.column, this.gear);
   }
@@ -307,9 +287,9 @@ export class Options extends Container {
     return Array.from({ length: count }, (_, i) => ({ x: -STEP * Math.floor(i / perColumn), y: STEP * (1 + (i % perColumn)) }));
   }
 
-  /** The rounds, the controls switch and exit only make sense on the game screen, and not while balls are still dropping. */
+  /** The rounds and exit only make sense on the game screen, and not while balls are still dropping. */
   setExit(visible: boolean, enabled = true): void {
-    [this.rounds, this.switcher, this.exit].forEach(button => {
+    [this.rounds, this.exit].forEach(button => {
       button.visible = visible;
       gsap.killTweensOf(button, 'alpha');
       button.enabled = enabled;

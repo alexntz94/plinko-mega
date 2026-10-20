@@ -53,9 +53,11 @@ class RoundRecoveryServiceTest {
     }
 
     private GameRepository.Round round(String status, boolean decided) {
-        String signature = decided ? roundSigner.sign("r1", 7, 8, 2, new BigDecimal("1.00"), 3, new BigDecimal("3.00"), win, "EUR", "0,1,2", "0.2,29,0.3") : null;
+        String signature = decided ? roundSigner.sign("r1", 7, 8, 2, new BigDecimal("1.00"), 3, new BigDecimal("3.00"), win, "EUR", "0,1,2",
+                "0.2,29,0.3", "path:0,1,3") : null;
         GameRepository.Round round = new GameRepository.Round("r1", 7, "s", 8, 2, new BigDecimal("1.00"), 3, new BigDecimal("3.00"),
-                decided ? win : null, "EUR", status, decided ? "0,1,2" : null, decided ? "0.2,29,0.3" : null, null, signature, null, null);
+                decided ? win : null, "EUR", status, decided ? "0,1,2" : null, decided ? "0.2,29,0.3" : null, null, signature, null, null,
+                decided ? "path:0,1,3" : null, null, null);
         when(repository.findRound("r1")).thenReturn(Optional.of(round));
         return round;
     }

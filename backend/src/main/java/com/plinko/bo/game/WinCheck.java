@@ -199,34 +199,24 @@ public class WinCheck {
                 return "C5: golden ball " + ball + " does not exist";
             }
         }
-        for (int ball = 0; ball < outcome.free().size(); ball++) {
-            RoundWin.FreeBall free = outcome.free().get(ball);
-            if (free.stake().signum() < 0) {
-                return "C5: free ball " + ball + " has a negative stake";
-            }
-            String problem = ballProblem(round, outcome, "free ball " + ball, free.slot(), free.multiplier(), free.boost(), prizes);
-            if (problem != null) {
-                return problem;
-            }
-        }
         return null;
     }
 
-    /** Plinko Mega's parts: paths to the balls' own slots, gates only with paths, wheel spins on SPIN slots only. */
+    /** Paths to the balls' own slots, a gate boost above 1, wheel spins on SPIN slots only, at most 3 MEGA SPINs. */
     private static String megaProblem(GameRepository.Round round, RoundWin.Outcome outcome) {
-        if (outcome.paths() != null) {
-            if (outcome.paths().size() != outcome.slots().size()) {
-                return "C5: " + outcome.paths().size() + " paths for " + outcome.slots().size() + " balls";
-            }
-            for (int ball = 0; ball < outcome.paths().size(); ball++) {
-                int path = outcome.paths().get(ball);
-                if (!MegaBoard.isPath(round.rows(), path) || MegaBoard.slotOf(path) != outcome.slots().get(ball)) {
-                    return "C5: ball " + ball + "'s path " + path + " does not end in its slot " + outcome.slots().get(ball);
-                }
+        for (int ball = 0; ball < outcome.slots().size(); ball++) {
+            if (outcome.slots().get(ball) < 0 || outcome.slots().get(ball) > round.rows()) {
+                return "C5: ball " + ball + " landed in slot " + outcome.slots().get(ball) + ", outside a board of " + round.rows() + " rows";
             }
         }
-        if (outcome.gateBoost() != null && (outcome.paths() == null || outcome.gateBoost().compareTo(BigDecimal.ONE) <= 0)) {
-            return "C5: gates boost " + outcome.gateBoost() + " without paths, or not above 1";
+        for (int ball = 0; ball < outcome.paths().size(); ball++) {
+            int path = outcome.paths().get(ball);
+            if (!MegaBoard.isPath(round.rows(), path) || MegaBoard.slotOf(path) != outcome.slots().get(ball)) {
+                return "C5: ball " + ball + "'s path " + path + " does not end in its slot " + outcome.slots().get(ball);
+            }
+        }
+        if (outcome.gateBoost() != null && outcome.gateBoost().compareTo(BigDecimal.ONE) <= 0) {
+            return "C5: gates boost " + outcome.gateBoost() + " is not above 1";
         }
         java.util.Set<Integer> spun = new java.util.HashSet<>();
         for (RoundWin.Spin spin : outcome.spins()) {

@@ -17,7 +17,7 @@ export const themeVariants = (theme: Theme): ThemeVariants =>
   (typeof __THEME_VARIANTS__ === 'object' ? __THEME_VARIANTS__[theme.id] : undefined) ?? NONE;
 
 /** The small pictures the build packs into the atlas (game/scripts/theme-atlas.mjs, SMALL; keep the two in step). */
-export const ATLAS_FILES = /^(button_[a-z0-9_]+|item_ball|item_drag|item_drag_bar|item_stat_display|item_peg|item_slot_[0-4])\.png$/;
+export const ATLAS_FILES = /^(button_[a-z0-9_]+|item_ball|item_peg|item_gate|item_wheel_pointer|item_slot_[0-4])\.png$/;
 export const inAtlas = (file: string): boolean => ATLAS_FILES.test(file);
 
 /**

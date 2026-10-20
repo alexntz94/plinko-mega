@@ -33,7 +33,7 @@ describe('the requests the client sends (tests/client_requests.json)', () => {
   it('match the recorded file, so the next release can replay them', async () => {
     search = '?token=t1';
     await openSession();
-    search = '?token=t2&theme=drop-riot';
+    search = '?token=t2&theme=loteria-muerta';
     await openSession();
     await resumeSession();
     await playRound(8, 0, 1, 2);

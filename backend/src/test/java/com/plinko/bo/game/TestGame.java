@@ -51,7 +51,7 @@ final class TestGame {
         this.properties = properties;
         player = repository.addPlayer("pam-7", "EUR", new BigDecimal("100.00"));
         wallet.open("pam-7", new BigDecimal("100.00"));
-        repository.addSession(new GameRepository.Session("s", player.id(), "tok", Instant.now().plusSeconds(3600), "drop-riot"));
+        repository.addSession(new GameRepository.Session("s", player.id(), "tok", Instant.now().plusSeconds(3600), "loteria-muerta"));
 
         settings = mock(SettingsService.class);
         when(settings.limits()).thenReturn(new SettingsService.GameLimits(new BigDecimal("0.01"), new BigDecimal("100"), new BigDecimal("1"), 100));

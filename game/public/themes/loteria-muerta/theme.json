@@ -98,19 +98,7 @@
   },
   "ui": {
     "style": "ink",
-    "drop": "button_drop.png",
-    "controls": "button_controls.png",
     "ink": "#1f1512",
     "panel": "#3a2160"
-  },
-  "layout": {
-    "labelY": -9,
-    "valueY": 43,
-    "controlY": 32,
-    "dragBarY": 32,
-    "riskLeftX": 34,
-    "riskRightX": 220,
-    "halfX": 166,
-    "doubleX": 218
   }
 }

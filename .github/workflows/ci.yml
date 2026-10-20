@@ -266,7 +266,7 @@ jobs:
       # review 5.6 #8: body size, slow bodies and headers, connections and request rate per address, on the public port
       - name: nginx limits
         run: OUT="$RUNNER_TEMP/loadtest" python3 -u tests/load/nginx_limits.py http://127.0.0.1:8080
-      - name: Lighthouse, mobile profile (drop-riot, rat-race, fatal-attraction)
+      - name: Lighthouse, mobile profile (loteria-muerta)
         run: OUT="$RUNNER_TEMP/lighthouse" scripts/lighthouse.sh "$TEST_ENV"
       - name: Load test (k6, 200 players, 3 minutes)
         if: ${{ !cancelled() }}

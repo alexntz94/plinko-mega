@@ -14,41 +14,46 @@ class StoredOutcomeFormatTest {
 
     @ParameterizedTest(name = "{0} / {1} / {2}")
     @CsvSource(delimiter = '|', nullValues = "null", value = {
-            "null | 1     | null",
-            "4    | null  | null",
-            "''   | 1     | null",
-            "4,5  | 1     | null",
-            "4    | 1     | hot",
-            "4    | 1     | hot:3",
-            "4    | 1     | gold:0x2,0x3",
-            "4    | 1     | gold:0",
-            "4    | 1     | free:1.00",
-            "4    | 1     | free:1.00@3x1g2g3",
-            "4    | 1     | meter:2:0.4",
-            "4    | 1     | meter:2/3",
-            "4    | 1     | jackpot:1",
-            "x    | 1     | null",
-            "4    | one   | null"})
+            "null | 1     | path:15",
+            "4    | null  | path:15",
+            "''   | 1     | path:15",
+            "4,5  | 1     | path:15",
+            "4    | 1     | null",
+            "4    | 1     | path:15,7",
+            "4    | 1     | path:x",
+            "4    | 1     | path:15;hot",
+            "4    | 1     | path:15;hot:3",
+            "4    | 1     | path:15;gold:0x2,0x3",
+            "4    | 1     | path:15;gold:0",
+            "4    | 1     | path:15;free:1.00@3x1",
+            "4    | 1     | path:15;meter:2:0.4",
+            "4    | 1     | path:15;meter:2/3:0.4",
+            "4    | 1     | path:15;spin:0@1",
+            "4    | 1     | path:15;mega:1.00@2",
+            "4    | 1     | path:15;jackpot:1",
+            "x    | 1     | path:15",
+            "4    | one   | path:15"})
     void anOutcomeNotInTheGamesFormatIsRefused(String slots, String multipliers, String bonus) {
         assertThatThrownBy(() -> RoundWin.parse(slots, multipliers, bonus)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void everyBonusPartTheGameWritesIsRead() {
-        RoundWin.Outcome outcome = RoundWin.parse("4,0", "1.1,26", "hot:4x2;gold:1x3;free:0.40@8x26g2;meter:0/3:0:m-1;capped:5.00");
+        RoundWin.Outcome outcome = RoundWin.parse("4,0", "1.1,26",
+                "hot:4x2;gold:1x3;path:15,0;gates:2;spin:1@3x10;mega:0.40@6x25;meter:0/3:0:m-1;capped:5.00");
         assertThat(outcome.slots()).containsExactly(4, 0);
         assertThat(outcome.hotSlot()).isEqualTo(4);
         assertThat(outcome.hotBoost()).isEqualByComparingTo("2");
         assertThat(outcome.golden()).containsEntry(1, new BigDecimal("3"));
-        assertThat(outcome.free()).singleElement().satisfies(f -> {
-            assertThat(f.stake()).isEqualByComparingTo("0.40");
-            assertThat(f.slot()).isEqualTo(8);
-            assertThat(f.multiplier()).isEqualByComparingTo("26");
-            assertThat(f.boost()).isEqualByComparingTo("2");
-        });
+        assertThat(outcome.paths()).containsExactly(15, 0);
+        assertThat(outcome.gateBoost()).isEqualByComparingTo("2");
+        assertThat(outcome.spins()).containsExactly(new RoundWin.Spin(1, 3, new BigDecimal("10")));
+        assertThat(outcome.megaSpins()).containsExactly(new RoundWin.MegaSpin(new BigDecimal("0.40"), 6, new BigDecimal("25")));
         assertThat(outcome.meter().charges()).isZero();
+        assertThat(outcome.meter().prev()).isEqualTo("m-1");
         assertThat(outcome.capped()).isEqualByComparingTo("5.00");
-        // a free ball without a golden boost counts once
-        assertThat(RoundWin.parse("4", "1", "free:0.40@8x26").free().get(0).boost()).isEqualByComparingTo("1");
+        // balls, wheel spins at the bet, MEGA SPINs at their stake
+        assertThat(outcome.raw(BigDecimal.ONE)).isEqualByComparingTo(new BigDecimal("1.10").add(new BigDecimal("26")).add(BigDecimal.TEN)
+                .add(new BigDecimal("10.00")));
     }
 }

@@ -301,8 +301,18 @@ public class ChangeRequestService {
         String meter = !settings.meterOn() ? "meter off"
                 : "meter: " + settings.meter().charges() + " charges from " + settings.meter().minMultiplier().stripTrailingZeros().toPlainString()
                 + "x prizes, " + settings.meter().potShare().stripTrailingZeros().toPlainString() + "% of the bet to the pot, "
-                + settings.meter().freeBalls() + " free balls";
-        return golden + "; " + hot + "; " + meter;
+                + "gold wheel " + segments(settings.megaWheel());
+        String gates = !settings.gatesOn() ? "gates off" : "gates x" + settings.gates().boost().stripTrailingZeros().toPlainString();
+        String wheel = !settings.wheelOn() ? "wheel off" : "wheel " + segments(settings.wheel());
+        return golden + "; " + hot + "; " + meter + "; " + gates + "; " + wheel;
+    }
+
+    /** A wheel's segments for the change's description: "2x 26%, MEGA 1000x 0.25%, ...". */
+    private static String segments(BonusSettings.Wheel wheel) {
+        return wheel == null ? "none" : wheel.segments().stream()
+                .map(s -> (s.name() == null ? "" : s.name() + " ") + s.multiplier().stripTrailingZeros().toPlainString() + "x "
+                        + s.weight().stripTrailingZeros().toPlainString() + "%")
+                .collect(Collectors.joining(", "));
     }
 
     @Transactional

@@ -64,14 +64,13 @@ class MonteCarloRtpTest {
     private final BonusService bonus = new BonusService(null, JsonMapper.builder().build());
 
     /** The measured return of one board with one bonus setting, and its standard error. */
-    record Measured(double rtp, double error, int freeBalls) {
+    record Measured(double rtp, double error) {
     }
 
     @Test
     void everyBoardPaysItsApprovedTotalRtpWithEachBonusAndTheMeter() {
         int rounds = rounds();
         List<String> report = new ArrayList<>();
-        int freeBalls = 0;
         double widest = 0;
         for (Map.Entry<String, BonusSettings> setting : BONUSES.entrySet()) {
             OddsService odds = TestOdds.with(setting.getValue(), TestFixtures.properties());
@@ -84,7 +83,6 @@ class MonteCarloRtpTest {
                     report.add(String.format("%-32s measured %.4f approved %.4f (+/- %.4f)", board, measured.rtp(), approved, SIGMAS * measured.error()));
                     assertThat(Math.abs(measured.rtp() - approved)).as("%s: measured %.5f, approved %.5f", board, measured.rtp(), approved)
                             .isLessThanOrEqualTo(SIGMAS * measured.error() + 1e-4);
-                    freeBalls += measured.freeBalls();
                     widest = Math.max(widest, SIGMAS * measured.error());
                 }
             }
@@ -196,7 +194,6 @@ class MonteCarloRtpTest {
         int played = batches * perBatch;
         double[] by = new double[batches];
         double[][] bx = new double[batches][9];
-        int freeBalls = 0;
         for (int round = 0; round < played; round++) {
             RoundDraw.Result result = RoundDraw.draw(table, settings, BET, BALLS, meter, new BigDecimal("1000000"), dice);
             int batch = round / perBatch;
@@ -215,19 +212,9 @@ class MonteCarloRtpTest {
                 }
             }
             c[6] -= BET.doubleValue() * BALLS * fill;
-            for (int ball = 0; ball < result.freeSlots().size(); ball++) {
-                int slot = result.freeSlots().get(ball);
-                double stake = result.freeBets().get(ball).doubleValue();
-                double prize = prize(table, slot);
-                c[3] += stake * (prize - base);
-                c[4] += stake * prize * (result.freeBoosts().get(ball).doubleValue() - goldenMean);
-                c[5] += stake * prize * ((slot == hot ? hotBoost : 1) - hotMean);
-                c[8] += stake * prize * (result.freeBoosts().get(ball).doubleValue() - goldenMean) * ((slot == hot ? hotBoost : 1) - hotMean);
-            }
             for (int k = 0; k < c.length; k++) {
                 bx[batch][k] += c[k] / totalBet / perBatch;
             }
-            freeBalls += result.freeSlots().size();
             if (meter != null) {
                 meter = new RoundDraw.MeterBefore(result.chargesAfter(), result.potAfter(), "r" + round);
             }
@@ -252,7 +239,7 @@ class MonteCarloRtpTest {
         }
         double mean = sum / batches;
         double sd = Math.sqrt(Math.max(0, (squares - batches * mean * mean) / (batches - 1)));
-        return new Measured(mean + owed, sd / Math.sqrt(batches), freeBalls);
+        return new Measured(mean + owed, sd / Math.sqrt(batches));
     }
 
     /** The approved average golden boost of a ball (1 when golden balls are off). */

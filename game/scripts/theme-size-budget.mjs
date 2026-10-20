@@ -38,8 +38,6 @@ const IMAGES = [
   'button_confirm.png', 'button_cancel.png', 'item_exit.png', 'item_exit_p.png', 'button_continue.png',
   'item_result.png', 'item_result_p.png', 'button_fullscreen.png', 'button_sound_on.png', 'button_sound_off.png',
   'button_exit.png', 'button_settings.png',
-  'item_stat_display.png', 'button_blank.png', 'button_arrow_left.png', 'button_arrow_right.png', 'button_bet_half.png',
-  'button_bet_multiply.png', 'item_drag_bar.png', 'item_drag.png',
 ];
 const SLOT_ART = [0, 1, 2, 3, 4].map(tier => `item_slot_${tier}.png`);
 const SHARED_SOUNDS = { click: 'sound_button', change: 'sound_change', ball: 'sound_ball', hit: 'sound_hit',
@@ -82,7 +80,7 @@ function firstVisit(dir, theme, landscape) {
   const board = theme.board ?? {};
   const ui = theme.ui ?? {};
   const files = [...new Set([...IMAGES, ...(board.peg ? [board.peg] : []), ...(board.slotArt ? SLOT_ART : []),
-    ...(ui.drop ? [ui.drop] : []), ...(ui.controls ? [ui.controls] : []), ...neon.flat()])].filter(file => !other.has(file));
+    ...neon.flat()])].filter(file => !other.has(file));
   const sheet = atlas(dir);
   const fetched = [...new Set([...(sheet?.files ?? []),
     ...files.filter(file => !sheet?.frames.has(file)).map(file => picture(dir, theme, file))])];

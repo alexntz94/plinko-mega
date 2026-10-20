@@ -216,9 +216,9 @@ class MonitoringTest {
         WinCheck check = new WinCheck(signer, new WalletSigner(new Integrity(TestFixtures.properties())), odds, TestFixtures.properties());
         AuditService audit = mock(AuditService.class);
         BigDecimal win = new BigDecimal("1.50");
-        String signature = signer.sign("a", 7, 8, 2, BigDecimal.ONE, 1, BigDecimal.ONE, win, "EUR", "0", "1.5");
+        String signature = signer.sign("a", 7, 8, 2, BigDecimal.ONE, 1, BigDecimal.ONE, win, "EUR", "0", "1.5", "path:0");
         GameRepository.Round good = new GameRepository.Round("a", 7, "s", 8, 2, BigDecimal.ONE, 1, BigDecimal.ONE, win, "EUR",
-                RoundStatus.COMPLETED, "0", "1.5", null, signature, null, null);
+                RoundStatus.COMPLETED, "0", "1.5", null, signature, null, null, "path:0", null, null);
         GameRepository.Round forged = new GameRepository.Round("b", 7, "s", 8, 2, BigDecimal.ONE, 1, BigDecimal.ONE, new BigDecimal("900"),
                 "EUR", RoundStatus.COMPLETED, "0", "900", null, "f".repeat(64), null, null);
         GameRepository.Round blocked = new GameRepository.Round("c", 7, "s", 8, 2, BigDecimal.ONE, 1, BigDecimal.ONE, new BigDecimal("900"),
@@ -329,8 +329,8 @@ class MonitoringTest {
             String multipliers = (String) f[2];
             BigDecimal limit = f[3] == null ? null : new BigDecimal((String) f[3]);
             return new GameRepository.Round(id, 7, "s", 8, 2, BigDecimal.ONE, 2, new BigDecimal("2"), win, "EUR", RoundStatus.COMPLETED, "0,8",
-                    multipliers, null, signer.sign(id, 7, 8, 2, BigDecimal.ONE, 2, new BigDecimal("2"), win, "EUR", "0,8", multipliers, null, null, limit),
-                    Instant.now().minus(Duration.ofHours(1)), null, null, null, limit);
+                    multipliers, null, signer.sign(id, 7, 8, 2, BigDecimal.ONE, 2, new BigDecimal("2"), win, "EUR", "0,8", multipliers, "path:0,255", null, limit),
+                    Instant.now().minus(Duration.ofHours(1)), null, "path:0,255", null, limit);
         };
         GameRepository.Round good = signed.apply(new Object[] {"a", "3.50", "1.5,2", "1000"});
         GameRepository.Round winDoesNotAddUp = signed.apply(new Object[] {"b", "350.00", "1.5,2", "1000"});

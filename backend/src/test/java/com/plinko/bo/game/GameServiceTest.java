@@ -30,7 +30,7 @@ import org.springframework.http.HttpStatus;
 class GameServiceTest {
 
     private static final BonusSettings METER = new BonusSettings(BonusSettings.OFF.golden(), BonusSettings.OFF.hot(),
-            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30"), 4));
+            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")));
 
     private final TestGame game = new TestGame(BonusSettings.OFF);
 
@@ -174,12 +174,12 @@ class GameServiceTest {
     @Test
     void playingOrResumingExtendsTheSessionByItsConfiguredLength() {
         Duration ttl = Duration.ofMinutes(game.properties.sessionTtlMinutes());
-        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().plusSeconds(30), "drop-riot"));
+        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().plusSeconds(30), "loteria-muerta"));
         Instant before = Instant.now();
         game.play("1.00", 1);
         assertThat(expiry()).isBetween(before.plus(ttl).minusSeconds(1), Instant.now().plus(ttl).plusSeconds(1));
 
-        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().plusSeconds(30), "drop-riot"));
+        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().plusSeconds(30), "loteria-muerta"));
         before = Instant.now();
         game.game.resumeSession("s");
         assertThat(expiry()).isBetween(before.plus(ttl).minusSeconds(1), Instant.now().plus(ttl).plusSeconds(1));
@@ -188,7 +188,7 @@ class GameServiceTest {
     @Test
     void anExpiredSessionCantPlayResumeOrReadItsHistory() {
         game.play("1.00", 1);
-        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().minusSeconds(1), "drop-riot"));
+        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().minusSeconds(1), "loteria-muerta"));
         List<String> calls = List.copyOf(game.wallet.calls);
         for (Runnable call : List.<Runnable>of(() -> game.play("1.00", 1), () -> game.game.resumeSession("s"),
                 () -> game.game.history("s", null, 10))) {

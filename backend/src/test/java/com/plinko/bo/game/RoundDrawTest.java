@@ -22,7 +22,7 @@ class RoundDrawTest {
     private static final BonusSettings BONUSES = new BonusSettings(
             new BonusSettings.Golden(true, new BigDecimal("25"), BonusSettings.OFF.golden().boosts()),
             new BonusSettings.Hot(true, new BigDecimal("40"), new BigDecimal("3")),
-            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30"), 4),
+            new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")),
             BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
 
     /** A random path to this slot. */
@@ -167,11 +167,5 @@ class RoundDrawTest {
         BigDecimal firstSegment = mega.wheel().segments().get(0).multiplier();
         assertThat(r.bonusText()).isEqualTo("path:3," + ((1 << spinSlot) - 1) + ";gates:2;spin:1@0x" + firstSegment.toPlainString());
         assertThat(r.totalWin()).isEqualByComparingTo(r.wins().get(0).add(r.wins().get(1)).add(RoundWin.ball(BigDecimal.ONE, firstSegment)));
-    }
-
-    @Test
-    void oldMeterTextWithoutAPreviousStateStillReads() {
-        RoundWin.Outcome old = RoundWin.parse("1", "0.5", "meter:2/3:0.400000");
-        assertThat(old.meter()).isEqualTo(new RoundWin.Meter(2, 3, new BigDecimal("0.400000"), null));
     }
 }

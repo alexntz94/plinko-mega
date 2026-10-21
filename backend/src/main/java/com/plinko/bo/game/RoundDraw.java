@@ -73,11 +73,28 @@ final class RoundDraw {
     record Result(List<Integer> slots, List<BigDecimal> multipliers, List<BigDecimal> wins, int chargesAfter, BigDecimal potAfter, String meterPrev, BigDecimal totalWin,
                   String slotText, String multiplierText, String bonusText,
                   List<Integer> paths, List<Integer> gates, List<Spin> spins, List<MegaSpin> megaSpins, List<MegaBall> megaBalls,
-                  int layout) {
+                  int layout, List<List<Integer>> decoys) {
+    }
+
+    /** A power-up bought for the round (heavy or cluster) and what a ball cost with it (x the bet), or none. */
+    record Power(String name, BigDecimal price) {
     }
 
     static Result draw(OddsTable table, BonusSettings bonusSettings, BigDecimal bet, int balls, MeterBefore meterBefore,
                        BigDecimal maxWin, Dice dice) {
+        return draw(table, bonusSettings, bet, balls, meterBefore, maxWin, dice, null);
+    }
+
+    /**
+     * power: heavy makes every ball a MEGA BALL; cluster lands every ball three times (each slot drawn from the table)
+     * and keeps the landing with the best prize, the other two are decoys (drawn for the game to show, paying nothing).
+     */
+    static Result draw(OddsTable table, BonusSettings bonusSettings, BigDecimal bet, int balls, MeterBefore meterBefore,
+                       BigDecimal maxWin, Dice dice, Power power) {
+        boolean heavy = power != null && "heavy".equals(power.name());
+        boolean cluster = power != null && "cluster".equals(power.name());
+        List<List<Integer>> decoys = new ArrayList<>();
+        Integer[] rank = cluster ? clusterRank(table) : null;
         BonusSettings.Meter meterSettings = bonusSettings.meterOn() ? bonusSettings.meter() : null;
         int charges = meterBefore == null ? 0 : meterBefore.charges();
         BigDecimal pot = meterBefore == null ? BigDecimal.ZERO : meterBefore.pot();
@@ -89,6 +106,9 @@ final class RoundDraw {
         if (gateBoost != null) {
             text.gates(gateBoost);
             text.layout(layout);
+        }
+        if (power != null) {
+            text.power(power.name(), power.price());
         }
         // pegs smashed by this round's MEGA BALLs so far: the balls after one fall straight through the holes
         java.util.Set<Integer> holes = new java.util.HashSet<>();
@@ -103,6 +123,25 @@ final class RoundDraw {
         List<BigDecimal> wins = new ArrayList<>();
         for (int ball = 0; ball < balls; ball++) {
             int slot = dice.slot(table);
+            if (cluster) {
+                // three landings; the best prize is the ball's, the others are decoys
+                int[] landed = {slot, dice.slot(table), dice.slot(table)};
+                int best = 0;
+                for (int k = 1; k < 3; k++) {
+                    if (rank[PlinkoBoard.prizeIndexOfSlot(table.rows(), landed[k])] > rank[PlinkoBoard.prizeIndexOfSlot(table.rows(), landed[best])]) {
+                        best = k;
+                    }
+                }
+                slot = landed[best];
+                List<Integer> others = new ArrayList<>();
+                for (int k = 0; k < 3; k++) {
+                    if (k != best) {
+                        others.add(landed[k]);
+                    }
+                }
+                decoys.add(List.copyOf(others));
+                text.decoys(ball, others);
+            }
             BigDecimal prize = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(table.rows(), slot)).multiplier();
             int path = holes.isEmpty() ? dice.path(table.rows(), slot) : dice.path(table.rows(), slot, holes);
             int passed = gateBoost == null ? 0 : MegaBoard.gatesPassed(layouts.get(layout), path);
@@ -111,7 +150,9 @@ final class RoundDraw {
             gates.add(passed);
             text.path(path);
             // a MEGA BALL multiplies what its ball wins
-            int mega = bonusSettings.megaBallOn() ? dice.megaBall(bonusSettings.megaBall()) : -1;
+            // heavy shells: every ball is one (its multiplier still drawn by the weights)
+            int mega = heavy ? dice.megaBall(new BonusSettings.MegaBall(true, OddsTable.HUNDRED, bonusSettings.megaBall().multipliers()))
+                    : bonusSettings.megaBallOn() ? dice.megaBall(bonusSettings.megaBall()) : -1;
             if (mega >= 0) {
                 BigDecimal times = bonusSettings.megaBall().multipliers().get(mega).multiplier().stripTrailingZeros();
                 multiplier = multiplier.multiply(times);
@@ -168,6 +209,16 @@ final class RoundDraw {
         return new Result(slots, multipliers, wins, charges, pot, meterPrev, totalWin,
                 slots.stream().map(String::valueOf).collect(Collectors.joining(",")),
                 multipliers.stream().map(BigDecimal::toPlainString).collect(Collectors.joining(",")), text.text(),
-                paths, gates, spins, megaSpins, megaBalls, layout);
+                paths, gates, spins, megaSpins, megaBalls, layout, List.copyOf(decoys));
+    }
+
+    /** Each prize position's rank for a cluster shell (higher is better): by prize, then by position. */
+    static Integer[] clusterRank(OddsTable table) {
+        Integer[] order = BonusService.clusterOrder(table);
+        Integer[] rank = new Integer[order.length];
+        for (int k = 0; k < order.length; k++) {
+            rank[order[k]] = k;
+        }
+        return rank;
     }
 }

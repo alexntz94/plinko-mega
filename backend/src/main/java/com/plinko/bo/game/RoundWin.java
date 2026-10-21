@@ -17,6 +17,9 @@ import java.util.List;
  * <li>{@code path:<path>,...}: every ball's path (see {@code MegaBoard}), one per ball;</li>
  * <li>{@code gates:<boost>}: what each gate a path goes through multiplies the prize by;</li>
  * <li>{@code layout:<index>}: which of the board's gate layouts the round used (see {@code MegaBoard.layouts});</li>
+ * <li>{@code power:<name>x<price>}: a power-up bought for the round (heavy, cluster) and what a ball cost with it (x
+ *     the bet): the round's total bet is bet x balls x price, rounded up to the cent;</li>
+ * <li>{@code decoys:<ball>@<slot>/<slot>,...}: for a cluster shell, the two landings each ball did not keep;</li>
  * <li>{@code megaball:<ball>x<multiplier>,...}: balls that dropped as a MEGA BALL and what it multiplied their win by
  *     (already in the ball's multiplier);</li>
  * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: balls in a SPIN slot and what their wheel spin multiplied that
@@ -79,6 +82,8 @@ public final class RoundWin {
         private final List<String> paths = new ArrayList<>();
         private String gates;
         private String layout;
+        private String power;
+        private final List<String> decoys = new ArrayList<>();
         private final List<String> megaBalls = new ArrayList<>();
         private final List<String> spins = new ArrayList<>();
         private final List<String> megas = new ArrayList<>();
@@ -97,6 +102,16 @@ public final class RoundWin {
 
         public Text layout(int index) {
             layout = "layout:" + index;
+            return this;
+        }
+
+        public Text power(String name, BigDecimal price) {
+            power = "power:" + name + "x" + price.toPlainString();
+            return this;
+        }
+
+        public Text decoys(int ball, List<Integer> slots) {
+            decoys.add(ball + "@" + slots.get(0) + "/" + slots.get(1));
             return this;
         }
 
@@ -137,6 +152,12 @@ public final class RoundWin {
             if (layout != null) {
                 parts.add(layout);
             }
+            if (power != null) {
+                parts.add(power);
+            }
+            if (!decoys.isEmpty()) {
+                parts.add("decoys:" + String.join(",", decoys));
+            }
             if (!megaBalls.isEmpty()) {
                 parts.add("megaball:" + String.join(",", megaBalls));
             }
@@ -164,7 +185,7 @@ public final class RoundWin {
      */
     public record Outcome(List<Integer> slots, List<BigDecimal> multipliers, Meter meter, BigDecimal capped,
                           List<Integer> paths, BigDecimal gateBoost, List<Spin> spins, List<MegaSpin> megaSpins,
-                          List<MegaBall> megaBalls, int layout) {
+                          List<MegaBall> megaBalls, int layout, String power, BigDecimal powerPrice, List<List<Integer>> decoys) {
 
         /** What ball {@code ball}'s MEGA BALL multiplied its win by (1: a plain ball). */
         public BigDecimal megaBallTimes(int ball) {
@@ -214,6 +235,9 @@ public final class RoundWin {
         List<MegaSpin> megaSpins = new ArrayList<>();
         List<MegaBall> megaBalls = new ArrayList<>();
         int layout = 0;
+        String power = null;
+        BigDecimal powerPrice = null;
+        List<List<Integer>> decoys = new ArrayList<>();
         if (bonus != null) {
             for (String part : bonus.split(";", -1)) {
                 int colon = part.indexOf(':');
@@ -233,6 +257,24 @@ public final class RoundWin {
                     }
                     case "gates" -> gateBoost = new BigDecimal(value);
                     case "layout" -> layout = Integer.parseInt(value);
+                    case "power" -> {
+                        int x = value.lastIndexOf('x');
+                        if (x <= 0) {
+                            throw new IllegalArgumentException("power: " + value);
+                        }
+                        power = value.substring(0, x);
+                        powerPrice = new BigDecimal(value.substring(x + 1));
+                    }
+                    case "decoys" -> {
+                        for (String entry : value.split(",", -1)) {
+                            String[] ballAndSlots = entry.split("@", -1);
+                            String[] slots2 = ballAndSlots.length == 2 ? ballAndSlots[1].split("/", -1) : new String[0];
+                            if (slots2.length != 2 || Integer.parseInt(ballAndSlots[0]) != decoys.size()) {
+                                throw new IllegalArgumentException("decoys: " + entry);
+                            }
+                            decoys.add(List.of(Integer.parseInt(slots2[0]), Integer.parseInt(slots2[1])));
+                        }
+                    }
                     case "megaball" -> {
                         if (!megaBalls.isEmpty()) {
                             throw new IllegalArgumentException("two megaball parts");
@@ -290,6 +332,7 @@ public final class RoundWin {
             }
         }
         return new Outcome(List.copyOf(slots), List.copyOf(multipliers), meter, capped,
-                List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins), List.copyOf(megaBalls), layout);
+                List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins), List.copyOf(megaBalls), layout, power, powerPrice,
+                List.copyOf(decoys));
     }
 }

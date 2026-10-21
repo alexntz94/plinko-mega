@@ -118,14 +118,22 @@ public class WinCheck {
         if (round.signature() == null || round.totalWin() == null || !signer.verify(round)) {
             return "C1: the round's outcome is missing or its signature does not verify";
         }
-        if (round.totalBet().compareTo(round.bet().multiply(BigDecimal.valueOf(round.balls()))) != 0) {
-            return "C4: total bet " + round.totalBet() + " is not " + round.bet() + " x " + round.balls();
-        }
         RoundWin.Outcome outcome;
         try {
             outcome = RoundWin.parse(round.slots(), round.multipliers(), round.bonus());
         } catch (RuntimeException e) {
             return "C5: the stored outcome is malformed (" + e.getMessage() + ")";
+        }
+        // a round bought with a power-up costs bet x balls x its price (rounded up to the cent)
+        BigDecimal cost = outcome.power() == null ? round.bet().multiply(BigDecimal.valueOf(round.balls()))
+                : com.plinko.bo.bonus.BonusService.powerCost(round.bet(), round.balls(), outcome.powerPrice());
+        if (round.totalBet().compareTo(cost) != 0) {
+            return "C4: total bet " + round.totalBet() + " is not " + round.bet() + " x " + round.balls()
+                    + (outcome.power() == null ? "" : " x " + outcome.powerPrice());
+        }
+        if (outcome.power() != null && (!com.plinko.bo.bonus.BonusService.POWERS.contains(outcome.power())
+                || outcome.powerPrice().compareTo(BigDecimal.ONE) <= 0)) {
+            return "C5: unknown power-up " + outcome.power() + " or price " + outcome.powerPrice();
         }
         if (outcome.slots().size() != round.balls()) {
             return "C5: " + outcome.slots().size() + " balls stored, " + round.balls() + " bet";
@@ -218,6 +226,21 @@ public class WinCheck {
         }
         if (outcome.gateBoost() != null && outcome.gateBoost().compareTo(BigDecimal.ONE) <= 0) {
             return "C5: gates boost " + outcome.gateBoost() + " is not above 1";
+        }
+        // heavy shells: every ball is a MEGA BALL; cluster shells: every ball has its two decoys, each on the board
+        if ("heavy".equals(outcome.power()) && outcome.megaBalls().size() != outcome.slots().size()) {
+            return "C5: heavy shells, but " + outcome.megaBalls().size() + " of " + outcome.slots().size() + " balls were MEGA BALLs";
+        }
+        if ("cluster".equals(outcome.power()) != !outcome.decoys().isEmpty()
+                || ("cluster".equals(outcome.power()) && outcome.decoys().size() != outcome.slots().size())) {
+            return "C5: cluster decoys do not match the balls";
+        }
+        for (List<Integer> pair : outcome.decoys()) {
+            for (int slot : pair) {
+                if (slot < 0 || slot > round.rows()) {
+                    return "C5: a decoy landed in slot " + slot + ", outside a board of " + round.rows() + " rows";
+                }
+            }
         }
         java.util.Set<Integer> megaBalls = new java.util.HashSet<>();
         for (RoundWin.MegaBall megaBall : outcome.megaBalls()) {

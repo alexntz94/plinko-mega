@@ -107,6 +107,17 @@ class WinCheckTest {
     }
 
     @Test
+    void aRoundBoughtWithAPowerUpIsCheckedOnWhatItCost() {
+        // heavy shells x2.70: 3 balls at 0.10 cost 0.81 (0.30 x 2.70); every ball must be a MEGA BALL
+        bet = new BigDecimal("0.10");
+        totalBet = new BigDecimal("0.81");
+        assertThat(problem(round("4,3,0", "1,2,11.2", "power:heavyx2.70;megaball:0x2,1x2,2x2", "1.42"))).isNull();
+        assertThat(problem(round("4,3,0", "1,2,11.2", "power:heavyx2.70;megaball:0x2,1x2", "1.42"))).startsWith("C5: heavy shells");
+        totalBet = new BigDecimal("0.30");
+        assertThat(problem(round("4,3,0", "1,2,11.2", "power:heavyx2.70;megaball:0x2,1x2,2x2", "1.42"))).startsWith("C4");
+    }
+
+    @Test
     void aGateLayoutThatDoesNotExistIsCaught() {
         assertThat(problem(round("4,3,0", "0.5,1,5.6", "layout:999", "7.10"))).startsWith("C5: gate layout 999");
     }

@@ -89,6 +89,8 @@ public class BonusAdminController {
                           @RequestParam(required = false) List<String> goldWeight,
                           @RequestParam(required = false) Boolean megaBallEnabled, @RequestParam(required = false) String megaBallChance,
                           @RequestParam(required = false) List<String> megaBallMultiplier, @RequestParam(required = false) List<String> megaBallWeight,
+                          @RequestParam(required = false) Boolean arsenalShown, @RequestParam(required = false) Boolean heavyOn,
+                          @RequestParam(required = false) Boolean clusterOn,
                           Principal principal, RedirectAttributes redirect) {
         try {
             // a form without the gates', wheels' or MEGA BALL's fields keeps the ones in force
@@ -103,7 +105,8 @@ public class BonusAdminController {
                     : new BonusSettings.MegaBall(Boolean.TRUE.equals(megaBallEnabled), new BigDecimal(megaBallChance.trim()),
                             segments(null, megaBallMultiplier, megaBallWeight));
             BonusSettings next = new BonusSettings(new BonusSettings.Meter(meterEnabled, Integer.parseInt(meterCharges.trim()), new BigDecimal(meterMin.trim()),
-                            new BigDecimal(meterShare.trim())), gates, wheel, gold, megaBall);
+                            new BigDecimal(meterShare.trim())), gates, wheel, gold, megaBall,
+                    arsenalShown == null ? current.arsenal() : new BonusSettings.Arsenal(Boolean.TRUE.equals(heavyOn), Boolean.TRUE.equals(clusterOn)));
             long id = changes.proposeBonus(next, principal.getName());
             redirect.addFlashAttribute("message", "Change #" + id + " proposed. It takes effect after another admin approves it.");
         } catch (NumberFormatException e) {

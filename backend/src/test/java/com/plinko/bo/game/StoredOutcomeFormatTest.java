@@ -29,6 +29,9 @@ class StoredOutcomeFormatTest {
             "4    | 1     | path:15;spin:0@1",
             "4    | 1     | path:15;mega:1.00@2",
             "4    | 1     | path:15;megaball:0",
+            "4    | 1     | path:15;power:heavy",
+            "4    | 1     | path:15;decoys:0@3",
+            "4    | 1     | path:15;decoys:1@3/4",
             "4    | 1     | path:15;megaball:0x2;megaball:0x3",
             "4    | 1     | path:15;jackpot:1",
             "x    | 1     | path:15",
@@ -42,6 +45,10 @@ class StoredOutcomeFormatTest {
         RoundWin.Outcome outcome = RoundWin.parse("4,0", "1.1,26",
                 "path:15,0;gates:2;megaball:0x2;spin:1@3x10;mega:0.40@6x25;meter:0/3:0:m-1;capped:5.00");
         assertThat(outcome.megaBalls()).containsExactly(new RoundWin.MegaBall(0, new BigDecimal("2")));
+        RoundWin.Outcome bought = RoundWin.parse("4", "1.1", "path:15;power:clusterx2.05;decoys:0@3/5");
+        assertThat(bought.power()).isEqualTo("cluster");
+        assertThat(bought.powerPrice()).isEqualByComparingTo("2.05");
+        assertThat(bought.decoys()).containsExactly(java.util.List.of(3, 5));
         assertThat(outcome.slots()).containsExactly(4, 0);
         assertThat(outcome.paths()).containsExactly(15, 0);
         assertThat(outcome.gateBoost()).isEqualByComparingTo("2");

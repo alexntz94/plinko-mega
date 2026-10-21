@@ -8,6 +8,7 @@ import { BigWin, BlastShower, CoinShower, winLevel, type Shower } from './effect
 import { FortuneWheel, type PhotoRevolver } from './fortuneWheel';
 import { MegaControls } from './megaControls';
 import { ConsoleControls } from './consoleControls';
+import { ArsenalPanel } from './arsenal';
 import { WinTicker } from './ticker';
 import { Ambient, Screen, WinBanner } from './juice';
 import { Meter } from './meter';
@@ -43,6 +44,9 @@ function photoRevolver(theme: Theme, tex: (file: string) => Texture): PhotoRevol
     cartridges: { plain: tex(c.plain), MINI: tex(c.MINI), MAJOR: tex(c.MAJOR), MEGA: tex(c.MEGA) } };
 }
 
+/** The power-ups' short names, for the status line and the ARSENAL key. */
+const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER' };
+
 /** Four quick bets for the console: the bet ladder's steps nearest 1, 5, 10 and 25 times the default bet. */
 function quickBets(ladder: number[], base: number): number[] {
   const picks: number[] = [];
@@ -75,6 +79,9 @@ export class Game extends Container {
   /** The fortune wheel under the board, and the control bar. */
   private readonly wheel: FortuneWheel;
   private readonly bar: MegaControls | ConsoleControls;
+  /** the power-up armed for the next round (heavy, cluster), and the ARSENAL panel it is picked on */
+  private power: string | null = null;
+  private readonly arsenal: ArsenalPanel | null = null;
   private readonly ticker: WinTicker;
   /** The slot-machine feel: petals always drifting, the WIN banner, the screen's flash and slow motion. */
   private readonly ambient: Ambient;
@@ -180,6 +187,7 @@ export class Game extends Container {
         this.changeRows(this.bar instanceof ConsoleControls && step > 0 && at >= n && this.view && !this.view.landscape ? 0 : at);
       },
       pickBet: (value: number) => this.pickBet(value),
+      arsenal: () => this.openArsenal(),
     };
     this.bar = theme.console
       ? new ConsoleControls({ drop: tex(theme.console.drop), panel: tex(theme.console.panel), key: tex(theme.console.key),
@@ -190,6 +198,10 @@ export class Game extends Container {
     this.ambient = new Ambient(theme.ambient.colours, theme.ambient.rise);
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
     this.table.addChild(this.ambient, this.board, this.ticker, this.wheel, this.banner, this.meter, this.bar);
+    if (theme.console && config.mega?.powers && Object.keys(config.mega.powers).length) {
+      this.arsenal = new ArsenalPanel(tex(theme.console.panel), { gold: theme.wheel.title, text: theme.text }, id => this.arm(id));
+      this.table.addChild(this.arsenal);
+    }
 
     this.result = new ResultScreen(tex('item_result.png'), tex('item_result_p.png'), tex('button_continue.png'), () => this.go('menu'));
     this.options = new Options({ settings: tex('button_settings.png'), soundOn: tex('button_sound_on.png'),
@@ -243,6 +255,7 @@ export class Game extends Container {
     }
     this.ambient.layout(view);
     this.screen.layout(view);
+    this.arsenal?.layout(view);
     // the WIN banner over the top of the board
     if (view.landscape) this.banner.position.set(boardX, view.offsetY + (view.stageH - 2 * view.offsetY) * 0.2);
     else this.banner.position.set(view.stageW / 2, view.stageH * 0.17);
@@ -319,6 +332,41 @@ export class Game extends Container {
       if (!this.busy()) { this.balance = fresh.balance; this.refreshPanel(); }
       if (fresh.meter && !this.busy()) this.applyMeter(fresh.meter);
     } catch { /* keep the balance we have */ }
+  }
+
+  /** What a ball costs with a power-up on the board in play (x the bet), or null when it is not on sale. */
+  private powerPrice(power: string): number | null {
+    return this.session.config.mega?.powers?.[power]?.[`${this.rows}:${this.risk}`] ?? null;
+  }
+
+  /** What the next round costs: bet x balls, times the armed power-up's price (rounded up to the cent, as the server). */
+  private roundCost(): number {
+    const price = this.power ? this.powerPrice(this.power) : null;
+    const plain = round2(this.bet * this.balls);
+    return price ? Math.ceil(plain * price * 100 - 1e-6) / 100 : plain;
+  }
+
+  private openArsenal(): void {
+    if (!this.arsenal || this.busy()) return;
+    sound('click');
+    this.arsenal.setPrices(Object.fromEntries(['heavy', 'cluster'].map(id => {
+      const times = this.powerPrice(id);
+      const plain = round2(this.bet * this.balls);
+      return [id, times ? { times, cost: this.money(Math.ceil(plain * times * 100 - 1e-6) / 100) } : null];
+    })));
+    this.arsenal.setArmed(this.power);
+    if (this.view) this.arsenal.layout(this.view);
+    this.arsenal.show();
+  }
+
+  /** Arms a power-up for the next round (null: none). */
+  private arm(id: string | null): void {
+    this.power = id && this.powerPrice(id) ? id : null;
+    if (id) sound('golden');
+    this.arsenal?.setArmed(this.power);
+    if (this.bar instanceof ConsoleControls) this.bar.setArmed(this.power ? POWER_NAMES[this.power] : null);
+    this.refreshPanel();
+    this.idleStatus();
   }
 
   /** A quick bet on the console: this bet per ball. */
@@ -402,7 +450,7 @@ export class Game extends Container {
 
   private refreshPanel(): void {
     this.bar.setBalance(this.money(Math.max(0, round2(this.balance - this.pendingWins))));
-    this.bar.setTotalBet(this.money(round2(this.bet * this.balls)));
+    this.bar.setTotalBet(this.money(this.roundCost()));
     this.bar.setWin(this.money(this.roundWin));
     this.bar.setRisk(RISKS[this.risk]);
     this.bar.setBalls(this.balls, this.money(this.bet));
@@ -411,7 +459,7 @@ export class Game extends Container {
 
   private idleStatus(): void {
     this.statusTimer?.kill();
-    if (!this.busy()) this.board.setStatus('PLAY ' + this.money(round2(this.bet * this.balls)));
+    if (!this.busy()) this.board.setStatus((this.power ? POWER_NAMES[this.power] + ' · ' : '') + 'PLAY ' + this.money(this.roundCost()));
   }
 
   /** A message for a few seconds, then back to the price of a play. */
@@ -464,7 +512,7 @@ export class Game extends Container {
       if (!this.holding && this.queuedTaps < 3) this.queuedTaps++;
       return null;
     }
-    const cost = round2(this.bet * this.balls);
+    const cost = this.roundCost();
     if (this.balance < cost) {
       this.flashStatus('NOT ENOUGH CREDIT', 2);
       return null;
@@ -487,7 +535,9 @@ export class Game extends Container {
     if (!this.holding) this.board.setStatus('PLAYING...');
     let round: Round;
     try {
-      round = await playRound(this.rows, this.risk, this.bet, this.balls);
+      round = await playRound(this.rows, this.risk, this.bet, this.balls, this.power);
+      // a power-up is for one round
+      if (this.power) this.arm(null);
     } catch (error) {
       this.requesting = false;
       this.queuedTaps = 0;
@@ -608,6 +658,10 @@ export class Game extends Container {
           this.bar.setPlaying(true, this.holding, this.ballsLeft);
         },
       }, round.paths?.[i] ?? null, mega, { holes: before, smash }));
+      // cluster shells: the two decoys fall with it and fizzle in their own slots
+      for (const decoy of round.decoys?.[i] ?? []) {
+        drops.push(this.board.dropBall(decoy, {}, null, 1, { decoy: true }));
+      }
     }
     await Promise.all(drops);
     this.board.combo(0);

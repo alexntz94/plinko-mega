@@ -84,7 +84,8 @@ public class BonusService {
                 bonus.gates() == null ? BonusSettings.OFF.gates() : bonus.gates(),
                 bonus.wheel() == null ? BonusSettings.OFF.wheel() : bonus.wheel(),
                 bonus.megaWheel() == null ? BonusSettings.OFF.megaWheel() : bonus.megaWheel(),
-                bonus.megaBall() == null ? BonusSettings.OFF.megaBall() : bonus.megaBall());
+                bonus.megaBall() == null ? BonusSettings.OFF.megaBall() : bonus.megaBall(),
+                bonus.arsenal() == null ? BonusSettings.OFF.arsenal() : bonus.arsenal());
     }
 
     public String toJson(BonusSettings bonus) {
@@ -401,6 +402,84 @@ public class BonusService {
     /** One of `count` gate layouts, every one equally likely. */
     public int rollLayout(int count) {
         return random.nextInt(count);
+    }
+
+    /** The power-ups a round can be bought with. */
+    public static final java.util.List<String> POWERS = java.util.List.of("heavy", "cluster");
+
+    /**
+     * What each prize position of this table is worth to one ball per unit of bet, all features included (its prize
+     * times the average gate boost of its two slots times the MEGA BALL factor, again times the wheel when it is a SPIN
+     * position, plus what it puts towards a MEGA SPIN): the table's total RTP is the sum of these times their chances.
+     * megaBall: the MEGA BALL factor to use (1 + share * (E - 1) normally; E for a ball that is always one).
+     */
+    static double[] positionValues(BonusSettings bonus, OddsTable table, double megaBall) {
+        int rows = table.rows(), n = table.prizes().size();
+        double boost = bonus.gatesOn() ? bonus.gates().boost().doubleValue() : 1;
+        double wheel = bonus.wheelOn() ? expected(bonus.wheel()).doubleValue() : 0;
+        double gold = bonus.meterOn() ? bonus.meter().potShare().doubleValue() / 100 * expected(bonus.megaWheel()).doubleValue() : 0;
+        double[] value = new double[n];
+        for (int i = 0; i < n; i++) {
+            int left = PlinkoBoard.leftSlot(rows, i), right = PlinkoBoard.rightSlot(rows, i);
+            double gates = bonus.gatesOn() ? (MegaBoard.gateFactor(rows, left, boost) + MegaBoard.gateFactor(rows, right, boost)) / 2 : 1;
+            value[i] = table.prizes().get(i).multiplier().doubleValue() * gates * megaBall
+                    * (1 + (bonus.wheelOn() && i == MegaBoard.spinPrizeIndex(rows) ? wheel : 0))
+                    + (chargesMeter(bonus, rows, table.risk(), i) ? gold : 0);
+        }
+        return value;
+    }
+
+    /**
+     * What a ball with this power-up costs, as a multiple of the bet, on this table: what the power-up's ball is worth
+     * over what a plain ball is worth, rounded up to the cent (so a bought round returns at most the target RTP). heavy:
+     * the MEGA BALL is certain; cluster: the ball lands three times and is paid on the landing with the best prize (the
+     * prize positions ordered by multiplier, then by position), so its position is the best of three draws.
+     */
+    public static BigDecimal powerPrice(BonusSettings bonus, OddsTable table, String power) {
+        int n = table.prizes().size();
+        double plainBall = bonus.megaBallOn() ? megaBallFactor(bonus).doubleValue() : 1;
+        double[] plain = positionValues(bonus, table, plainBall);
+        double[] p = new double[n];
+        double normal = 0;
+        for (int i = 0; i < n; i++) {
+            p[i] = table.prizes().get(i).probability().doubleValue() / 100;
+            normal += p[i] * plain[i];
+        }
+        double powered = 0;
+        if ("heavy".equals(power)) {
+            double[] heavy = positionValues(bonus, table, expected(bonus.megaBall()).doubleValue());
+            for (int i = 0; i < n; i++) {
+                powered += p[i] * heavy[i];
+            }
+        } else if ("cluster".equals(power)) {
+            Integer[] order = clusterOrder(table);
+            double below = 0;
+            for (int k = 0; k < n; k++) {
+                int i = order[k];
+                double upTo = below + p[i];
+                powered += (Math.pow(upTo, 3) - Math.pow(below, 3)) * plain[i];
+                below = upTo;
+            }
+        } else {
+            throw new IllegalArgumentException("unknown power-up " + power);
+        }
+        return BigDecimal.valueOf(powered / normal).setScale(2, RoundingMode.CEILING);
+    }
+
+    /** The prize positions from the worst to the best landing for a cluster shell: by prize, then by position. */
+    public static Integer[] clusterOrder(OddsTable table) {
+        Integer[] order = new Integer[table.prizes().size()];
+        for (int i = 0; i < order.length; i++) {
+            order[i] = i;
+        }
+        java.util.Arrays.sort(order, java.util.Comparator.<Integer, BigDecimal>comparing(i -> table.prizes().get(i).multiplier())
+                .thenComparing(i -> i));
+        return order;
+    }
+
+    /** What a round with this power-up costs: bet x balls x the power's price, rounded up to the cent. */
+    public static BigDecimal powerCost(BigDecimal bet, int balls, BigDecimal price) {
+        return bet.multiply(BigDecimal.valueOf(balls)).multiply(price).setScale(2, RoundingMode.CEILING);
     }
 
     /** Whether a ball drops as a MEGA BALL, and its multiplier's index if so (-1: a plain ball). */

@@ -15,7 +15,9 @@ export interface Segment { name?: string | null; multiplier: number }
 export interface MegaConfig { gates: Record<string, number[][]>; spinSlots: Record<string, number[]>; gateBoost?: number | null;
   wheel?: Segment[] | null; megaWheel?: Segment[] | null;
   /** per rows count, the rows where a MEGA BALL smashes the peg it hits (none: MEGA BALLs off) */
-  smashRows?: Record<string, number[]> }
+  smashRows?: Record<string, number[]>;
+  /** the power-ups on sale: per power, what a ball costs with it (x the bet) per board ("rows:risk") */
+  powers?: Record<string, Record<string, number>> }
 /** A wheel spin: the paid ball whose SPIN slot started it, the segment it stopped on, what that pays and the win. */
 export interface Spin { ball: number; segment: number; multiplier: number; win: number }
 /** A MEGA SPIN of the gold wheel, paid by a full meter: its stake (the pot), the segment, what that pays and the win. */
@@ -45,7 +47,9 @@ export interface Round { roundId: string; slots: number[]; multipliers: number[]
    *  the ball's) */
   paths?: number[]; gates?: number[]; spins?: Spin[]; megaSpins?: MegaSpin[]; megaBalls?: MegaBall[];
   /** where this round's gates stood ([step, from, to] per bar): they move every round */
-  gateLayout?: number[][] }
+  gateLayout?: number[][];
+  /** the power-up the round was bought with, and for cluster shells each ball's two decoy landings */
+  power?: string | null; decoys?: number[][] }
 /** Paid ball `ball` was a MEGA BALL that multiplied its win by `multiplier`. */
 export interface MegaBall { ball: number; multiplier: number }
 export interface ApiError { status: number; code: string; message?: string; balance?: number }
@@ -125,8 +129,9 @@ export function resumeSession(): Promise<Session> {
  * the round it already played instead of taking a second bet (review 2.3). While the first copy is still being played
  * (a slow wallet), the server says so and the same request is asked again, for up to 30 seconds (N14.6).
  */
-export async function playRound(rows: number, risk: number, bet: number, balls: number): Promise<Round> {
-  const body = { rows, risk, bet, balls, requestId: newRequestId() };
+/** power: a power-up bought for this round (heavy, cluster), or none. */
+export async function playRound(rows: number, risk: number, bet: number, balls: number, power: string | null = null): Promise<Round> {
+  const body = { rows, risk, bet, balls, requestId: newRequestId(), ...(power ? { power } : {}) };
   let round: Round;
   try {
     round = await request<Round>('/play', body);

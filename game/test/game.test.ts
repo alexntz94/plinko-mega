@@ -183,7 +183,7 @@ describe('the balance shown is the server\'s (review 5.7 #5)', () => {
     play.mockResolvedValueOnce(answer);
     actions.play();
     await vi.advanceTimersByTimeAsync(0);
-    expect(play).toHaveBeenCalledWith(8, 0, 1, 100);
+    expect(play).toHaveBeenCalledWith(8, 0, 1, 100, null);
     // the bet is gone, the win not yet: it shows as the balls land
     expect(credit()).toBe('€' + (500 - 100).toFixed(2));
     const shownBefore = credits().length;
@@ -359,7 +359,7 @@ describe('bet steps, ½ and 2X (review 5.7 #3)', () => {
     play.mockResolvedValueOnce(round(1000, 0.2, [0]));
     actions.play();
     await vi.advanceTimersByTimeAsync(0);
-    expect(play).toHaveBeenCalledWith(8, 0, 0.2, 1);
+    expect(play).toHaveBeenCalledWith(8, 0, 0.2, 1, null);
   });
 
   it('the price of a play is the bet times the balls', async () => {

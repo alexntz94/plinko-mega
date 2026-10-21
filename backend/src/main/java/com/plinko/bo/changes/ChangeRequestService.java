@@ -294,7 +294,9 @@ public class ChangeRequestService {
         String megaBall = !settings.megaBallOn() ? "MEGA BALL off"
                 : "MEGA BALL " + settings.megaBall().chance().stripTrailingZeros().toPlainString() + "% of balls, "
                 + segments(new BonusSettings.Wheel(true, settings.megaBall().multipliers()));
-        return meter + "; " + gates + "; " + wheel + "; " + megaBall;
+        String arsenal = settings.arsenal() == null ? "arsenal off"
+                : "arsenal: heavy " + (settings.arsenal().heavy() ? "on" : "off") + ", cluster " + (settings.arsenal().cluster() ? "on" : "off");
+        return meter + "; " + gates + "; " + wheel + "; " + megaBall + "; " + arsenal;
     }
 
     /** A wheel's segments for the change's description: "2x 26%, MEGA 1000x 0.25%, ...". */

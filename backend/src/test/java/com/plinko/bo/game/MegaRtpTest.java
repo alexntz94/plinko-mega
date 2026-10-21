@@ -174,4 +174,66 @@ class MegaRtpTest {
         System.out.printf("rounds with a wheel spin: %.1f%%, MEGA BALLs per round: %.2f%n", 100.0 * roundsWithSpin / played,
                 (double) megaBalls / played);
     }
+
+    /**
+     * A round bought with a power-up returns the table's total RTP on what it cost (bet x balls x price), never more:
+     * its price is what the power's ball is worth over a plain one, rounded up to the cent.
+     */
+    @Test
+    void powerUpRoundsReturnTheApprovedTotalRtpOnWhatTheyCost() {
+        OddsService odds = TestOdds.with(MEGA, TestFixtures.properties());
+        RoundDraw.Dice dice = new RoundDraw.Dice() {
+            public int slot(OddsTable t) {
+                return odds.pickSlot(t);
+            }
+
+            public int path(int rows, int slot) {
+                return bonus.rollPath(rows, slot);
+            }
+
+            public int segment(BonusSettings.Wheel wheel) {
+                return bonus.rollSegment(wheel);
+            }
+
+            public int megaBall(BonusSettings.MegaBall megaBall) {
+                return bonus.rollMegaBall(megaBall);
+            }
+
+            public int path(int rows, int slot, java.util.Set<Integer> holes) {
+                return bonus.rollPath(rows, slot, holes);
+            }
+        };
+        int rounds = 20_000, batches = 100, perBatch = rounds / batches;
+        for (String power : BonusService.POWERS) {
+            for (int[] board : new int[][] {{8, 0}, {8, 2}, {12, 1}, {14, 2}}) {
+                OddsTable table = odds.forTargetRtp(board[0], board[1], TARGET, MEGA);
+                BigDecimal price = BonusService.powerPrice(MEGA, table, power);
+                BigDecimal cost = BonusService.powerCost(BET, BALLS, price);
+                RoundDraw.MeterBefore meter = new RoundDraw.MeterBefore(0, BigDecimal.ZERO, "start");
+                double[] batch = new double[batches];
+                for (int round = 0; round < rounds; round++) {
+                    RoundDraw.Result r = RoundDraw.draw(table, MEGA, BET, BALLS, meter, new BigDecimal("100000000"), dice,
+                            new RoundDraw.Power(power, price));
+                    batch[round / perBatch] += r.totalWin().doubleValue() / cost.doubleValue() / perBatch;
+                    meter = new RoundDraw.MeterBefore(r.chargesAfter(), r.potAfter(), "r" + round);
+                    if ("heavy".equals(power)) {
+                        assertThat(r.megaBalls()).hasSize(BALLS);
+                    } else {
+                        assertThat(r.decoys()).hasSize(BALLS);
+                    }
+                }
+                double owed = meter.pot().doubleValue() * BonusService.expected(MEGA.megaWheel()).doubleValue() / (rounds * cost.doubleValue());
+                double mean = 0, squares = 0;
+                for (double b : batch) {
+                    mean += b / batches;
+                    squares += b * b / batches;
+                }
+                double error = Math.sqrt(Math.max(squares - mean * mean, 0) / batches);
+                double approved = BonusService.totalRtp(table, MEGA).doubleValue() / 100;
+                System.out.printf("%s %d rows risk %d: price x%s, measured %.4f, approved %.4f%n", power, board[0], board[1], price, mean + owed, approved);
+                assertThat(Math.abs(mean + owed - approved)).as("%s %d rows risk %d: measured %.4f approved %.4f", power, board[0], board[1],
+                        mean + owed, approved).isLessThanOrEqualTo(SIGMAS * error + 2e-3);
+            }
+        }
+    }
 }

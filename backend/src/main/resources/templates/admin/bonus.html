@@ -124,6 +124,20 @@
             <p class="muted small" th:text="|A MEGA BALL multiplies its ball's win by ${megaBallPays} on average. Up to 10 multipliers; weights must add up to 100%.|"></p>
         </div>
 
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <h2>Arsenal (power-ups players buy)</h2>
+                    <p class="muted">A player can buy one power-up for a round. Each is priced per board and risk so the round still returns the table's RTP (prices are worked out by the server; the round costs bet x balls x the price). Some markets do not allow paid features: switch them off there.</p>
+                </div>
+            </div>
+            <input type="hidden" name="arsenalShown" value="true">
+            <div class="form-row">
+                <label class="check-row"><input type="checkbox" name="heavyOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().heavy()}"> Heavy shells: every ball is a MEGA BALL</label>
+                <label class="check-row"><input type="checkbox" name="clusterOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().cluster()}"> Cluster shells: every ball lands three times, the best landing pays</label>
+            </div>
+        </div>
+
         <div class="card-actions" sec:authorize="hasRole('OPERATOR')">
             <span class="muted small">Proposing rebuilds all 21 odds tables so each keeps its total RTP, gates, wheels and MEGA BALLs included.</span>
             <button type="submit" th:disabled="${pending != null}" data-confirm="Propose these bonus settings? They apply only after another admin approves.">Propose change</button>

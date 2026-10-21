@@ -620,7 +620,7 @@ export class Board extends Container {
    * exactly `slot` go right, in random order, so every ball looks different but always lands where it must.
    */
   dropBall(slot: number, events: { onPeg?: (peg: PegHit) => void; onLand?: (landing: Landing) => void } = {},
-           path: number | null = null, mega = 1, pegs: { holes?: Set<number>; smash?: Set<number> } = {}): Promise<void> {
+           path: number | null = null, mega = 1, pegs: { holes?: Set<number>; smash?: Set<number>; decoy?: boolean } = {}): Promise<void> {
     const holes = pegs.holes ?? new Set<number>();
     const smash = pegs.smash ?? new Set<number>();
     const rows = this.rows;
@@ -648,6 +648,7 @@ export class Board extends Container {
 
     const ball = new Sprite({ texture: this.ballTexture, anchor: 0.5 });
     ball.position.set(0, 0);
+    if (pegs.decoy) { ball.alpha = 0.55; ball.tint = '#9aa0a6'; }
     this.ballLayer.addChild(ball);
     // a MEGA BALL: gold, bigger, on fire from the start, its multiplier riding with it
     // a theme with its own board: the ball sized to its pegs' gap (a ball fills about 62% of the gap between two pegs)
@@ -683,7 +684,7 @@ export class Board extends Container {
       // bursts in at the top through a ring of light, and falls onto the first peg, speeding up
       ball.alpha = 0;
       timeline.call(() => this.launch(points[0].y - PEG_SPACING * 0.9));
-      timeline.to(ball, { alpha: 1, duration: 0.12 });
+      timeline.to(ball, { alpha: pegs.decoy ? 0.55 : 1, duration: 0.12 });
       timeline.fromTo(ball.scale, { x: 0.2, y: 0.2 }, { x: size, y: size, duration: 0.25, ease: 'back.out(3)' }, 0);
       timeline.to(flight, { y: points[0].y, duration: 0.34, ease: 'power2.in' }, 0);
       timeline.call(() => this.touchPeg(ball, 0, 0, events.onPeg, flight.size));
@@ -755,6 +756,11 @@ export class Board extends Container {
           ball.rotation = this.spin(flight.x, radius);
           if (!entered && flight.y > slotTop - radius * 0.3) {
             entered = true;
+            if (pegs.decoy) {
+              // a cluster decoy: it fizzles in its slot, it pays nothing
+              this.particles.burst(this.slotX(slot), slotTop, ['#8b939b', '#ff8a1a'], 6, 160);
+              return;
+            }
             this.slots[slot]?.hit();
             this.landingEffect(slot, prizeIndexOfSlot(rows, slot), gateBoost * mega);
             if (mega > 1) this.megaLanding(this.slotX(slot), slotTop, mega);

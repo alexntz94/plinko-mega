@@ -14,6 +14,8 @@ export interface ConsoleLook { gold: string; text: string; ink: string }
 export interface ConsoleActions extends MegaActions {
   /** a quick bet: this bet per ball */
   pickBet(value: number): void;
+  /** opens the ARSENAL (the power-ups) */
+  arsenal(): void;
 }
 /** Where the console's three areas are on the screen, in the controls' parent's coordinates (wide screens). */
 export interface ConsoleRects { left: Rectangle; centre: Rectangle; right: Rectangle; credits: Rectangle }
@@ -111,6 +113,7 @@ export class ConsoleControls extends Container {
   private readonly turboKey: Key;
   private readonly bumpKey: Key;
   private readonly rowsKey: Key;
+  private readonly arsenalKey: Key;
   private readonly rowsDown: Key;
   private readonly rowsUp: Key;
   private readonly rowsShown: Readout;
@@ -143,6 +146,7 @@ export class ConsoleControls extends Container {
     this.bumpKey = key('⚡', () => actions.bump());
     // the board's rows: a tap goes to the next size (the game wraps from the largest back to the smallest)
     this.rowsKey = key('ROWS 8', () => actions.rows(1));
+    this.arsenalKey = key('ARSENAL', () => actions.arsenal());
     // wide screens: ROWS ◀ 8 ▶ under the bet
     this.rowsDown = key('◀', () => actions.rows(-1));
     this.rowsUp = key('▶', () => actions.rows(1));
@@ -150,7 +154,7 @@ export class ConsoleControls extends Container {
     this.credits = new Readout(art.panel, 'CREDITS', look);
     this.win = new Readout(art.panel, 'WIN', look);
     this.addChild(this.credits, this.win, this.betMinus, this.bet, this.betPlus, ...this.quick, this.ballsMinus, this.balls, this.ballsPlus,
-      ...this.risks, this.auto, this.turboKey, this.rowsKey, this.bumpKey, this.rowsDown, this.rowsShown, this.rowsUp, this.drop);
+      ...this.risks, this.auto, this.turboKey, this.rowsKey, this.bumpKey, this.arsenalKey, this.rowsDown, this.rowsShown, this.rowsUp, this.drop);
     this.bumpKey.setEnabled(false);
   }
 
@@ -191,7 +195,8 @@ export class ConsoleControls extends Container {
     y += unit * 1.1;
     this.spread(this.risks, x0, w, y, rowH * 0.85);
     y += unit;
-    this.spread([this.auto, this.turboKey, this.rowsKey, this.bumpKey], x0, w, y, rowH * 0.8);
+    this.spread([this.auto, this.turboKey, this.rowsKey, this.arsenalKey], x0, w, y, rowH * 0.8);
+    this.bumpKey.visible = false;
     y += unit * 1.55;
     this.drop.position.set(view.stageW / 2, y); this.drop.size(w * 0.8, Math.min(unit * 1.9, w * 0.3));
     this.drop.text.style.fontSize = Math.round(Math.min(unit * 0.8, 52));
@@ -209,8 +214,9 @@ export class ConsoleControls extends Container {
     this.row(this.rowsDown, this.rowsShown, this.rowsUp, left.x, left.width, left.y + left.height * 0.76, rowH * 0.85);
     this.row(this.ballsMinus, this.balls, this.ballsPlus, right.x, right.width * 0.62, right.y + right.height * 0.27, rowH);
     this.spread(this.risks, right.x, right.width * 0.62, right.y + right.height * 0.76, rowH * 0.85);
-    this.spreadKeys([this.auto, this.turboKey, this.bumpKey], right.x + right.width * 0.64, right.width * 0.36,
-      right.y + right.height * 0.5, rowH * 0.62, true);
+    this.bumpKey.visible = true;
+    this.spreadKeys([this.auto, this.turboKey, this.arsenalKey, this.bumpKey], right.x + right.width * 0.64, right.width * 0.36,
+      right.y + right.height * 0.5, rowH * 0.5, true);
     this.drop.position.set(centre.x + centre.width / 2, centre.y + centre.height / 2);
     this.drop.size(centre.width * 1.04, centre.height * 1.1);
     this.drop.text.style.fontSize = Math.round(centre.height * 0.5);
@@ -255,6 +261,13 @@ export class ConsoleControls extends Container {
     this.bet.set(perBall);
     this.quick.forEach((k, i) => k.setLit(perBall.replace(/[^0-9.]/g, '') === String(this.quickValues[i].toFixed(2)), this.look));
   }
+  /** The armed power-up (its short name), lit on the ARSENAL key; null: none. */
+  setArmed(name: string | null): void {
+    this.arsenalKey.text.text = name ?? 'ARSENAL';
+    this.arsenalKey.setLit(name !== null, this.look);
+    fit(this.arsenalKey.text, this.arsenalKey.art.width * 0.8);
+  }
+
   setRows(rows: number): void {
     this.rowsShown.set(String(rows));
     this.rowsKey.text.text = `ROWS ${rows}`;
@@ -274,6 +287,6 @@ export class ConsoleControls extends Container {
     fit(this.drop.text, this.drop.art.width * 0.7);
     this.auto.setLit(auto, this.look);
     this.bumpKey.setEnabled(left > 0);
-    for (const k of [this.betMinus, this.betPlus, this.ballsMinus, this.ballsPlus, this.rowsKey, this.rowsDown, this.rowsUp, ...this.quick, ...this.risks]) k.setEnabled(!busy);
+    for (const k of [this.betMinus, this.betPlus, this.ballsMinus, this.ballsPlus, this.rowsKey, this.rowsDown, this.rowsUp, this.arsenalKey, ...this.quick, ...this.risks]) k.setEnabled(!busy);
   }
 }

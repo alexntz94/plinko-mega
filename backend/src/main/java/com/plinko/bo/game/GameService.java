@@ -77,7 +77,8 @@ public class GameService {
      * and the gold wheel's segments (null: off).
      */
     public record MegaConfig(Map<String, List<List<Integer>>> gates, Map<String, List<Integer>> spinSlots, BigDecimal gateBoost,
-                             List<SegmentView> wheel, List<SegmentView> megaWheel, Map<String, List<Integer>> smashRows) {
+                             List<SegmentView> wheel, List<SegmentView> megaWheel, Map<String, List<Integer>> smashRows,
+                             Map<String, Map<String, BigDecimal>> powers) {
     }
 
     /** A wheel segment as the game shows it: what it pays, and its jackpot name (null for a plain segment). */
@@ -101,9 +102,14 @@ public class GameService {
     }
 
     /** requestId: the game's id for this tap (optional, a UUID): a repeat returns the round already played (review 2.3). */
-    public record PlayRequest(Integer rows, Integer risk, BigDecimal bet, Integer balls, String requestId) {
+    /** power: a power-up bought for this round (heavy, cluster), or null. */
+    public record PlayRequest(Integer rows, Integer risk, BigDecimal bet, Integer balls, String requestId, String power) {
+        public PlayRequest(Integer rows, Integer risk, BigDecimal bet, Integer balls, String requestId) {
+            this(rows, risk, bet, balls, requestId, null);
+        }
+
         public PlayRequest(Integer rows, Integer risk, BigDecimal bet, Integer balls) {
-            this(rows, risk, bet, balls, null);
+            this(rows, risk, bet, balls, null, null);
         }
     }
 
@@ -120,7 +126,7 @@ public class GameService {
                                BigDecimal totalWin, BigDecimal balance,
                                MeterView meter, List<BigDecimal> wins,
                                List<Integer> paths, List<Integer> gates, List<SpinView> spins, List<MegaSpinView> megaSpins,
-                               List<MegaBallView> megaBalls, List<List<Integer>> gateLayout) {
+                               List<MegaBallView> megaBalls, List<List<Integer>> gateLayout, String power, List<List<Integer>> decoys) {
     }
 
     private final GameRepository repository;
@@ -276,7 +282,25 @@ public class GameService {
         SettingsService.GameFeatures features = now.features();
         return new GameConfig(limits.minBet(), limits.maxBet(), limits.defaultBet(), limits.maxBalls(), rows,
                 features.holdToDrop(), features.sessionClock(), features.realityCheckMinutes(), features.quietSmallWins(),
-                features.minRoundSeconds(), megaConfig(bonus.current()));
+                features.minRoundSeconds(), withPowers(megaConfig(bonus.current()), bonus.current()));
+    }
+
+    /** The power-ups on sale and their prices (x the bet, per ball) for every board and risk ("rows:risk"). */
+    private MegaConfig withPowers(MegaConfig mega, BonusSettings settings) {
+        Map<String, Map<String, BigDecimal>> powers = new java.util.TreeMap<>();
+        for (String power : BonusService.POWERS) {
+            if (!settings.powerOn(power)) {
+                continue;
+            }
+            Map<String, BigDecimal> prices = new java.util.TreeMap<>();
+            for (int rows = PlinkoBoard.MIN_ROWS; rows <= PlinkoBoard.MAX_ROWS; rows++) {
+                for (int risk = 0; risk < PlinkoBoard.RISK_LEVELS; risk++) {
+                    prices.put(rows + ":" + risk, BonusService.powerPrice(settings, odds.get(rows, risk), power));
+                }
+            }
+            powers.put(power, prices);
+        }
+        return new MegaConfig(mega.gates(), mega.spinSlots(), mega.gateBoost(), mega.wheel(), mega.megaWheel(), mega.smashRows(), powers);
     }
 
     static MegaConfig megaConfig(BonusSettings settings) {
@@ -291,7 +315,7 @@ public class GameService {
         }
         return new MegaConfig(gates, spinSlots, settings.gatesOn() ? settings.gates().boost().stripTrailingZeros() : null,
                 settings.wheelOn() ? segments(settings.wheel()) : null, settings.meterOn() ? segments(settings.megaWheel()) : null,
-                settings.megaBallOn() ? smashRows : Map.of());
+                settings.megaBallOn() ? smashRows : Map.of(), Map.of());
     }
 
     private static List<SegmentView> segments(BonusSettings.Wheel wheel) {
@@ -371,7 +395,8 @@ public class GameService {
      * (c) after the payment.
      */
     /** The odds and limits a round is played on, checked before anything is written. */
-    private record Setup(OddsTable table, Long oddsRef, BonusSettings bonus, BigDecimal bet, BigDecimal totalBet, BigDecimal maxWin) {
+    private record Setup(OddsTable table, Long oddsRef, BonusSettings bonus, BigDecimal bet, BigDecimal totalBet, BigDecimal maxWin,
+                         RoundDraw.Power power) {
     }
 
     /**
@@ -394,7 +419,8 @@ public class GameService {
             MeterState state = meterState(player.id());
             meterBefore = new RoundDraw.MeterBefore(state.charges(), state.pot(), state.round() != null ? state.round() : "start-" + player.id());
         }
-        RoundDraw.Result drawn = RoundDraw.draw(setup.table(), setup.bonus(), setup.bet(), request.balls(), meterBefore, setup.maxWin(), dice);
+        RoundDraw.Result drawn = RoundDraw.draw(setup.table(), setup.bonus(), setup.bet(), request.balls(), meterBefore, setup.maxWin(), dice,
+                setup.power());
 
         String signature = signer.sign(roundId, player.id(), request.rows(), request.risk(), setup.bet(), request.balls(), setup.totalBet(),
                 drawn.totalWin(), player.currency(), drawn.slotText(), drawn.multiplierText(), drawn.bonusText(), setup.oddsRef(), setup.maxWin());
@@ -408,7 +434,7 @@ public class GameService {
                 drawn.spins().stream().map(x -> new SpinView(x.ball(), x.segment(), x.multiplier(), x.win())).toList(),
                 drawn.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier(), x.win())).toList(),
                 drawn.megaBalls().stream().map(x -> new MegaBallView(x.ball(), x.multiplier())).toList(),
-                layoutView(setup.table().rows(), drawn.layout()));
+                layoutView(setup.table().rows(), drawn.layout()), setup.power() == null ? null : setup.power().name(), drawn.decoys());
     }
 
     /** The odds table and bonuses in force, the round's cost, and the hard win limit (a bet that could exceed it is refused). */
@@ -422,14 +448,29 @@ public class GameService {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "GAME_DISABLED", "The game is temporarily unavailable");
         }
         BigDecimal bet = request.bet().setScale(2, RoundingMode.UNNECESSARY);
-        BigDecimal totalBet = bet.multiply(BigDecimal.valueOf(request.balls()));
+        // a power-up: on sale with these bonuses, priced on this table; the round costs bet x balls x its price
+        RoundDraw.Power power = null;
+        if (request.power() != null) {
+            if (!current.bonus().powerOn(request.power())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "POWER_UNAVAILABLE", "This power-up is not on sale");
+            }
+            power = new RoundDraw.Power(request.power(), BonusService.powerPrice(current.bonus(), table, request.power()));
+        }
+        BigDecimal totalBet = power == null ? bet.multiply(BigDecimal.valueOf(request.balls()))
+                : BonusService.powerCost(bet, request.balls(), power.price());
         // the hard limit in force now: recorded with the round, so a later change never blocks or raises this round's win
         BigDecimal maxWin = properties.limits().maxWinPerRound().setScale(2, RoundingMode.DOWN);
-        // one ball on the top prize must stay within the limit; many balls together are cut to it when the round is paid
-        if (bet.multiply(table.maxMultiplier()).compareTo(maxWin) > 0) {
+        // one ball on the top prize must stay within the limit (a heavy shell's at its biggest MEGA BALL); many balls
+        // together are cut to it when the round is paid
+        BigDecimal topBall = bet.multiply(table.maxMultiplier());
+        if (power != null && "heavy".equals(power.name())) {
+            topBall = topBall.multiply(current.bonus().megaBall().multipliers().stream().map(BonusSettings.Segment::multiplier)
+                    .max(BigDecimal::compareTo).orElse(BigDecimal.ONE));
+        }
+        if (topBall.compareTo(maxWin) > 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "BET_TOO_HIGH", "Bet exceeds the maximum win per round");
         }
-        return new Setup(table, oddsRef, current.bonus(), bet, totalBet, maxWin);
+        return new Setup(table, oddsRef, current.bonus(), bet, totalBet, maxWin, power);
     }
 
     /** The player's round lock, the session kept alive, the round and its bet: one transaction. */
@@ -600,8 +641,11 @@ public class GameService {
      * new bet. The same id with a different bet is refused; a round still being played or not played says so.
      */
     private PlayResponse repeated(GameRepository.Round round, PlayRequest request, GameRepository.Player player) {
+        // the power-up bought with it (a round still being played has no outcome yet: its total bet tells)
+        String stored = round.slots() == null ? (round.totalBet().compareTo(round.bet().multiply(BigDecimal.valueOf(round.balls()))) == 0
+                ? null : request.power()) : RoundWin.parse(round.slots(), round.multipliers(), round.bonus()).power();
         if (round.rows() != request.rows() || round.risk() != request.risk() || round.balls() != request.balls()
-                || round.bet().compareTo(request.bet()) != 0) {
+                || round.bet().compareTo(request.bet()) != 0 || !java.util.Objects.equals(stored, request.power())) {
             throw new ApiException(HttpStatus.CONFLICT, "REQUEST_MISMATCH", "This request id was already used for a different bet");
         }
         switch (round.status()) {
@@ -641,7 +685,7 @@ public class GameService {
                 outcome.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier().stripTrailingZeros(),
                         RoundWin.ball(x.stake(), x.multiplier()))).toList(),
                 outcome.megaBalls().stream().map(x -> new MegaBallView(x.ball(), x.multiplier().stripTrailingZeros())).toList(),
-                layoutView(round.rows(), outcome.layout()));
+                layoutView(round.rows(), outcome.layout()), outcome.power(), outcome.decoys());
     }
 
     /** (c) the credit's answer, the round's status, the player's balance and the round lock released: one transaction. */
@@ -792,6 +836,9 @@ public class GameService {
         }
         if (request.bet().stripTrailingZeros().scale() > 2) {
             throw invalid("bet can have at most 2 decimals");
+        }
+        if (request.power() != null && !BonusService.POWERS.contains(request.power())) {
+            throw invalid("power must be one of " + BonusService.POWERS);
         }
         if (request.requestId() != null && !REQUEST_ID.matcher(request.requestId()).matches()) {
             throw invalid("requestId must be a UUID");

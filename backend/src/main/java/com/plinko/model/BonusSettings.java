@@ -13,17 +13,34 @@ import java.util.List;
  * @param wheel     a ball landing in a SPIN slot also spins the wheel, which pays its win again times the segment (null: off)
  * @param megaWheel the gold wheel a full meter spins: it pays the pot times the segment
  * @param megaBall  some balls drop as a MEGA BALL that multiplies whatever that ball wins (null: off)
+ * @param arsenal   the power-ups a player can buy for a round (null: none)
  */
-public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWheel, MegaBall megaBall) {
+public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWheel, MegaBall megaBall, Arsenal arsenal) {
+
+    /** Without the arsenal. */
+    public BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWheel, MegaBall megaBall) {
+        this(meter, gates, wheel, megaWheel, megaBall, null);
+    }
+
+    /**
+     * The power-ups a player can buy for one round, each priced so the round still returns the target RTP:
+     * heavy: every ball is a MEGA BALL; cluster: every ball splits into three and pays the best landing.
+     */
+    public record Arsenal(boolean heavy, boolean cluster) {
+    }
+
+    public boolean powerOn(String power) {
+        return arsenal != null && ("heavy".equals(power) ? arsenal.heavy() : "cluster".equals(power) && arsenal.cluster());
+    }
 
     /** Only the meter; a full meter spins the standard gold wheel. */
     public BonusSettings(Meter meter) {
-        this(meter, null, null, GOLD_WHEEL, null);
+        this(meter, null, null, GOLD_WHEEL, null, null);
     }
 
     /** Without MEGA BALLs. */
     public BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWheel) {
-        this(meter, gates, wheel, megaWheel, null);
+        this(meter, gates, wheel, megaWheel, null, null);
     }
 
     /**
@@ -67,13 +84,13 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
             new Gates(false, new BigDecimal("1.5")),
             new Wheel(false, wheel(
                     "1", "66", "2", "22", "3", "7.5", "5", "4", "MINI:50", "0.35", "MAJOR:100", "0.12", "MEGA:500", "0.03")),
-            GOLD_WHEEL, MEGA_BALL);
+            GOLD_WHEEL, MEGA_BALL, new Arsenal(false, false));
 
     /** The starting point before an admin has saved anything: the wheel, MEGA BALLs and the meter's MEGA SPIN on (no gates). */
     public static final BonusSettings MEGA = new BonusSettings(
             new Meter(true, OFF.meter().charges(), OFF.meter().minMultiplier(), OFF.meter().potShare()),
             new Gates(false, OFF.gates().boost()), new Wheel(true, OFF.wheel().segments()), new Wheel(true, OFF.megaWheel().segments()),
-            new MegaBall(true, MEGA_BALL.chance(), MEGA_BALL.multipliers()));
+            new MegaBall(true, MEGA_BALL.chance(), MEGA_BALL.multipliers()), new Arsenal(true, true));
 
     /** Segments from pairs of ("[NAME:]multiplier", "weight"). */
     private static List<Segment> wheel(String... pairs) {

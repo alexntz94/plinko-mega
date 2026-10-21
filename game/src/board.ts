@@ -1068,10 +1068,11 @@ export class Board extends Container {
     this.particles.burst(x, y - 6, ['#3a3d42', '#55595f', '#24272b'], [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
     // debris: dark chunks thrown out and falling back
     if (size >= 1) this.particles.burst(x, y, ['#1a1d21', '#4b5320', '#2b3036'], [0, 6, 10, 16][size], [0, 260, 360, 480][size], 1400);
-    // the theme's explosions: a small hit for small wins, a fireball for good ones, a shell impact for big ones; else
-    // the photo blast; else a flash
-    const kind = (['small', 'small', 'fireball', 'impact'] as const)[size];
-    const shown = kindBlast(this.textLayer, kind, x, size === 3 ? y + 14 : y, [40, 58, 92, 130][size])
+    // the theme's explosions: under 1x sparks, 1x to 2x a dirt burst, 2x to 10x a heavy fireball, 10x and up a
+    // mushroom cloud (the ground ones stand on the slot); else the photo blast; else a flash
+    const kind = (['small', 'impact', 'heavy', 'mushroom'] as const)[size];
+    const ground = kind === 'impact' || kind === 'mushroom';
+    const shown = kindBlast(this.textLayer, kind, x, ground ? y + 12 : y, [48, 64, 104, 150][size])
       || photoBlast(this.textLayer, x, y, [26, 38, 56, 84][size], size >= 1);
     if (!shown) {
       const flash = new Graphics().circle(0, 0, [10, 16, 24, 36][size]).fill('#fff3b0');

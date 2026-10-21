@@ -528,7 +528,7 @@ export class BlastShower extends Container implements Shower {
 
   /** One explosion at (x, y), size about 1 (a wheel win) to 2 (a big win). */
   private blast(x: number, y: number, size: number): void {
-    if (kindBlast(this, size >= 1.9 ? 'mushroom' : size >= 1.2 ? 'heavy' : 'fireball', x, y, 150 * size)) {
+    if (kindBlast(this, size >= 1.9 ? 'mushroom' : size >= 1.2 ? 'heavy' : size >= 0.8 ? 'impact' : 'small', x, y, 150 * size)) {
       this.particles.burst(x, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], Math.round(8 * size), 380 * size, 600);
       return;
     }

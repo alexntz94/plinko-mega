@@ -241,14 +241,12 @@
     "smoke": "blast_smoke.png",
     "kinds": {
       "small": "blast_small.png",
-      "fireball": "blast_fireball.png",
       "napalm": "blast_napalm.png",
       "impact": "blast_impact.png",
       "mushroom": "blast_mushroom.png"
     },
     "sheets": {
       "small": "anim_small.png",
-      "fireball": "anim_fireball.png",
       "heavy": "anim_heavy.png",
       "napalm": "anim_napalm.png",
       "impact": "anim_impact.png",
@@ -259,10 +257,6 @@
       "small": [
         8,
         8
-      ],
-      "fireball": [
-        4,
-        4
       ],
       "heavy": [
         8,

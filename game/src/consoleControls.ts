@@ -200,11 +200,18 @@ export class ConsoleControls extends Container {
     y += unit * 1.55;
     // a wide plate fills the row; a round key (Reactor Drop's RELEASE) keeps its shape, a little taller
     const dropH = Math.min(unit * 1.9, w * 0.3);
-    const ratio = this.drop.art.texture.width / this.drop.art.texture.height;
     this.drop.position.set(view.stageW / 2, y);
-    if (ratio < 1.6) this.drop.size(dropH * 1.3 * ratio, dropH * 1.3);
-    else this.drop.size(w * 0.8, dropH);
-    this.drop.text.style.fontSize = Math.round(Math.min(unit * 0.8, 52));
+    if (this.roundDrop()) {
+      const ratio = this.drop.art.texture.width / this.drop.art.texture.height;
+      this.drop.size(dropH * 1.3 * ratio, dropH * 1.3);
+      this.dropText = 0.44;
+      this.drop.text.style.fontSize = Math.round(Math.min(unit * 0.55, 40));
+    } else {
+      this.drop.size(w * 0.8, dropH);
+      this.dropText = 0.7;
+      this.drop.text.style.fontSize = Math.round(Math.min(unit * 0.8, 52));
+    }
+    fit(this.drop.text, this.drop.art.width * this.dropText);
     this.drop.base = 1;
   }
 
@@ -224,7 +231,10 @@ export class ConsoleControls extends Container {
       right.y + right.height * 0.5, rowH * 0.5, true);
     this.drop.position.set(centre.x + centre.width / 2, centre.y + centre.height / 2);
     this.drop.size(centre.width * 1.04, centre.height * 1.1);
-    this.drop.text.style.fontSize = Math.round(centre.height * 0.5);
+    // a round key's label stays inside its glass (about half its width); a wide plate's fills it
+    this.dropText = this.roundDrop() ? 0.44 : 0.7;
+    this.drop.text.style.fontSize = Math.round(centre.height * (this.roundDrop() ? 0.3 : 0.5));
+    fit(this.drop.text, this.drop.art.width * this.dropText);
     this.credits.position.set(credits.x + credits.width / 2, credits.y + credits.height * 0.27);
     this.credits.size(credits.width, credits.height * 0.5);
     this.win.position.set(credits.x + credits.width / 2, credits.y + credits.height * 0.77);
@@ -266,6 +276,13 @@ export class ConsoleControls extends Container {
     this.bet.set(perBall);
     this.quick.forEach((k, i) => k.setLit(perBall.replace(/[^0-9.]/g, '') === String(this.quickValues[i].toFixed(2)), this.look));
   }
+  /** How much of the DROP key's width its label may take. */
+  private dropText = 0.7;
+  /** Whether the DROP key is round (Reactor Drop's RELEASE) rather than a wide plate. */
+  private roundDrop(): boolean {
+    return this.drop.art.texture.width / this.drop.art.texture.height < 1.6;
+  }
+
   /** What the power-up key says when nothing is armed (the theme's name for its panel). */
   private arsenalName = 'ARSENAL';
   setArsenalName(name: string): void {
@@ -296,7 +313,7 @@ export class ConsoleControls extends Container {
       this.drop.art.alpha = 1;
     }
     this.drop.text.text = auto ? 'STOP' : busy && left > 0 ? `${left} ▸▸` : 'DROP';
-    fit(this.drop.text, this.drop.art.width * 0.7);
+    fit(this.drop.text, this.drop.art.width * this.dropText);
     this.auto.setLit(auto, this.look);
     this.bumpKey.setEnabled(left > 0);
     for (const k of [this.betMinus, this.betPlus, this.ballsMinus, this.ballsPlus, this.rowsKey, this.rowsDown, this.rowsUp, this.arsenalKey, ...this.quick, ...this.risks]) k.setEnabled(!busy);

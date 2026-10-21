@@ -620,7 +620,8 @@ export class Board extends Container {
    * exactly `slot` go right, in random order, so every ball looks different but always lands where it must.
    */
   dropBall(slot: number, events: { onPeg?: (peg: PegHit) => void; onLand?: (landing: Landing) => void } = {},
-           path: number | null = null, mega = 1, pegs: { holes?: Set<number>; smash?: Set<number>; decoy?: boolean } = {}): Promise<void> {
+           path: number | null = null, mega = 1,
+           pegs: { holes?: Set<number>; smash?: Set<number>; decoy?: boolean; quiet?: boolean } = {}): Promise<void> {
     const holes = pegs.holes ?? new Set<number>();
     const smash = pegs.smash ?? new Set<number>();
     const rows = this.rows;
@@ -656,7 +657,8 @@ export class Board extends Container {
     const size = (mega > 1 ? 1.35 : 1) * fitted;
     const flight: Flight = { sprite: ball, x: 0, y: 0, ox: 0, oy: 0, vx: 0, vy: 0, free: true, cooldown: 0, heat: mega > 1 ? 2 : 0, size };
     this.flights.add(flight);
-    const stopFollowing = mega > 1 ? this.megaBall(ball, mega) : () => undefined;
+    // quiet: one of many MEGA BALLs in a round (heavy shells): the gold ball and its tag, no stamp of its own
+    const stopFollowing = mega > 1 ? this.megaBall(ball, mega, !pegs.quiet) : () => undefined;
 
     const radius = ball.texture.width / 2;
     // every ball has its own pace, but within a ball the hops change smoothly (no random jerks from peg to peg)
@@ -763,7 +765,7 @@ export class Board extends Container {
             }
             this.slots[slot]?.hit();
             this.landingEffect(slot, prizeIndexOfSlot(rows, slot), gateBoost * mega);
-            if (mega > 1) this.megaLanding(this.slotX(slot), slotTop, mega);
+            if (mega > 1) this.megaLanding(this.slotX(slot), slotTop, mega, !pegs.quiet);
             if (this.currentSpinSlots().includes(slot)) this.spinLanding(slot);
             events.onLand?.({ slot, prizeIndex: prizeIndexOfSlot(rows, slot), x: this.slotX(slot), y: this.slotY(), pan: this.pan(this.slotX(slot)) });
           }
@@ -782,7 +784,7 @@ export class Board extends Container {
    * A MEGA BALL on its way: the ball turns gold in a pulsing halo, with its multiplier riding above it, and MEGA BALL
    * xN is stamped across the top of the board as it drops. Returns what stops the halo and label following it.
    */
-  private megaBall(ball: Sprite, times: number): () => void {
+  private megaBall(ball: Sprite, times: number, announce = true): () => void {
     ball.tint = '#ffd76a';
     const halo = new Graphics().circle(0, 0, 22).fill({ color: '#ffb000', alpha: 0.35 }).circle(0, 0, 14).fill({ color: '#fff3b0', alpha: 0.5 });
     halo.blendMode = 'add';
@@ -797,13 +799,7 @@ export class Board extends Container {
     follow();
     this.followers.add(follow);
     // the stamp across the top of the board
-    const stamp = goldText('MEGA BALL x' + times, 40);
-    stamp.position.set(0, PEG_SPACING * 0.6);
-    this.textLayer.addChild(stamp);
-    gsap.timeline({ onComplete: () => stamp.destroy() })
-      .fromTo(stamp.scale, { x: 3, y: 3 }, { x: 1, y: 1, duration: 0.3, ease: 'power3.in' })
-      .call(() => { shake(this, 6); this.particles.burst(0, PEG_SPACING * 0.6, ['#ffd76a', '#fff3b0', '#ff8a1a'], 24, 320); })
-      .to(stamp, { alpha: 0, y: stamp.y - 20, duration: 0.5 }, 1.3);
+    if (announce) this.stamp('MEGA BALL x' + times);
     return () => {
       this.followers.delete(follow);
       pulse.kill();
@@ -812,13 +808,26 @@ export class Board extends Container {
     };
   }
 
+  /** A big word across the top of the board: it slams in, the board jolts, it fades. */
+  stamp(text: string): void {
+    const stamp = goldText(text, 40);
+    stamp.position.set(0, PEG_SPACING * 0.6);
+    if (stamp.width > PEG_SPACING * (this.rows + 1)) stamp.scale.set(PEG_SPACING * (this.rows + 1) / stamp.width);
+    const size = stamp.scale.x;
+    this.textLayer.addChild(stamp);
+    gsap.timeline({ onComplete: () => stamp.destroy() })
+      .fromTo(stamp.scale, { x: size * 3, y: size * 3 }, { x: size, y: size, duration: 0.3, ease: 'power3.in' })
+      .call(() => { shake(this, 6); this.particles.burst(0, PEG_SPACING * 0.6, ['#ffd76a', '#fff3b0', '#ff8a1a'], 24, 320); })
+      .to(stamp, { alpha: 0, y: stamp.y - 20, duration: 0.5 }, 1.3);
+  }
+
   /** A MEGA BALL in its slot: a gold shockwave, a fountain of gold and xN MEGA! stamped over the slot. */
-  private megaLanding(x: number, y: number, times: number): void {
-    shake(this, 10);
-    kindBlast(this.textLayer, 'napalm', x, y + 18, 210);
-    this.particles.burst(x, y, ['#ffd76a', '#fff3b0', '#e9a91a', '#ffffff'], 48, 520);
-    this.particles.ring(x, y, '#ffd76a', 90);
-    const word = goldText('x' + times + ' MEGA!', 44);
+  private megaLanding(x: number, y: number, times: number, loud = true): void {
+    if (loud) shake(this, 10);
+    kindBlast(this.textLayer, 'napalm', x, y + 18, loud ? 210 : 150);
+    this.particles.burst(x, y, ['#ffd76a', '#fff3b0', '#e9a91a', '#ffffff'], loud ? 48 : 16, loud ? 520 : 360);
+    if (loud) this.particles.ring(x, y, '#ffd76a', 90);
+    const word = goldText('x' + times + (loud ? ' MEGA!' : ''), loud ? 44 : 28);
     word.position.set(x, y - 70);
     this.textLayer.addChild(word);
     gsap.timeline({ onComplete: () => word.destroy() })

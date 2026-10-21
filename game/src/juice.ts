@@ -123,8 +123,14 @@ export class Screen extends Container {
     this.white.clear().rect(0, 0, view.stageW, view.stageH).fill('#ffffff');
   }
 
+  private lastFlash = 0;
+
+  /** A white flash; at most one every 0.8 s (many at once would wash the screen out). */
   flash(strength = 0.6): void {
     if (calm) return;
+    const now = performance.now();
+    if (now - this.lastFlash < 800) return;
+    this.lastFlash = now;
     gsap.fromTo(this.white, { alpha: strength }, { alpha: 0, duration: 0.45, ease: 'power2.out', overwrite: true });
   }
 }

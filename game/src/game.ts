@@ -617,6 +617,10 @@ export class Game extends Container {
     this.board.restorePegs();
     const smashRows = this.session.config.mega?.smashRows?.[String(this.rows)] ?? [];
     const holes = new Set<number>();
+    // a round bought with a power-up is announced once; then its MEGA BALLs are quiet (one of many)
+    const heavy = round.power === 'heavy';
+    if (heavy) { this.board.stamp(`HEAVY SHELLS x${count}`); sound('huge'); this.screen.flash(0.35); }
+    if (round.power === 'cluster') { this.board.stamp('CLUSTER SHELLS'); sound('huge'); }
     for (let i = 0; i < count; i++) {
       if (i > 0) await wait((this.holding ? 0.12 : 0.25) * random(0.6, 1.3));
       if (!this.holding) {
@@ -628,18 +632,20 @@ export class Game extends Container {
       const before = new Set(holes);
       const smash = mega > 1 && round.paths ? smashedPegs(round.paths[i], smashRows) : new Set<number>();
       smash.forEach(key => holes.add(key));
-      if (mega > 1) { sound('huge'); this.screen.flash(0.35); } else if (!this.turbo) sound('drop', { volume: 0.5, rate: random(0.9, 1.12) });
+      if (mega > 1 && !heavy) { sound('huge'); this.screen.flash(0.35); } else if (!this.turbo) sound('drop', { volume: 0.5, rate: random(0.9, 1.12) });
       drops.push(this.board.dropBall(round.slots[i], {
         onPeg: pegSound,
         onLand: landing => {
           // coins out of the slot for a ball worth 3x or more (more coins, the more it paid), a fountain for a MEGA BALL
           if (mega > 1 || multiplier >= 3) {
             const at = this.toLocal(this.board.slotPoint(landing.slot));
-            this.shower.burst(at.x, at.y, mega > 1 ? 40 : Math.min(36, Math.round(6 + multiplier * 2)), mega > 1 ? 950 : 650 + multiplier * 15);
+            this.shower.burst(at.x, at.y, mega > 1 && !heavy ? 40 : Math.min(36, Math.round(6 + multiplier * 2)), mega > 1 && !heavy ? 950 : 650 + multiplier * 15);
           }
-          if (mega > 1) {
+          if (mega > 1 && !heavy) {
             this.screen.flash(0.7);
             sound('jackpot');
+          } else if (mega > 1) {
+            sound('big', { volume: 0.7 });
           } else if (multiplier >= 5) this.screen.flash(multiplier >= 10 ? 0.6 : 0.3);
           const win = round.wins?.[i] ?? cents(bet * multiplier);
           land(win);
@@ -657,7 +663,7 @@ export class Game extends Container {
           this.ballsLeft = Math.max(0, this.ballsLeft - 1);
           this.bar.setPlaying(true, this.holding, this.ballsLeft);
         },
-      }, round.paths?.[i] ?? null, mega, { holes: before, smash }));
+      }, round.paths?.[i] ?? null, mega, { holes: before, smash, quiet: heavy }));
       // cluster shells: the two decoys fall with it and fizzle in their own slots
       for (const decoy of round.decoys?.[i] ?? []) {
         drops.push(this.board.dropBall(decoy, {}, null, 1, { decoy: true }));

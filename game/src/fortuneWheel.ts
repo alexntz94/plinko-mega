@@ -8,7 +8,7 @@ import { label, textQuality, typeface, fit } from './ui';
 import { Particles, calm, shake } from './effects';
 import { counting, goldText, mix, shade } from './paint';
 import type { Segment } from './api';
-import type { WheelStyle } from './theme';
+import type { WheelLook, WheelStyle } from './theme';
 
 const random = (min: number, max: number) => min + Math.random() * (max - min);
 const RAINBOW = ['#ff3b3b', '#ff9a1b', '#ffe14a', '#4ade5a', '#2ec4ff', '#8a5bff', '#ff4fd8'];
@@ -43,7 +43,7 @@ export class FortuneWheel extends Container {
   private jackpotTimer: gsap.core.Tween | null = null;
   private jackpotIndex = 0;
   private hurried = false;
-  private spin: gsap.core.Tween | null = null;
+  private spin: gsap.core.Timeline | null = null;
   /** Each segment edge that passes the pointer (for the ticking sound). */
   onTick: (() => void) | null = null;
   /** A win landing on the wheel (big: a jackpot or a MEGA SPIN), for its sound. */
@@ -121,47 +121,59 @@ export class FortuneWheel extends Container {
    * Turns to segment `index` of `segments` (the gold wheel's when gold), then bursts with the win; resolves when the
    * player has seen it. A tap on the wheel hurries it.
    */
-  async turn(segments: Segment[], index: number, win: number, options: { gold: boolean; title: string }): Promise<void> {
+  /**
+   * base: what the spin multiplies (the ball's win, or a MEGA SPIN's stake), shown as "base × ?" while it turns and
+   * "base × segment" when it stops, so the win always adds up on screen.
+   */
+  async turn(segments: Segment[], index: number, win: number, options: { gold: boolean; title: string; base?: number }): Promise<void> {
     const wasGold = this.gold;
     this.gold = options.gold;
     if (options.gold || wasGold) this.draw(segments);
     this.jackpotTimer?.pause();
     this.jackpotName.text = options.title;
-    this.jackpotAmount.text = options.gold ? 'MEGA SPIN' : 'SPIN!';
+    this.jackpotAmount.text = options.base !== undefined ? `${this.format(options.base)} × ?` : options.gold ? 'MEGA SPIN' : 'SPIN!';
     fit(this.jackpotAmount, this.radius * 0.9);
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
     const step = Math.PI * 2 / segments.length;
-    const turns = calm ? 1 : this.hurried ? 2 : 3;
+    // never the same stop twice: how many turns, how fast, and how many chambers click in one by one at the end
+    const turns = calm ? 1 : this.hurried ? 2 : 2 + Math.floor(Math.random() * 3);
+    const clicks = calm || this.hurried ? 0 : 1 + Math.floor(Math.random() * 3);
     const start = this.disc.rotation % (Math.PI * 2);
     this.disc.rotation = start;
-    const target = -index * step + random(-0.3, 0.3) * step - turns * Math.PI * 2 + Math.min(0, start);
+    // a revolver stops dead on a chamber; a wheel anywhere within its segment
+    const offset = this.style.revolver ? 0 : random(-0.3, 0.3) * step;
+    const target = -index * step + offset - turns * Math.PI * 2 + Math.min(0, start);
     let lastTick = Math.floor(this.disc.rotation / step);
+    const tick = () => {
+      const now = Math.floor(this.disc.rotation / step);
+      if (now === lastTick) return;
+      lastTick = now;
+      this.onTick?.();
+      gsap.fromTo(this.pointer, { rotation: 0.25 }, { rotation: 0, duration: 0.12, overwrite: true });
+    };
     // the rainbow ring lights up behind the wheel while it turns
     this.rainbow.visible = true;   // blurred: only drawn while the wheel turns
     gsap.to(this.rainbow, { alpha: 0.9, duration: 0.3 });
     this.chaseSpeed = 22;
     const glowSpin = gsap.to(this.rainbow, { rotation: '+=' + Math.PI * 2, duration: 1.2, repeat: -1, ease: 'none' });
     await new Promise<void>(resolve => {
-      this.spin = gsap.to(this.disc, {
-        rotation: target, duration: calm ? 1.2 : this.hurried ? 1.3 : random(2.0, 2.4), ease: 'power4.out',
-        onUpdate: () => {
-          const tick = Math.floor(this.disc.rotation / step);
-          if (tick !== lastTick) {
-            lastTick = tick;
-            this.onTick?.();
-            gsap.fromTo(this.pointer, { rotation: 0.25 }, { rotation: 0, duration: 0.12, overwrite: true });
-          }
-        },
-        onComplete: resolve,
-      });
+      const spin = gsap.timeline({ onComplete: resolve });
+      this.spin = spin;
+      spin.to(this.disc, { rotation: target + clicks * step, duration: calm ? 1.2 : this.hurried ? 1.3 : random(1.4, 2.2),
+        ease: clicks ? 'power3.out' : 'power4.out', onUpdate: tick });
+      // the last chambers click in, each a snap and a pause that grows
+      for (let c = clicks - 1; c >= 0; c--) {
+        spin.to(this.disc, { rotation: target + c * step, duration: 0.09, ease: 'back.out(2.5)', onUpdate: tick },
+          '+=' + (random(0.08, 0.2) * (1 + (clicks - 1 - c) * 0.5)).toFixed(3));
+      }
     });
     glowSpin.kill();
     this.chaseSpeed = 6;
     gsap.to(this.rainbow, { alpha: 0, duration: 0.6, onComplete: () => { this.rainbow.visible = false; } });
     const segment = segments[index];
     this.jackpotName.text = segment.name ? `${segment.name} JACKPOT` : options.title;
-    this.jackpotAmount.text = segmentText(segment);
+    this.jackpotAmount.text = options.base !== undefined ? `${this.format(options.base)} × ${segment.multiplier}` : segmentText(segment);
     fit(this.jackpotAmount, this.radius * 0.9);
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
@@ -375,6 +387,35 @@ export class FortuneWheel extends Container {
       bulb.position.set(Math.cos(a) * bulbRadius, Math.sin(a) * bulbRadius);
       this.lights.addChild(bulb);
     }
+    if (this.style.revolver) this.drawRevolver(r, step, segments);
+    else this.drawWedges(r, step, segments, look);
+    if (this.art.glass) {
+      const glass = new Sprite({ texture: this.art.glass, anchor: 0.5 });
+      glass.width = glass.height = r * 440 / 160;
+      this.cover.addChildAt(glass, 0);
+    }
+    if (this.style.revolver) {
+      // the cylinder's own centre: the ejector star (drawn with it)
+    } else if (this.hub) {
+      const hub = new Sprite({ texture: this.hub, anchor: 0.5 });
+      hub.scale.set(r * 0.62 / Math.max(hub.texture.width, 1));
+      this.disc.addChild(hub);
+    } else {
+      this.disc.addChild(new Graphics().circle(0, 0, r * 0.28).fill(look.rim).stroke({ color: this.style.ink, width: 4 }));
+    }
+    if (this.finger) {
+      const finger = new Sprite({ texture: this.finger, anchor: { x: 0.5, y: 0.9 } });
+      finger.scale.set(r * (this.art.bezel ? 0.42 : 0.3) / Math.max(finger.texture.height, 1));
+      this.pointer.addChild(finger);
+    } else {
+      this.pointer.addChild(new Graphics().poly([-r * 0.08, -r * 0.14, r * 0.08, -r * 0.14, 0, r * 0.06]).fill(this.style.title)
+        .stroke({ color: this.style.ink, width: 3, join: 'round' }));
+    }
+    this.pointer.y = this.art.bezel ? -r * 1.04 : -r * 1.02;
+  }
+
+  /** A wheel of coloured wedges, labels along the radius, brass spokes. */
+  private drawWedges(r: number, step: number, segments: Segment[], look: WheelLook): void {
     segments.forEach((segment, i) => {
       const a0 = -Math.PI / 2 + (i - 0.5) * step;
       const mega = segment.name === 'MEGA';
@@ -421,26 +462,67 @@ export class FortuneWheel extends Container {
       if (words.width > r * 0.52) words.scale.set(r * 0.52 / words.width);
       this.disc.addChild(words);
     });
-    if (this.art.glass) {
-      const glass = new Sprite({ texture: this.art.glass, anchor: 0.5 });
-      glass.width = glass.height = r * 440 / 160;
-      this.cover.addChildAt(glass, 0);
+  }
+
+  /**
+   * A revolver's cylinder: gunmetal with flutes between the chambers, a cartridge in every chamber with its prize
+   * stamped on the head (brass; nickel for MINI, copper for MAJOR, red with a gold ring for MEGA), the ejector star in
+   * the middle. Gold-plated for a MEGA SPIN.
+   */
+  private drawRevolver(r: number, step: number, segments: Segment[]): void {
+    const gold = this.gold;
+    const body = new FillGradient({ type: 'radial', center: { x: 0.42, y: 0.38 }, innerRadius: 0, outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.5,
+      textureSpace: 'local', colorStops: gold
+        ? [{ offset: 0, color: '#fff1b8' }, { offset: 0.5, color: '#d9a93a' }, { offset: 1, color: '#6e5216' }]
+        : [{ offset: 0, color: '#8a939c' }, { offset: 0.5, color: '#454c55' }, { offset: 1, color: '#1b1f24' }] });
+    const cylinder = new Graphics().circle(0, 0, r * 0.99).fill(body).stroke({ color: '#0b0d10', width: r * 0.03 })
+      .circle(0, 0, r * 0.93).stroke({ color: gold ? '#fff3b0' : '#9aa3ac', width: r * 0.01, alpha: 0.5 });
+    this.disc.addChild(cylinder);
+    // flutes: long cuts in the cylinder between the chambers
+    for (let i = 0; i < segments.length; i++) {
+      const a = -Math.PI / 2 + (i + 0.5) * step;
+      const flute = new Graphics().ellipse(0, 0, r * 0.07, r * 0.2).fill(gold ? '#7a5a14' : '#15181c')
+        .ellipse(r * 0.015, -r * 0.03, r * 0.035, r * 0.12).fill({ color: '#ffffff', alpha: 0.08 });
+      flute.position.set(Math.cos(a) * r * 0.86, Math.sin(a) * r * 0.86);
+      flute.rotation = a + Math.PI / 2;
+      this.disc.addChild(flute);
     }
-    if (this.hub) {
-      const hub = new Sprite({ texture: this.hub, anchor: 0.5 });
-      hub.scale.set(r * 0.62 / Math.max(hub.texture.width, 1));
-      this.disc.addChild(hub);
-    } else {
-      this.disc.addChild(new Graphics().circle(0, 0, r * 0.28).fill(look.rim).stroke({ color: this.style.ink, width: 4 }));
+    // the chambers, each with its cartridge
+    const metals: Record<string, [string, string, string]> = {
+      plain: ['#f3dc8e', '#c8a24a', '#6e5216'], MINI: ['#f2f4f6', '#b8bfc6', '#5c636b'],
+      MAJOR: ['#f0b38a', '#c06a33', '#5c2a0e'], MEGA: ['#ff8a7a', '#c1121f', '#4a060a'],
+    };
+    segments.forEach((segment, i) => {
+      const a = -Math.PI / 2 + i * step;
+      const [hi, mid, lo] = metals[segment.name ?? 'plain'] ?? metals.plain;
+      const head = new FillGradient({ type: 'radial', center: { x: 0.38, y: 0.32 }, innerRadius: 0, outerCenter: { x: 0.5, y: 0.5 },
+        outerRadius: 0.5, textureSpace: 'local', colorStops: [{ offset: 0, color: hi }, { offset: 0.6, color: mid }, { offset: 1, color: lo }] });
+      const chamber = new Graphics()
+        .circle(0, 0, r * 0.215).fill('#07080a')
+        .circle(0, 0, r * 0.185).fill(head).stroke({ color: lo, width: r * 0.012 })
+        .circle(0, 0, r * 0.15).stroke({ color: '#000000', width: r * 0.008, alpha: 0.35 })
+        .circle(0, r * 0.1, r * 0.035).fill(lo).circle(0, r * 0.1, r * 0.022).fill(mid);   // the primer
+      if (segment.name === 'MEGA') chamber.circle(0, 0, r * 0.2).stroke({ color: '#ffd76a', width: r * 0.02 });
+      chamber.position.set(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6);
+      chamber.rotation = a + Math.PI / 2;
+      const words = new Text({ text: segmentText(segment), anchor: 0.5, resolution: textQuality(),
+        style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(r * (segment.name ? 0.085 : 0.11)),
+          fill: segment.name === 'MEGA' ? '#ffe9a0' : '#1a1206', stroke: segment.name === 'MEGA' ? { color: '#000000', width: r * 0.02 } : undefined } });
+      words.y = -r * 0.03;
+      if (words.width > r * 0.3) words.scale.set(r * 0.3 / words.width);
+      chamber.addChild(words);
+      this.disc.addChild(chamber);
+    });
+    // the ejector star in the middle
+    const star: number[] = [];
+    const points = segments.length;
+    for (let i = 0; i < points * 2; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / points;
+      const rr = r * (i % 2 ? 0.16 : 0.24);
+      star.push(Math.cos(a) * rr, Math.sin(a) * rr);
     }
-    if (this.finger) {
-      const finger = new Sprite({ texture: this.finger, anchor: { x: 0.5, y: 0.9 } });
-      finger.scale.set(r * (this.art.bezel ? 0.42 : 0.3) / Math.max(finger.texture.height, 1));
-      this.pointer.addChild(finger);
-    } else {
-      this.pointer.addChild(new Graphics().poly([-r * 0.08, -r * 0.14, r * 0.08, -r * 0.14, 0, r * 0.06]).fill(this.style.title)
-        .stroke({ color: this.style.ink, width: 3, join: 'round' }));
-    }
-    this.pointer.y = this.art.bezel ? -r * 1.04 : -r * 1.02;
+    this.disc.addChild(new Graphics().circle(0, 0, r * 0.3).fill(gold ? '#8a6a1c' : '#1b1f24')
+      .poly(star).fill(gold ? '#f3dc8e' : '#6b737c').stroke({ color: '#0b0d10', width: r * 0.012 })
+      .circle(0, 0, r * 0.07).fill(gold ? '#fff1b8' : '#9aa3ac').stroke({ color: '#0b0d10', width: r * 0.01 }));
   }
 }

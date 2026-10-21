@@ -29,7 +29,9 @@ export interface WheelStyle extends WheelLook { ink: string; title: string; gold
   gate: string | null;
   /** optional drawings laid over the turning disc, centred, made for a disc of radius 160: the bezel round it (440
    *  across) and the glass over its face */
-  bezel: string | null; glass: string | null }
+  bezel: string | null; glass: string | null;
+  /** drawn as a revolver's cylinder (a cartridge per prize) that clicks into place, instead of a wheel of wedges */
+  revolver: boolean }
 export interface Theme {
   id: string;
   name: string;
@@ -110,6 +112,7 @@ function readWheel(json: unknown, board: BoardStyle, accent: string, text: strin
     gold: { faces: colours(g.faces, ['#f3c64a', '#fff0b8', '#d99a1e']), text: colours(g.text, ['#2a1a00']), rim: colour(g.rim, '#8a5d12') },
     hub: fileName(w.hub, /\.png$/), pointer: fileName(w.pointer, /\.png$/), gate: fileName(w.gate, /\.png$/),
     bezel: fileName(w.bezel, /\.png$/), glass: fileName(w.glass, /\.png$/),
+    revolver: w.style === 'revolver',
   };
 }
 

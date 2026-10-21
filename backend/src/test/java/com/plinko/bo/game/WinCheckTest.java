@@ -107,6 +107,11 @@ class WinCheckTest {
     }
 
     @Test
+    void aGateLayoutThatDoesNotExistIsCaught() {
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "layout:999", "7.10"))).startsWith("C5: gate layout 999");
+    }
+
+    @Test
     void aMegaBallThatDoesNotMatchItsBallIsCaught() {
         // stored as x5, paid as x10
         assertThat(problem(round("4,3,0", "0.5,1,56", "megaball:2x5", "57.50"))).startsWith("C5: ball 2 in slot 0 paid 56x");

@@ -34,6 +34,16 @@ final class RoundDraw {
         /** A path to this slot (every path to it equally likely). */
         int path(int rows, int slot);
 
+        /** A path to this slot that falls straight through these holes (see MegaBoard), every such path equally likely. */
+        default int path(int rows, int slot, java.util.Set<Integer> holes) {
+            return path(rows, slot);
+        }
+
+        /** Which of the board's gate layouts this round uses (0..count-1, every one equally likely). */
+        default int layout(int count) {
+            return 0;
+        }
+
         /** The index of the segment a spin of this wheel stops on. */
         int segment(BonusSettings.Wheel wheel);
 
@@ -62,7 +72,8 @@ final class RoundDraw {
     /** Everything decided, as the game shows it and as it is stored and signed. */
     record Result(List<Integer> slots, List<BigDecimal> multipliers, List<BigDecimal> wins, int chargesAfter, BigDecimal potAfter, String meterPrev, BigDecimal totalWin,
                   String slotText, String multiplierText, String bonusText,
-                  List<Integer> paths, List<Integer> gates, List<Spin> spins, List<MegaSpin> megaSpins, List<MegaBall> megaBalls) {
+                  List<Integer> paths, List<Integer> gates, List<Spin> spins, List<MegaSpin> megaSpins, List<MegaBall> megaBalls,
+                  int layout) {
     }
 
     static Result draw(OddsTable table, BonusSettings bonusSettings, BigDecimal bet, int balls, MeterBefore meterBefore,
@@ -72,9 +83,15 @@ final class RoundDraw {
         BigDecimal pot = meterBefore == null ? BigDecimal.ZERO : meterBefore.pot();
         RoundWin.Text text = new RoundWin.Text();
         BigDecimal gateBoost = bonusSettings.gatesOn() ? bonusSettings.gates().boost() : null;
+        // this round's gate layout (the gates move every round)
+        List<List<MegaBoard.Gate>> layouts = MegaBoard.layouts(table.rows());
+        int layout = gateBoost == null ? 0 : dice.layout(layouts.size());
         if (gateBoost != null) {
             text.gates(gateBoost);
+            text.layout(layout);
         }
+        // pegs smashed by this round's MEGA BALLs so far: the balls after one fall straight through the holes
+        java.util.Set<Integer> holes = new java.util.HashSet<>();
         List<Integer> paths = new ArrayList<>();
         List<Integer> gates = new ArrayList<>();
         List<Spin> spins = new ArrayList<>();
@@ -87,8 +104,8 @@ final class RoundDraw {
         for (int ball = 0; ball < balls; ball++) {
             int slot = dice.slot(table);
             BigDecimal prize = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(table.rows(), slot)).multiplier();
-            int path = dice.path(table.rows(), slot);
-            int passed = gateBoost == null ? 0 : MegaBoard.gatesPassed(table.rows(), path);
+            int path = holes.isEmpty() ? dice.path(table.rows(), slot) : dice.path(table.rows(), slot, holes);
+            int passed = gateBoost == null ? 0 : MegaBoard.gatesPassed(layouts.get(layout), path);
             BigDecimal multiplier = prize.multiply(gateBoost == null ? BigDecimal.ONE : gateBoost.pow(passed));
             paths.add(path);
             gates.add(passed);
@@ -100,6 +117,7 @@ final class RoundDraw {
                 multiplier = multiplier.multiply(times);
                 megaBalls.add(new MegaBall(ball, times));
                 text.megaBall(ball, times);
+                holes.addAll(MegaBoard.smashed(table.rows(), path));
             }
             // a ball on a big prize charges the meter and puts its share of the bet into the pot
             if (meterSettings != null && BonusService.chargesMeter(bonusSettings, table.rows(), table.risk(),
@@ -150,6 +168,6 @@ final class RoundDraw {
         return new Result(slots, multipliers, wins, charges, pot, meterPrev, totalWin,
                 slots.stream().map(String::valueOf).collect(Collectors.joining(",")),
                 multipliers.stream().map(BigDecimal::toPlainString).collect(Collectors.joining(",")), text.text(),
-                paths, gates, spins, megaSpins, megaBalls);
+                paths, gates, spins, megaSpins, megaBalls, layout);
     }
 }

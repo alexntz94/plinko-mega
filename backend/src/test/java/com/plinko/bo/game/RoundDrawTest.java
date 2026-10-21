@@ -67,12 +67,12 @@ class RoundDrawTest {
         BigDecimal prize0 = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(8, 0)).multiplier().multiply(boost.pow(MegaBoard.gatesPassed(8, 0)));
         assertThat(r.slotText()).isEqualTo("3,0");
         assertThat(r.multipliers()).containsExactly(prize3.stripTrailingZeros(), prize0.stripTrailingZeros());
-        assertThat(r.bonusText()).isEqualTo("path:7,0;gates:" + boost.toPlainString());
+        assertThat(r.bonusText()).isEqualTo("path:7,0;gates:" + boost.toPlainString() + ";layout:0");
         assertThat(r.totalWin()).isEqualByComparingTo(RoundWin.ball(BigDecimal.ONE, prize3).add(RoundWin.ball(BigDecimal.ONE, prize0)));
         // the same round over a low win limit: cut to it, the uncut win recorded last
         RoundDraw.Result capped = RoundDraw.draw(table, GATES, new BigDecimal("1.00"), 2, null, new BigDecimal("0.10"), fixed(List.of(3, 0)));
         assertThat(capped.totalWin()).isEqualByComparingTo("0.10");
-        assertThat(capped.bonusText()).isEqualTo("path:7,0;gates:" + boost.toPlainString() + ";capped:" + r.totalWin().toPlainString());
+        assertThat(capped.bonusText()).isEqualTo("path:7,0;gates:" + boost.toPlainString() + ";layout:0;capped:" + r.totalWin().toPlainString());
         // no feature on: only the paths
         assertThat(RoundDraw.draw(table, BonusSettings.OFF, BigDecimal.ONE, 1, null, BigDecimal.TEN, fixed(List.of(4))).bonusText())
                 .isEqualTo("path:15");
@@ -138,6 +138,10 @@ class RoundDrawTest {
                 public int megaBall(BonusSettings.MegaBall megaBall) {
                     return random.nextInt(4) == 0 ? random.nextInt(megaBall.multipliers().size()) : -1;
                 }
+
+                public int layout(int count) {
+                    return random.nextInt(count);
+                }
             });
             RoundWin.Outcome read = RoundWin.parse(r.slotText(), r.multiplierText(), r.bonusText());
             assertThat(read.slots()).isEqualTo(r.slots());
@@ -152,6 +156,7 @@ class RoundDrawTest {
             read.paths().forEach(again::path);
             if (read.gateBoost() != null) {
                 again.gates(read.gateBoost());
+                again.layout(read.layout());
             }
             read.megaBalls().forEach(x -> again.megaBall(x.ball(), x.multiplier()));
             assertThat(read.megaBalls()).hasSize(r.megaBalls().size());
@@ -185,7 +190,7 @@ class RoundDrawTest {
         assertThat(r.spins()).hasSize(1);
         assertThat(r.spins().get(0).ball()).isEqualTo(1);
         BigDecimal firstSegment = mega.wheel().segments().get(0).multiplier();
-        assertThat(r.bonusText()).isEqualTo("path:3," + ((1 << spinSlot) - 1) + ";gates:" + boost.toPlainString() + ";spin:1@0x"
+        assertThat(r.bonusText()).isEqualTo("path:3," + ((1 << spinSlot) - 1) + ";gates:" + boost.toPlainString() + ";layout:0;spin:1@0x"
                 + firstSegment.toPlainString());
         // the spin pays the SPIN slot ball's own win again times the segment
         assertThat(r.spins().get(0).win()).isEqualByComparingTo(RoundWin.ball(BigDecimal.ONE, r.multipliers().get(1).multiply(firstSegment)));

@@ -361,6 +361,48 @@ public class BonusService {
         return path;
     }
 
+    /**
+     * A path to this slot that falls straight through every hole (one right and one left there), every such path
+     * equally likely; when no path to the slot can do that, any path (the peg is back for this ball).
+     */
+    public int rollPath(int rows, int slot, java.util.Set<Integer> holes) {
+        // ways[row][rights]: paths from that peg to the slot that respect the holes
+        double[][] ways = new double[rows + 1][rows + 2];
+        ways[rows][slot] = 1;
+        for (int row = rows - 1; row >= 0; row--) {
+            for (int k = 0; k <= row; k++) {
+                ways[row][k] = holes.contains(MegaBoard.node(row, k))
+                        ? (row + 2 <= rows ? 2 * ways[row + 2][k + 1] : 0)
+                        : ways[row + 1][k] + ways[row + 1][k + 1];
+            }
+        }
+        if (ways[0][0] == 0) {
+            return rollPath(rows, slot);
+        }
+        int path = 0, k = 0;
+        for (int row = 0; row < rows; ) {
+            if (holes.contains(MegaBoard.node(row, k))) {
+                // straight down through the hole: right then left, or left then right
+                path |= random.nextBoolean() ? 1 << row : 1 << (row + 1);
+                k++;
+                row += 2;
+            } else {
+                boolean right = random.nextDouble() * ways[row][k] < ways[row + 1][k + 1];
+                if (right) {
+                    path |= 1 << row;
+                    k++;
+                }
+                row++;
+            }
+        }
+        return path;
+    }
+
+    /** One of `count` gate layouts, every one equally likely. */
+    public int rollLayout(int count) {
+        return random.nextInt(count);
+    }
+
     /** Whether a ball drops as a MEGA BALL, and its multiplier's index if so (-1: a plain ball). */
     public int rollMegaBall(BonusSettings.MegaBall megaBall) {
         if (random.nextDouble() * 100 >= megaBall.chance().doubleValue()) {

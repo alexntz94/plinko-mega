@@ -55,14 +55,17 @@ class MegaRtpTest {
     }
 
     @Test
-    void theGateFactorIsTheAverageOverEveryPathToTheSlot() {
+    void theGateFactorIsTheAverageOverEveryLayoutAndEveryPathToTheSlot() {
         for (int rows = PlinkoBoard.MIN_ROWS; rows <= PlinkoBoard.MAX_ROWS; rows++) {
             double[] sum = new double[rows + 1];
             int[] count = new int[rows + 1];
-            for (int path = 0; path < 1 << rows; path++) {
-                int slot = MegaBoard.slotOf(path);
-                sum[slot] += Math.pow(2, MegaBoard.gatesPassed(rows, path));
-                count[slot]++;
+            // every layout equally likely, every path to a slot equally likely
+            for (List<MegaBoard.Gate> layout : MegaBoard.layouts(rows)) {
+                for (int path = 0; path < 1 << rows; path++) {
+                    int slot = MegaBoard.slotOf(path);
+                    sum[slot] += Math.pow(2, MegaBoard.gatesPassed(layout, path));
+                    count[slot]++;
+                }
             }
             for (int slot = 0; slot <= rows; slot++) {
                 assertThat(MegaBoard.gateFactor(rows, slot, 2)).as("%d rows slot %d", rows, slot).isCloseTo(sum[slot] / count[slot], within(1e-9));
@@ -124,6 +127,14 @@ class MegaRtpTest {
 
             public int megaBall(BonusSettings.MegaBall megaBall) {
                 return bonus.rollMegaBall(megaBall);
+            }
+
+            public int path(int rows, int slot, java.util.Set<Integer> holes) {
+                return bonus.rollPath(rows, slot, holes);
+            }
+
+            public int layout(int count) {
+                return bonus.rollLayout(count);
             }
         };
         int rounds = 40_000, batches = 100, perBatch = rounds / batches;

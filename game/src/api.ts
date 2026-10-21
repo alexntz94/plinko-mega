@@ -13,7 +13,9 @@ export interface Segment { name?: string | null; multiplier: number }
  * right `rights` times) and the two SPIN slots; what a gate multiplies by (null: gates off); the wheels (null: off).
  */
 export interface MegaConfig { gates: Record<string, number[][]>; spinSlots: Record<string, number[]>; gateBoost?: number | null;
-  wheel?: Segment[] | null; megaWheel?: Segment[] | null }
+  wheel?: Segment[] | null; megaWheel?: Segment[] | null;
+  /** per rows count, the rows where a MEGA BALL smashes the peg it hits (none: MEGA BALLs off) */
+  smashRows?: Record<string, number[]> }
 /** A wheel spin: the paid ball whose SPIN slot started it, the segment it stopped on, what that pays and the win. */
 export interface Spin { ball: number; segment: number; multiplier: number; win: number }
 /** A MEGA SPIN of the gold wheel, paid by a full meter: its stake (the pot), the segment, what that pays and the win. */
@@ -41,7 +43,9 @@ export interface Round { roundId: string; slots: number[]; multipliers: number[]
   /** every ball's path (bit i set: bounce i+1 goes right), the gates each went through, the wheel spins from SPIN
    *  slots and the MEGA SPINs a full meter paid; the balls that dropped as a MEGA BALL (their multiplier is already in
    *  the ball's) */
-  paths?: number[]; gates?: number[]; spins?: Spin[]; megaSpins?: MegaSpin[]; megaBalls?: MegaBall[] }
+  paths?: number[]; gates?: number[]; spins?: Spin[]; megaSpins?: MegaSpin[]; megaBalls?: MegaBall[];
+  /** where this round's gates stood ([step, from, to] per bar): they move every round */
+  gateLayout?: number[][] }
 /** Paid ball `ball` was a MEGA BALL that multiplied its win by `multiplier`. */
 export interface MegaBall { ball: number; multiplier: number }
 export interface ApiError { status: number; code: string; message?: string; balance?: number }

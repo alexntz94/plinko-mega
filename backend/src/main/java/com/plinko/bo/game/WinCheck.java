@@ -186,7 +186,7 @@ public class WinCheck {
         for (int ball = 0; ball < outcome.slots().size(); ball++) {
             BigDecimal gates = BigDecimal.ONE;
             if (outcome.gateBoost() != null) {
-                gates = outcome.gateBoost().pow(MegaBoard.gatesPassed(round.rows(), outcome.paths().get(ball)));
+                gates = outcome.gateBoost().pow(MegaBoard.gatesPassed(MegaBoard.layouts(round.rows()).get(outcome.layout()), outcome.paths().get(ball)));
             }
             String problem = ballProblem(round, "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball),
                     gates.multiply(outcome.megaBallTimes(ball)), prizes);
@@ -212,6 +212,9 @@ public class WinCheck {
             if (!MegaBoard.isPath(round.rows(), path) || MegaBoard.slotOf(path) != outcome.slots().get(ball)) {
                 return "C5: ball " + ball + "'s path " + path + " does not end in its slot " + outcome.slots().get(ball);
             }
+        }
+        if (outcome.layout() < 0 || outcome.layout() >= MegaBoard.layouts(round.rows()).size()) {
+            return "C5: gate layout " + outcome.layout() + " does not exist on a board of " + round.rows() + " rows";
         }
         if (outcome.gateBoost() != null && outcome.gateBoost().compareTo(BigDecimal.ONE) <= 0) {
             return "C5: gates boost " + outcome.gateBoost() + " is not above 1";

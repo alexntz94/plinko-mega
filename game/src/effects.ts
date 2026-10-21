@@ -166,7 +166,16 @@ interface Coin { g: Graphics; vx: number; vy: number; spin: number; phase: numbe
  * Spinning gold coins with gravity: poured from the top of the screen, shot up out of a point (a fountain), or burst
  * out of a point in every direction. Runs only while it has coins or is pouring.
  */
-export class CoinShower extends Container {
+/** Something that showers the screen: coins, or explosions for a war theme. */
+export interface Shower extends Container {
+  layout(view: Viewport): void;
+  pour(rain: number, spout?: number, x?: number, y?: number, seconds?: number): void;
+  stop(): void;
+  burst(x: number, y: number, n: number, power?: number): void;
+  clear(): void;
+}
+
+export class CoinShower extends Container implements Shower {
   private readonly coins: Coin[] = [];
   private view: Viewport | null = null;
   private rain = 0;                         // coins a second from the top
@@ -262,6 +271,149 @@ export class CoinShower extends Container {
   };
 }
 
+
+/** Soft-edged discs shared by every blast: one per colour (rings of falling opacity, no blur filter). */
+const softDiscs = new Map<string, GraphicsContext>();
+function softDisc(colour: string): GraphicsContext {
+  let context = softDiscs.get(colour);
+  if (!context) {
+    context = new GraphicsContext().circle(0, 0, 1).fill({ color: colour, alpha: 0.25 }).circle(0, 0, 0.75).fill({ color: colour, alpha: 0.35 })
+      .circle(0, 0, 0.5).fill({ color: colour, alpha: 0.5 });
+    softDiscs.set(colour, context);
+  }
+  return context;
+}
+
+const FIRE = ['#c1121f', '#ff4a1a', '#ff8a1a', '#ffd76a'];
+const SMOKE = ['#3d4046', '#55595f', '#2a2c30'];
+
+/**
+ * The war theme's shower: explosions instead of coins. A blast is a fireball with a white-hot core, a shockwave ring,
+ * smoke rolling up and debris thrown out; it pours them across the screen, or bursts a cluster of them at a point.
+ * Kept light: shared shapes, a cap on blasts at once, no filters.
+ */
+export class BlastShower extends Container implements Shower {
+  private readonly particles = new Particles();
+  private view: Viewport | null = null;
+  private rain = 0;
+  private spout = 0;
+  private from = { x: 0, y: 0 };
+  private owed = 0;
+  private until = 0;
+  private running = false;
+  private live = 0;
+
+  constructor(private readonly max = 40) {
+    super();
+    this.eventMode = 'none';
+    this.addChild(this.particles);
+  }
+
+  layout(view: Viewport): void {
+    this.view = view;
+  }
+
+  pour(rain: number, spout = 0, x = 0, y = 0, seconds = 0): void {
+    if (calm) return;
+    this.rain += rain * 0.4;     // a blast fills far more screen than a coin
+    this.spout += spout * 0.4;
+    if (spout) this.from = { x, y };
+    this.until = seconds ? Math.max(this.until, gsap.ticker.time + seconds) : 0;
+    if (!this.running) { this.running = true; gsap.ticker.add(this.tick); }
+  }
+
+  stop(): void {
+    this.rain = 0;
+    this.spout = 0;
+  }
+
+  /** A cluster at a point: one big blast and smaller ones round it, more for a bigger n. */
+  burst(x: number, y: number, n: number, power = 900): void {
+    if (calm) return;
+    const size = Math.min(2.2, 0.6 + n / 30);
+    this.blast(x, y, size);
+    const around = Math.min(6, Math.floor(n / 10));
+    const reach = power * 0.12;
+    for (let i = 0; i < around; i++) {
+      gsap.delayedCall(0.06 + i * 0.07, () => this.blast(x + random(-reach, reach), y + random(-reach, reach * 0.6), size * random(0.4, 0.7)));
+    }
+  }
+
+  clear(): void {
+    this.stop();
+    this.particles.clear();
+    for (const child of this.children.slice()) {
+      if (child === this.particles) continue;
+      gsap.killTweensOf([child, child.scale]);
+      child.destroy();
+    }
+    this.live = 0;
+  }
+
+  /** One explosion at (x, y), size about 1 (a wheel win) to 2 (a big win). */
+  private blast(x: number, y: number, size: number): void {
+    if (this.live >= this.max) return;
+    this.live++;
+    const parts: Graphics[] = [];
+    const add = (colour: string, radius: number, blend = false) => {
+      const g = new Graphics(softDisc(colour));
+      g.position.set(x + random(-radius * 0.3, radius * 0.3), y + random(-radius * 0.3, radius * 0.3));
+      g.scale.set(radius);
+      if (blend) g.blendMode = 'add';
+      this.addChildAt(g, 0);
+      parts.push(g);
+      return g;
+    };
+    const r = 34 * size;
+    // smoke behind, rolling up
+    for (let i = 0; i < 3; i++) {
+      const puff = add(SMOKE[i % SMOKE.length], r * random(0.6, 0.9));
+      puff.alpha = 0.9;
+      gsap.to(puff.scale, { x: puff.scale.x * 2.2, y: puff.scale.y * 2.2, duration: 1.3, ease: 'power2.out' });
+      gsap.to(puff, { y: puff.y - r * random(1, 1.6), alpha: 0, duration: 1.3, delay: 0.1, ease: 'power1.in' });
+    }
+    // the fireball and its white-hot core
+    for (let i = 0; i < 4; i++) {
+      const fire = add(FIRE[i], r * random(0.5, 0.8), true);
+      gsap.fromTo(fire.scale, { x: fire.scale.x * 0.2, y: fire.scale.y * 0.2 }, { x: fire.scale.x * 1.5, y: fire.scale.y * 1.5, duration: 0.3, ease: 'power3.out' });
+      gsap.to(fire, { alpha: 0, y: fire.y - r * 0.4, duration: 0.55, delay: 0.15, ease: 'power1.in' });
+    }
+    const core = add('#ffffff', r * 0.45, true);
+    gsap.fromTo(core.scale, { x: core.scale.x * 0.3, y: core.scale.y * 0.3 }, { x: core.scale.x * 1.4, y: core.scale.y * 1.4, duration: 0.18 });
+    gsap.to(core, { alpha: 0, duration: 0.3, delay: 0.08 });
+    // the shockwave
+    const ring = new Graphics().circle(0, 0, r).stroke({ color: '#fff3b0', width: 4 });
+    ring.blendMode = 'add';
+    ring.position.set(x, y);
+    this.addChild(ring);
+    parts.push(ring);
+    gsap.fromTo(ring.scale, { x: 0.2, y: 0.2 }, { x: 1.8, y: 1.8, duration: 0.45, ease: 'power2.out' });
+    gsap.to(ring, { alpha: 0, duration: 0.45, ease: 'power1.in' });
+    // debris and embers
+    this.particles.burst(x, y, ['#1a1d21', '#4b5320', '#2b3036', '#6e5216'], Math.round(8 * size), 420 * size, 1500);
+    this.particles.burst(x, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], Math.round(10 * size), 380 * size, 600);
+    gsap.delayedCall(1.5, () => {
+      parts.forEach(p => { gsap.killTweensOf([p, p.scale]); if (!p.destroyed) p.destroy(); });
+      this.live = Math.max(0, this.live - 1);
+    });
+  }
+
+  /** Every frame while pouring: new blasts across the screen (rain) and out of the spout. */
+  private readonly tick = (): void => {
+    if (!this.view) return;
+    if (this.until && gsap.ticker.time > this.until) { this.stop(); this.until = 0; }
+    const rate = this.rain + this.spout;
+    if (rate <= 0) { gsap.ticker.remove(this.tick); this.running = false; this.owed = 0; return; }
+    this.owed += Math.min(gsap.ticker.deltaRatio() / 60, 0.05);
+    const { stageW, stageH } = this.view;
+    while (this.owed > 1 / rate) {
+      this.owed -= 1 / rate;
+      if (Math.random() * rate < this.rain) this.blast(random(stageW * 0.05, stageW * 0.95), random(stageH * 0.1, stageH * 0.75), random(0.8, 1.5));
+      else this.blast(this.from.x + random(-60, 60), this.from.y - random(0, stageH * 0.4), random(0.8, 1.4));
+    }
+  };
+}
+
 const LEVELS: [number, WinLevel][] = [[3, 'BIG WIN'], [8, 'MEGA WIN'], [20, 'EPIC WIN']];
 
 /**
@@ -275,14 +427,16 @@ export class BigWin extends Container {
   private readonly glow = new Graphics();
   private readonly banner: Text;
   private readonly amount: Text;
-  private readonly shower = new CoinShower(260);
+  private readonly shower: Shower;
   private readonly confetti = new Particles();
   private view: Viewport | null = null;
   private done: (() => void) | null = null;
   private timer: gsap.core.Tween | null = null;
 
-  constructor(private readonly colours: string[]) {
+  /** explosive: a war theme, whose big win sets off explosions instead of showering coins */
+  constructor(private readonly colours: string[], explosive = false) {
     super();
+    this.shower = explosive ? new BlastShower() : new CoinShower(260);
     this.banner = goldText('', 92);
     this.amount = goldText('', 70);
     for (let i = 0; i < 24; i++) {

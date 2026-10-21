@@ -16,6 +16,7 @@ import java.util.List;
  * <ul>
  * <li>{@code path:<path>,...}: every ball's path (see {@code MegaBoard}), one per ball;</li>
  * <li>{@code gates:<boost>}: what each gate a path goes through multiplies the prize by;</li>
+ * <li>{@code layout:<index>}: which of the board's gate layouts the round used (see {@code MegaBoard.layouts});</li>
  * <li>{@code megaball:<ball>x<multiplier>,...}: balls that dropped as a MEGA BALL and what it multiplied their win by
  *     (already in the ball's multiplier);</li>
  * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: balls in a SPIN slot and what their wheel spin multiplied that
@@ -70,13 +71,14 @@ public final class RoundWin {
     }
 
     /**
-     * Writes a round's bonus parts in the stored format, always in the same order (path, gates, megaball, spin, mega,
-     * meter, capped),
+     * Writes a round's bonus parts in the stored format, always in the same order (path, gates, layout, megaball, spin,
+     * mega, meter, capped),
      * whatever order they are added in; null when the round had none.
      */
     public static final class Text {
         private final List<String> paths = new ArrayList<>();
         private String gates;
+        private String layout;
         private final List<String> megaBalls = new ArrayList<>();
         private final List<String> spins = new ArrayList<>();
         private final List<String> megas = new ArrayList<>();
@@ -90,6 +92,11 @@ public final class RoundWin {
 
         public Text gates(BigDecimal boost) {
             gates = "gates:" + boost.stripTrailingZeros().toPlainString();
+            return this;
+        }
+
+        public Text layout(int index) {
+            layout = "layout:" + index;
             return this;
         }
 
@@ -127,6 +134,9 @@ public final class RoundWin {
             if (gates != null) {
                 parts.add(gates);
             }
+            if (layout != null) {
+                parts.add(layout);
+            }
             if (!megaBalls.isEmpty()) {
                 parts.add("megaball:" + String.join(",", megaBalls));
             }
@@ -154,7 +164,7 @@ public final class RoundWin {
      */
     public record Outcome(List<Integer> slots, List<BigDecimal> multipliers, Meter meter, BigDecimal capped,
                           List<Integer> paths, BigDecimal gateBoost, List<Spin> spins, List<MegaSpin> megaSpins,
-                          List<MegaBall> megaBalls) {
+                          List<MegaBall> megaBalls, int layout) {
 
         /** What ball {@code ball}'s MEGA BALL multiplied its win by (1: a plain ball). */
         public BigDecimal megaBallTimes(int ball) {
@@ -203,6 +213,7 @@ public final class RoundWin {
         List<Spin> spins = new ArrayList<>();
         List<MegaSpin> megaSpins = new ArrayList<>();
         List<MegaBall> megaBalls = new ArrayList<>();
+        int layout = 0;
         if (bonus != null) {
             for (String part : bonus.split(";", -1)) {
                 int colon = part.indexOf(':');
@@ -221,6 +232,7 @@ public final class RoundWin {
                         }
                     }
                     case "gates" -> gateBoost = new BigDecimal(value);
+                    case "layout" -> layout = Integer.parseInt(value);
                     case "megaball" -> {
                         if (!megaBalls.isEmpty()) {
                             throw new IllegalArgumentException("two megaball parts");
@@ -278,6 +290,6 @@ public final class RoundWin {
             }
         }
         return new Outcome(List.copyOf(slots), List.copyOf(multipliers), meter, capped,
-                List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins), List.copyOf(megaBalls));
+                List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins), List.copyOf(megaBalls), layout);
     }
 }

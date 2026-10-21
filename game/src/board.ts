@@ -185,6 +185,22 @@ export function wanderingSteps(rows: number, slot: number): number[] {
 }
 
 /** The steps of a path decided by the server (bit i set: bounce i + 1 goes right). */
+/** A peg by its row (steps taken to reach it) and how many of those went right: the server's numbering. */
+export function pegKey(row: number, rights: number): number {
+  return row * 64 + rights;
+}
+
+/** The pegs a MEGA BALL on this path smashes (on the board's smash rows), as peg keys. */
+export function smashedPegs(path: number, smashRows: number[]): Set<number> {
+  return new Set(smashRows.map(row => pegKey(row, popCount(path & ((1 << row) - 1)))));
+}
+
+function popCount(n: number): number {
+  let count = 0;
+  for (; n; n &= n - 1) count++;
+  return count;
+}
+
 export function pathSteps(rows: number, path: number): number[] {
   return Array.from({ length: rows }, (_, i) => ((path >> i) & 1 ? 1 : -1));
 }
@@ -305,7 +321,21 @@ export class Board extends Container {
     return this.spinSlots[String(this.rows)] ?? [];
   }
 
-  private drawMega(): void {
+  /** The gates this round stands on (the server moves them every round): the bars spring up at their new places. */
+  showGates(layout: number[][]): void {
+    const key = JSON.stringify(layout);
+    if (key === this.gatesShown) return;
+    this.drawMega(layout);
+    this.gates.forEach((gate, i) => {
+      gsap.fromTo(gate.view, { alpha: 0 }, { alpha: 1, duration: 0.2, delay: i * 0.05 });
+      gsap.fromTo(gate.view.scale, { x: 0.2, y: 2 }, { x: 1, y: 1, duration: 0.35, delay: i * 0.05, ease: 'back.out(2)' });
+    });
+  }
+
+  /** The layout drawn now (to redraw only when it changes). */
+  private gatesShown = '';
+
+  private drawMega(layout: number[][] | null = null): void {
     // the bars' shimmer and glow run forever: stopped before the bars go
     this.gateLayer.removeChildren().forEach(view => {
       gsap.killTweensOf([view, view.scale, ...view.children]);
@@ -315,7 +345,9 @@ export class Board extends Container {
     const spin = this.currentSpinSlots();
     this.slots.forEach((slot, i) => { slot.spinMark.visible = spin.includes(i); });
     if (this.gateBoost <= 0) return;
-    for (const [step, from, to] of this.megaGates[String(this.rows)] ?? []) {
+    const bars = layout ?? this.megaGates[String(this.rows)] ?? [];
+    this.gatesShown = JSON.stringify(bars);
+    for (const [step, from, to] of bars) {
       const view = this.gateView(from, to, step);
       view.position.set(PEG_SPACING / 2 * (from + to - step), PEG_SPACING * (step + 1) - BALL_REST);
       this.gateLayer.addChild(view);
@@ -494,7 +526,9 @@ export class Board extends Container {
    * exactly `slot` go right, in random order, so every ball looks different but always lands where it must.
    */
   dropBall(slot: number, events: { onPeg?: (peg: PegHit) => void; onLand?: (landing: Landing) => void } = {},
-           path: number | null = null, mega = 1): Promise<void> {
+           path: number | null = null, mega = 1, pegs: { holes?: Set<number>; smash?: Set<number> } = {}): Promise<void> {
+    const holes = pegs.holes ?? new Set<number>();
+    const smash = pegs.smash ?? new Set<number>();
     const rows = this.rows;
     // Plinko Mega: the server decides the path (it decides the gates); a round without one gets a lively made-up route
     const steps = path != null && Number.isInteger(path) && path >= 0 && path < 2 ** rows ? pathSteps(rows, path) : wanderingSteps(rows, slot);
@@ -507,6 +541,9 @@ export class Board extends Container {
       if (gate) passes.set(i + 1, gate);
     });
     let gateBoost = 1;
+    // rights after each number of steps: a peg is known by its row and that (see smashPeg)
+    const rightsAt = [0];
+    steps.forEach(step => rightsAt.push(rightsAt[rightsAt.length - 1] + (step > 0 ? 1 : 0)));
     const points: { x: number; y: number }[] = [{ x: 0, y: PEG_SPACING - BALL_REST }];
     let x = 0;
     for (let r = 1; r < rows; r++) {
@@ -554,14 +591,7 @@ export class Board extends Container {
       timeline.fromTo(ball.scale, { x: 0.2, y: 0.2 }, { x: size, y: size, duration: 0.25, ease: 'back.out(3)' }, 0);
       timeline.to(flight, { y: points[0].y, duration: 0.34, ease: 'power2.in' }, 0);
       timeline.call(() => this.touchPeg(ball, 0, 0, events.onPeg, flight.size));
-      // peg to peg: hops get a little quicker and flatter as the ball picks up speed
-      for (let i = 1; i < points.length; i++) {
-        const progress = i / points.length;
-        arc(points[i - 1], points[i], PEG_SPACING * (0.34 - 0.14 * progress) * random(0.92, 1.08),
-          pace * (1 - 0.28 * progress) * random(0.97, 1.03));
-        const column = this.pegColumn(i, points[i].x);
-        timeline.call(() => this.touchPeg(ball, i, column, events.onPeg, flight.size));
-        // a ball on its way to something big: slow motion for its last rows (the game decides which)
+      const gateAt = (i: number) => {
         const gate = passes.get(i);
         if (gate) timeline.call(() => {
           gateBoost *= this.gateBoost;
@@ -570,14 +600,52 @@ export class Board extends Container {
           flight.size = size * (1 + 0.15 * Math.max(0, flight.heat - (mega > 1 ? 2 : 0)));
           gsap.to(ball.scale, { x: flight.size, y: flight.size, duration: 0.2, ease: 'back.out(2)', overwrite: true });
         });
+      };
+      // peg to peg: hops get a little quicker and flatter as the ball picks up speed. Where a MEGA BALL smashed the
+      // peg, the ball falls straight down through the hole, past the next row, onto the peg two rows down.
+      let prev = points[0];
+      for (let i = 1; i < points.length; ) {
+        const progress = i / points.length;
+        const at = points[i];
+        arc(prev, at, PEG_SPACING * (0.34 - 0.14 * progress) * random(0.92, 1.08), pace * (1 - 0.28 * progress) * random(0.97, 1.03));
+        const column = this.pegColumn(i, at.x);
+        const key = pegKey(i, rightsAt[i]);
+        if (holes.has(key) && i + 2 <= rows && steps[i] !== steps[i + 1]) {
+          // a hole (if this ball got here first, the peg blows now)
+          timeline.call(() => this.smashPeg(i, column));
+          gateAt(i);
+          const below = i + 2 < points.length ? points[i + 2] : null;
+          if (!below) { prev = at; break; }   // the slot is straight below
+          const drop = { t: 0 };
+          timeline.to(drop, { t: 1, duration: pace * 0.9, ease: 'power1.in', onUpdate: () => {
+            flight.x = at.x;
+            flight.y = at.y + (below.y - at.y) * drop.t;
+            this.streak(ball, radius, flight.heat);
+          } });
+          gateAt(i + 1);
+          const belowColumn = this.pegColumn(i + 2, below.x);
+          timeline.call(() => this.touchPeg(ball, i + 2, belowColumn, events.onPeg, flight.size));
+          gateAt(i + 2);
+          prev = below;
+          i += 3;
+          continue;
+        }
+        // a hole this ball can't fall through (the server let it bounce here): the peg is back just in time
+        if (holes.has(key)) timeline.call(() => this.restorePeg(i, column));
+        timeline.call(() => this.touchPeg(ball, i, column, events.onPeg, flight.size));
+        // a MEGA BALL blows up the pegs it hits on the smash rows
+        if (smash.has(key)) timeline.call(() => this.smashPeg(i, column));
+        gateAt(i);
         // now and then the ball bounces up off a peg and comes down on it again before going on
-        if (i < points.length - 2 && Math.random() < 0.07) {
-          arc(points[i], points[i], PEG_SPACING * random(0.18, 0.26) * (1 - 0.4 * progress), pace * 0.55);
+        if (i < points.length - 2 && !smash.has(key) && Math.random() < 0.07) {
+          arc(at, at, PEG_SPACING * random(0.18, 0.26) * (1 - 0.4 * progress), pace * 0.55);
           timeline.call(() => this.touchPeg(ball, i, column, events.onPeg, flight.size));
         }
+        prev = at;
+        i++;
       }
       // into the hole: the last fall keeps its speed and goes behind the slot, which swallows the ball
-      const last = points[points.length - 1];
+      const last = prev;
       const end = { x: landX, y: slotTop + radius * 2.4 };
       const height = PEG_SPACING * 0.16;
       let entered = false;
@@ -906,6 +974,44 @@ export class Board extends Container {
     const out = ball.rotation - Math.PI / 2;   // the way the fuse points
     // a very short fuse: a few sparks fizzing right on the fuse head, no smoke trail
     if (Math.random() < Math.min(0.5, 6 / balls)) this.particles.spit(x, y, FUSE[this.fuseTick % FUSE.length], out, radius * 0.15);
+  }
+
+  /** Pegs blown away this round, as "row:column", to put back at the next round. */
+  private readonly smashedNow = new Set<string>();
+  /** A peg smashed (for its sound). */
+  onSmash: (() => void) | null = null;
+
+  /** A MEGA BALL blows a peg away: a blast, debris, and the peg is gone until the next round. */
+  private smashPeg(row: number, column: number): void {
+    const id = row + ':' + column;
+    const peg = this.pegs[row]?.[column];
+    if (!peg || this.smashedNow.has(id)) return;
+    this.smashedNow.add(id);
+    gsap.killTweensOf(peg.scale);
+    peg.visible = false;
+    const flash = this.pegFlashes[row]?.[column];
+    if (flash) { gsap.killTweensOf(flash); flash.alpha = 0; }
+    this.particles.burst(peg.x, peg.y, ['#fff3b0', '#ffd76a', '#ff8a1a'], 10, 260);
+    this.particles.burst(peg.x, peg.y, ['#8b939b', '#4c535a', '#2a2f35'], 8, 300, 1400);
+    this.particles.ring(peg.x, peg.y, '#ff8a1a', 26);
+    this.onSmash?.();
+  }
+
+  /** The smashed pegs come back (at the start of a round). */
+  restorePegs(): void {
+    for (const id of [...this.smashedNow]) {
+      const [row, column] = id.split(':').map(Number);
+      this.restorePeg(row, column);
+    }
+  }
+
+  private restorePeg(row: number, column: number): void {
+    const id = row + ':' + column;
+    if (!this.smashedNow.delete(id)) return;
+    const peg = this.pegs[row]?.[column];
+    if (!peg) return;
+    peg.visible = true;
+    gsap.fromTo(peg.scale, { x: 0, y: 0 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)' });
   }
 
   private pegColumn(row: number, x: number): number {

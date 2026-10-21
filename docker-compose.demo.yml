@@ -8,7 +8,7 @@ services:
       MOCK_PAM_ENABLED: "true"
       PAM_BASE_URL: http://localhost:8080/mock-pam
       DEMO_MODE: "true"
-      DEMO_CREDITS: ${DEMO_CREDITS:-1000}
+      DEMO_CREDITS: ${DEMO_CREDITS:-10000}
       DEMO_WALLETS_PER_DAY: ${DEMO_WALLETS_PER_DAY:-2000}
       # the admin panel is reached on the server itself (or over SSH) at http://127.0.0.1:8091
       COOKIE_SECURE: "false"

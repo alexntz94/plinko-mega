@@ -83,7 +83,8 @@
     "hub": "item_wheel_hub.png",
     "pointer": "item_wheel_pointer.png",
     "bezel": "item_wheel_rim.png",
-    "glass": "item_wheel_glass.png"
+    "glass": "item_wheel_glass.png",
+    "style": "revolver"
   },
   "ambient": {
     "colours": [

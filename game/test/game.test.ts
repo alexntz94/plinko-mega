@@ -29,7 +29,7 @@ vi.mock('../src/board', async () => {
       }, 1000));
     }
   }
-  return { Board, slotTier };
+  return { Board, slotTier, smashedPegs: () => new Set<number>() };
 });
 vi.mock('../src/fortuneWheel', async () => {
   const { Stub } = await import('./stubs');
@@ -61,6 +61,7 @@ vi.mock('../src/effects', async () => {
   return {
     BigWin: class BigWin extends Stub {},
     CoinShower: class CoinShower extends Stub {},
+    BlastShower: class BlastShower extends Stub {},
     winLevel: (win: number, bet: number) => (bet > 0 && win / bet >= 3 ? 'BIG WIN' : null),
   };
 });
@@ -238,6 +239,19 @@ describe('the balance shown is the server\'s (review 5.7 #5)', () => {
     await vi.runAllTimersAsync();
     expect(play).toHaveBeenCalledTimes(2);
     expect(credit()).toBe('€' + second.balance.toFixed(2));
+  });
+
+  it('WIN adds up every round of the session, a capped round at what the server paid', async () => {
+    const { actions } = await table(100);
+    const first = round(100, 1, [0.5, 2]);
+    const second = round(first.balance, 1, [3, 3], null, 4);   // capped: its balls add up to 6, the server paid 4
+    play.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    actions.play();
+    await vi.runAllTimersAsync();
+    expect(controls().last('setWin')).toBe('€2.50');
+    actions.play();
+    await vi.runAllTimersAsync();
+    expect(controls().last('setWin')).toBe('€6.50');
   });
 
   it('a refusal that carries the balance shows it', async () => {

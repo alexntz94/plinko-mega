@@ -39,8 +39,11 @@ export interface Round { roundId: string; slots: number[]; multipliers: number[]
   /** what each ball paid, exactly as the server added them up */
   wins?: number[];
   /** every ball's path (bit i set: bounce i+1 goes right), the gates each went through, the wheel spins from SPIN
-   *  slots and the MEGA SPINs a full meter paid */
-  paths?: number[]; gates?: number[]; spins?: Spin[]; megaSpins?: MegaSpin[] }
+   *  slots and the MEGA SPINs a full meter paid; the balls that dropped as a MEGA BALL (their multiplier is already in
+   *  the ball's) */
+  paths?: number[]; gates?: number[]; spins?: Spin[]; megaSpins?: MegaSpin[]; megaBalls?: MegaBall[] }
+/** Paid ball `ball` was a MEGA BALL that multiplied its win by `multiplier`. */
+export interface MegaBall { ball: number; multiplier: number }
 export interface ApiError { status: number; code: string; message?: string; balance?: number }
 
 const BASE = '/api/game';

@@ -32,6 +32,20 @@ export function inkPanel(g: Graphics, x: number, y: number, w: number, h: number
 }
 
 /** A big gold amount with dark edges, for wins. */
+/**
+ * A count-up shown without redrawing its text on every frame (a text is redrawn and sent to the graphics card each
+ * time it changes, which stutters on a big screen): at most 20 times a second, and always the last value.
+ */
+export function counting(show: (value: number) => void): (value: number, last?: boolean) => void {
+  let at = -1;
+  return (value, last = false) => {
+    const now = performance.now();
+    if (!last && now - at < 50) return;
+    at = now;
+    show(value);
+  };
+}
+
 export function goldText(value: string, size: number): Text {
   return label(value, size, 'center', {
     fill: shade('#fff6c2', '#e3a21a'), stroke: { color: '#3a2200', width: Math.max(4, size * 0.12), join: 'round' },

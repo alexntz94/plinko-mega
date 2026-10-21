@@ -15,10 +15,12 @@ import com.plinko.model.OddsTable;
  * Review 7.8: deciding a round's balls, apart from taking the bet and paying. Pure: every random draw comes from the
  * {@link Dice}, so a test can fix them and check the result, the win and the stored text exactly.
  * <p>
- * The draws happen in a fixed order (each ball's slot, path and wheel spin, then each MEGA SPIN), and the stored text is written by {@link RoundWin.Text}, the same class that reads it back.
+ * The draws happen in a fixed order (each ball's slot, path, MEGA BALL and wheel spin, then each MEGA SPIN), and the
+ * stored text is written by {@link RoundWin.Text}, the same class that reads it back.
  * <p>
- * The slot is drawn from the odds table, then a path to it; the gates the path goes through multiply the prize. A ball
- * in a SPIN slot also spins the wheel for its bet, and a full meter pays its pot as a MEGA SPIN of the gold wheel.
+ * The slot is drawn from the odds table, then a path to it; the gates the path goes through multiply the prize, and a
+ * MEGA BALL multiplies it again. A ball in a SPIN slot also spins the wheel, which pays that ball's win again times the
+ * segment, and a full meter pays its pot as a MEGA SPIN of the gold wheel.
  */
 final class RoundDraw {
 
@@ -34,6 +36,15 @@ final class RoundDraw {
 
         /** The index of the segment a spin of this wheel stops on. */
         int segment(BonusSettings.Wheel wheel);
+
+        /** Whether a ball is a MEGA BALL: the index of its multiplier, or -1 for a plain ball. */
+        default int megaBall(BonusSettings.MegaBall megaBall) {
+            return -1;
+        }
+    }
+
+    /** Ball {@code ball} dropped as a MEGA BALL, which multiplied its win by {@code multiplier}. */
+    record MegaBall(int ball, BigDecimal multiplier) {
     }
 
     /** A wheel spin started by ball {@code ball}, as the game shows it. */
@@ -51,7 +62,7 @@ final class RoundDraw {
     /** Everything decided, as the game shows it and as it is stored and signed. */
     record Result(List<Integer> slots, List<BigDecimal> multipliers, List<BigDecimal> wins, int chargesAfter, BigDecimal potAfter, String meterPrev, BigDecimal totalWin,
                   String slotText, String multiplierText, String bonusText,
-                  List<Integer> paths, List<Integer> gates, List<Spin> spins, List<MegaSpin> megaSpins) {
+                  List<Integer> paths, List<Integer> gates, List<Spin> spins, List<MegaSpin> megaSpins, List<MegaBall> megaBalls) {
     }
 
     static Result draw(OddsTable table, BonusSettings bonusSettings, BigDecimal bet, int balls, MeterBefore meterBefore,
@@ -67,6 +78,7 @@ final class RoundDraw {
         List<Integer> paths = new ArrayList<>();
         List<Integer> gates = new ArrayList<>();
         List<Spin> spins = new ArrayList<>();
+        List<MegaBall> megaBalls = new ArrayList<>();
         List<Integer> slots = new ArrayList<>();
         List<BigDecimal> multipliers = new ArrayList<>();
         BigDecimal totalWin = BigDecimal.ZERO;
@@ -81,6 +93,14 @@ final class RoundDraw {
             paths.add(path);
             gates.add(passed);
             text.path(path);
+            // a MEGA BALL multiplies what its ball wins
+            int mega = bonusSettings.megaBallOn() ? dice.megaBall(bonusSettings.megaBall()) : -1;
+            if (mega >= 0) {
+                BigDecimal times = bonusSettings.megaBall().multipliers().get(mega).multiplier().stripTrailingZeros();
+                multiplier = multiplier.multiply(times);
+                megaBalls.add(new MegaBall(ball, times));
+                text.megaBall(ball, times);
+            }
             // a ball on a big prize charges the meter and puts its share of the bet into the pot
             if (meterSettings != null && BonusService.chargesMeter(bonusSettings, table.rows(), table.risk(),
                     PlinkoBoard.prizeIndexOfSlot(table.rows(), slot))) {
@@ -92,11 +112,11 @@ final class RoundDraw {
             BigDecimal win = RoundWin.ball(bet, multiplier);
             wins.add(win);
             totalWin = totalWin.add(win);
-            // a SPIN slot also spins the wheel, for the ball's bet
+            // a SPIN slot also spins the wheel, which multiplies what the ball won
             if (bonusSettings.wheelOn() && MegaBoard.isSpinSlot(table.rows(), slot)) {
                 int segment = dice.segment(bonusSettings.wheel());
                 BigDecimal pays = bonusSettings.wheel().segments().get(segment).multiplier();
-                BigDecimal spinWin = RoundWin.ball(bet, pays);
+                BigDecimal spinWin = RoundWin.spin(bet, multiplier, pays);
                 spins.add(new Spin(ball, segment, pays.stripTrailingZeros(), spinWin));
                 text.spin(ball, segment, pays);
                 totalWin = totalWin.add(spinWin);
@@ -130,6 +150,6 @@ final class RoundDraw {
         return new Result(slots, multipliers, wins, charges, pot, meterPrev, totalWin,
                 slots.stream().map(String::valueOf).collect(Collectors.joining(",")),
                 multipliers.stream().map(BigDecimal::toPlainString).collect(Collectors.joining(",")), text.text(),
-                paths, gates, spins, megaSpins);
+                paths, gates, spins, megaSpins, megaBalls);
     }
 }

@@ -71,7 +71,7 @@
             <div class="card-head">
                 <div>
                     <h2>Wheel</h2>
-                    <p class="muted">Two SPIN slots on every board (the pair that a ball lands in about 1 time in 100). A ball landing there keeps its prize and also spins the wheel, which pays the ball's bet times the segment it stops on.</p>
+                    <p class="muted">Two SPIN slots on every board (the pair that a ball lands in closest to 4 times in 100). A ball landing there keeps its prize and also spins the wheel, which pays that ball's win again times the segment it stops on.</p>
                 </div>
                 <span class="status" th:classappend="${bonus.wheelOn()} ? 'COMPLETED' : 'CANCELLED'" th:text="${bonus.wheelOn()} ? 'On' : 'Off'">Off</span>
             </div>
@@ -93,11 +93,39 @@
                 </tr>
                 </tbody>
             </table>
-            <p class="muted small" th:text="|A spin pays ${wheelPays} times the bet on average. Up to 16 segments; weights must add up to 100%.|"></p>
+            <p class="muted small" th:text="|A spin multiplies its ball's win by ${wheelPays} on average. Up to 16 segments; weights must add up to 100%.|"></p>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <h2>MEGA BALL</h2>
+                    <p class="muted">Some balls drop as a gold MEGA BALL. Wherever it lands, its prize (gates included) is multiplied by the MEGA BALL's own multiplier, drawn when the round is played.</p>
+                </div>
+                <span class="status" th:classappend="${bonus.megaBallOn()} ? 'COMPLETED' : 'CANCELLED'" th:text="${bonus.megaBallOn()} ? 'On' : 'Off'">Off</span>
+            </div>
+            <div class="form-row">
+                <label class="check-row"><input type="checkbox" name="megaBallEnabled" value="true" th:checked="${bonus.megaBallOn()}"> MEGA BALL on</label>
+                <label>Share of balls
+                    <span class="input-suffix"><input name="megaBallChance" th:value="${megaBallForm.chance().stripTrailingZeros().toPlainString()}" inputmode="decimal" required aria-label="Share of balls"><span>%</span></span>
+                </label>
+            </div>
+            <table class="compact narrow-table">
+                <thead><tr><th>Multiplies by</th><th>How often</th></tr></thead>
+                <tbody>
+                <tr th:each="i : ${#numbers.sequence(0, 9)}" th:with="m=${i < megaBallForm.multipliers().size()} ? ${megaBallForm.multipliers().get(i)} : null">
+                    <td><span class="input-suffix"><input name="megaBallMultiplier" inputmode="decimal" aria-label="Multiplies by"
+                             th:value="${m != null} ? ${m.multiplier().stripTrailingZeros().toPlainString()} : ''"><span>x</span></span></td>
+                    <td><span class="input-suffix"><input name="megaBallWeight" inputmode="decimal" aria-label="How often"
+                             th:value="${m != null} ? ${m.weight().stripTrailingZeros().toPlainString()} : ''"><span>%</span></span></td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="muted small" th:text="|A MEGA BALL multiplies its ball's win by ${megaBallPays} on average. Up to 10 multipliers; weights must add up to 100%.|"></p>
         </div>
 
         <div class="card-actions" sec:authorize="hasRole('OPERATOR')">
-            <span class="muted small">Proposing rebuilds all 21 odds tables so each keeps its total RTP, gates and wheels included.</span>
+            <span class="muted small">Proposing rebuilds all 21 odds tables so each keeps its total RTP, gates, wheels and MEGA BALLs included.</span>
             <button type="submit" th:disabled="${pending != null}" data-confirm="Propose these bonus settings? They apply only after another admin approves.">Propose change</button>
         </div>
     </form>

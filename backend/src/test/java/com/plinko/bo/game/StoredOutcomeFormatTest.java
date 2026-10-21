@@ -28,6 +28,8 @@ class StoredOutcomeFormatTest {
             "4    | 1     | path:15;meter:2/3:0.4",
             "4    | 1     | path:15;spin:0@1",
             "4    | 1     | path:15;mega:1.00@2",
+            "4    | 1     | path:15;megaball:0",
+            "4    | 1     | path:15;megaball:0x2;megaball:0x3",
             "4    | 1     | path:15;jackpot:1",
             "x    | 1     | path:15",
             "4    | one   | path:15"})
@@ -38,7 +40,8 @@ class StoredOutcomeFormatTest {
     @Test
     void everyBonusPartTheGameWritesIsRead() {
         RoundWin.Outcome outcome = RoundWin.parse("4,0", "1.1,26",
-                "path:15,0;gates:2;spin:1@3x10;mega:0.40@6x25;meter:0/3:0:m-1;capped:5.00");
+                "path:15,0;gates:2;megaball:0x2;spin:1@3x10;mega:0.40@6x25;meter:0/3:0:m-1;capped:5.00");
+        assertThat(outcome.megaBalls()).containsExactly(new RoundWin.MegaBall(0, new BigDecimal("2")));
         assertThat(outcome.slots()).containsExactly(4, 0);
         assertThat(outcome.paths()).containsExactly(15, 0);
         assertThat(outcome.gateBoost()).isEqualByComparingTo("2");
@@ -47,8 +50,8 @@ class StoredOutcomeFormatTest {
         assertThat(outcome.meter().charges()).isZero();
         assertThat(outcome.meter().prev()).isEqualTo("m-1");
         assertThat(outcome.capped()).isEqualByComparingTo("5.00");
-        // balls, wheel spins at the bet, MEGA SPINs at their stake
-        assertThat(outcome.raw(BigDecimal.ONE)).isEqualByComparingTo(new BigDecimal("1.10").add(new BigDecimal("26")).add(BigDecimal.TEN)
+        // balls; ball 1's wheel spin pays its 26x win again times 10; MEGA SPINs at their stake
+        assertThat(outcome.raw(BigDecimal.ONE)).isEqualByComparingTo(new BigDecimal("1.10").add(new BigDecimal("26")).add(new BigDecimal("260"))
                 .add(new BigDecimal("10.00")));
     }
 }

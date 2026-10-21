@@ -83,8 +83,12 @@ public class GameService {
     public record SegmentView(String name, BigDecimal multiplier) {
     }
 
-    /** A wheel spin started by paid ball {@code ball}: the segment it stopped on, what that pays (x the bet) and the win. */
+    /** A wheel spin started by paid ball {@code ball}: the segment it stopped on, what it multiplies the ball's win by, and the win. */
     public record SpinView(int ball, int segment, BigDecimal multiplier, BigDecimal win) {
+    }
+
+    /** Paid ball {@code ball} dropped as a MEGA BALL: what it multiplied that ball's win by (already in its multiplier). */
+    public record MegaBallView(int ball, BigDecimal multiplier) {
     }
 
     /** A MEGA SPIN of the gold wheel: its stake from the pot, the segment, what that pays (x the stake) and the win. */
@@ -106,14 +110,16 @@ public class GameService {
             "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 
     /**
-     * multipliers are what each ball paid (prize x its gates);
+     * multipliers are what each ball paid (prize x its gates x its MEGA BALL);
      * meter is the player's meter after the round; paths (each ball's path, see MegaBoard), gates (how many gates each
-     * went through), spins (wheel spins from SPIN slots) and megaSpins (MEGA SPINs paid by a full meter).
+     * went through), spins (wheel spins from SPIN slots), megaSpins (MEGA SPINs paid by a full meter) and megaBalls (the
+     * balls that dropped as a MEGA BALL).
      */
     public record PlayResponse(String roundId, List<Integer> slots, List<BigDecimal> multipliers, BigDecimal totalBet,
                                BigDecimal totalWin, BigDecimal balance,
                                MeterView meter, List<BigDecimal> wins,
-                               List<Integer> paths, List<Integer> gates, List<SpinView> spins, List<MegaSpinView> megaSpins) {
+                               List<Integer> paths, List<Integer> gates, List<SpinView> spins, List<MegaSpinView> megaSpins,
+                               List<MegaBallView> megaBalls) {
     }
 
     private final GameRepository repository;
@@ -144,6 +150,11 @@ public class GameService {
         @Override
         public int segment(BonusSettings.Wheel wheel) {
             return bonus.rollSegment(wheel);
+        }
+
+        @Override
+        public int megaBall(BonusSettings.MegaBall megaBall) {
+            return bonus.rollMegaBall(megaBall);
         }
     };
 
@@ -381,7 +392,8 @@ public class GameService {
         return new PlayResponse(roundId, drawn.slots(), drawn.multipliers(), setup.totalBet(), drawn.totalWin(), balance, meterAfter, drawn.wins(),
                 drawn.paths(), drawn.gates(),
                 drawn.spins().stream().map(x -> new SpinView(x.ball(), x.segment(), x.multiplier(), x.win())).toList(),
-                drawn.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier(), x.win())).toList());
+                drawn.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier(), x.win())).toList(),
+                drawn.megaBalls().stream().map(x -> new MegaBallView(x.ball(), x.multiplier())).toList());
     }
 
     /** The odds table and bonuses in force, the round's cost, and the hard win limit (a bet that could exceed it is refused). */
@@ -398,7 +410,8 @@ public class GameService {
         BigDecimal totalBet = bet.multiply(BigDecimal.valueOf(request.balls()));
         // the hard limit in force now: recorded with the round, so a later change never blocks or raises this round's win
         BigDecimal maxWin = properties.limits().maxWinPerRound().setScale(2, RoundingMode.DOWN);
-        if (totalBet.multiply(table.maxMultiplier()).compareTo(maxWin) > 0) {
+        // one ball on the top prize must stay within the limit; many balls together are cut to it when the round is paid
+        if (bet.multiply(table.maxMultiplier()).compareTo(maxWin) > 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "BET_TOO_HIGH", "Bet exceeds the maximum win per round");
         }
         return new Setup(table, oddsRef, current.bonus(), bet, totalBet, maxWin);
@@ -603,9 +616,10 @@ public class GameService {
         return new PlayResponse(round.id(), outcome.slots(), outcome.multipliers().stream().map(BigDecimal::stripTrailingZeros).toList(),
                 round.totalBet(), round.totalWin(), balance, meter, wins, outcome.paths(), gates,
                 outcome.spins().stream().map(x -> new SpinView(x.ball(), x.segment(), x.multiplier().stripTrailingZeros(),
-                        RoundWin.ball(round.bet(), x.multiplier()))).toList(),
+                        RoundWin.spin(round.bet(), outcome.multipliers().get(x.ball()), x.multiplier()))).toList(),
                 outcome.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier().stripTrailingZeros(),
-                        RoundWin.ball(x.stake(), x.multiplier()))).toList());
+                        RoundWin.ball(x.stake(), x.multiplier()))).toList(),
+                outcome.megaBalls().stream().map(x -> new MegaBallView(x.ball(), x.multiplier().stripTrailingZeros())).toList());
     }
 
     /** (c) the credit's answer, the round's status, the player's balance and the round lock released: one transaction. */

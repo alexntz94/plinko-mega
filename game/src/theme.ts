@@ -18,7 +18,7 @@ export interface BoardStyle {
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
 export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: string }
-export type ThemeFx = 'standard' | 'loteria';
+export type ThemeFx = 'standard' | 'war';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -26,7 +26,10 @@ export type ThemeFx = 'standard' | 'loteria';
  */
 export interface WheelLook { faces: string[]; text: string[]; rim: string }
 export interface WheelStyle extends WheelLook { ink: string; title: string; gold: WheelLook; hub: string | null; pointer: string | null;
-  gate: string | null }
+  gate: string | null;
+  /** optional drawings laid over the turning disc, centred, made for a disc of radius 160: the bezel round it (440
+   *  across) and the glass over its face */
+  bezel: string | null; glass: string | null }
 export interface Theme {
   id: string;
   name: string;
@@ -50,6 +53,8 @@ export interface Theme {
   /** The sound effects the theme ships itself (sfx_<name>.ogg / .mp3); the rest come from the shared set. */
   sounds: SoundName[];
   wheel: WheelStyle;
+  /** What drifts over the scene all the time: its colours, and whether it rises (embers) or falls (petals, snow). */
+  ambient: { colours: string[]; rise: boolean };
   path: string;
 }
 
@@ -80,7 +85,7 @@ function readBoard(json: unknown): BoardStyle {
     slots,
     slotRadius: Math.min(20, Math.max(0, number(b.slotRadius, DEFAULT_BOARD.slotRadius))),
     slotArt: b.slotArt === true,
-    fx: b.fx === 'loteria' ? 'loteria' : 'standard',
+    fx: b.fx === 'war' ? 'war' : 'standard',
   };
 }
 
@@ -104,11 +109,12 @@ function readWheel(json: unknown, board: BoardStyle, accent: string, text: strin
     faces, text: texts, rim: colour(w.rim, '#222222'), ink: colour(w.ink, '#000000'), title: colour(w.title, accent),
     gold: { faces: colours(g.faces, ['#f3c64a', '#fff0b8', '#d99a1e']), text: colours(g.text, ['#2a1a00']), rim: colour(g.rim, '#8a5d12') },
     hub: fileName(w.hub, /\.png$/), pointer: fileName(w.pointer, /\.png$/), gate: fileName(w.gate, /\.png$/),
+    bezel: fileName(w.bezel, /\.png$/), glass: fileName(w.glass, /\.png$/),
   };
 }
 
 export async function loadTheme(id: string): Promise<Theme> {
-  const safe = /^[a-z0-9-]{1,32}$/.test(id) ? id : 'loteria-muerta';
+  const safe = /^[a-z0-9-]{1,32}$/.test(id) ? id : 'bombs-away';
   const path = `/themes/${safe}/`;
   let json: Record<string, unknown> = {};
   try {
@@ -136,6 +142,10 @@ export async function loadTheme(id: string): Promise<Theme> {
     logoNeon: Math.min(3, Math.max(0, Math.floor(number(json.logoNeon, 0)))),
     sounds: Array.isArray(json.sounds) ? SOUND_NAMES.filter(name => (json.sounds as unknown[]).includes(name)) : [],
     wheel: readWheel(json.wheel, readBoard(json.board), colour(json.accent, '#ffffff'), colour(json.text, '#ffffff')),
+    ambient: {
+      colours: colours((json.ambient as Record<string, unknown> | undefined)?.colours, [colour(json.accent, '#ffffff')]),
+      rise: (json.ambient as Record<string, unknown> | undefined)?.rise === true,
+    },
     path,
   };
   document.title = theme.title;

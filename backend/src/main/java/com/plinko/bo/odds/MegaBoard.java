@@ -14,7 +14,7 @@ import java.util.List;
  * <p>
  * The bars are three pegs wide, starting next to the centre, at about a third, three fifths and five sixths of the way
  * down, on the left, the right and the left again. The two SPIN slots are the pair whose natural chance is closest to
- * 1%.
+ * 4% (with 10 balls, a wheel spin in about one round in three).
  */
 public final class MegaBoard {
 
@@ -29,7 +29,7 @@ public final class MegaBoard {
     private static final int BAR = 3;
 
     private static final double[][] GATE_ROWS = {{.35, -1}, {.6, 1}, {.85, -1}};
-    private static final double SPIN_CHANCE = .01;
+    private static final double SPIN_CHANCE = .04;
 
     private MegaBoard() {
     }

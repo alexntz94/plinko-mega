@@ -21,7 +21,7 @@ class RoundDrawTest {
 
     /** Every feature on, and a meter that fills after 3 charges (so MEGA SPINs come often). */
     private static final BonusSettings ALL = new BonusSettings(new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")),
-            BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
+            BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel(), BonusSettings.MEGA.megaBall());
     /** Only the gates (no meter, no wheel). */
     private static final BonusSettings GATES = new BonusSettings(BonusSettings.OFF.meter(), BonusSettings.MEGA.gates(), BonusSettings.OFF.wheel(),
             BonusSettings.OFF.megaWheel());
@@ -79,6 +79,41 @@ class RoundDrawTest {
     }
 
     @Test
+    void aMegaBallMultipliesItsBallsWinAndIsStored() {
+        OddsTable table = odds.get(8, 0);
+        BonusSettings megaOnly = new BonusSettings(BonusSettings.OFF.meter(), BonusSettings.OFF.gates(), BonusSettings.OFF.wheel(),
+                BonusSettings.OFF.megaWheel(), BonusSettings.MEGA.megaBall());
+        Deque<Integer> slots = new ArrayDeque<>(List.of(0, 4));
+        Deque<Integer> megas = new ArrayDeque<>(List.of(-1, 3));    // the second ball is a MEGA BALL, on its 4th multiplier
+        RoundDraw.Result r = RoundDraw.draw(table, megaOnly, new BigDecimal("1.00"), 2, null, new BigDecimal("1000.00"), new RoundDraw.Dice() {
+            public int slot(OddsTable t) {
+                return slots.removeFirst();
+            }
+
+            public int path(int rows, int slot) {
+                return (1 << slot) - 1;
+            }
+
+            public int segment(BonusSettings.Wheel wheel) {
+                return 0;
+            }
+
+            public int megaBall(BonusSettings.MegaBall megaBall) {
+                return megas.removeFirst();
+            }
+        });
+        BigDecimal times = BonusSettings.MEGA.megaBall().multipliers().get(3).multiplier();
+        BigDecimal centre = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(8, 4)).multiplier();
+        assertThat(r.megaBalls()).containsExactly(new RoundDraw.MegaBall(1, times.stripTrailingZeros()));
+        assertThat(r.multipliers().get(1)).isEqualByComparingTo(centre.multiply(times));
+        assertThat(r.bonusText()).isEqualTo("path:0,15;megaball:1x" + times.stripTrailingZeros().toPlainString());
+        RoundWin.Outcome read = RoundWin.parse(r.slotText(), r.multiplierText(), r.bonusText());
+        assertThat(read.megaBallTimes(1)).isEqualByComparingTo(times);
+        assertThat(read.megaBallTimes(0)).isEqualByComparingTo(BigDecimal.ONE);
+        assertThat(read.raw(BigDecimal.ONE)).isEqualByComparingTo(r.totalWin());
+    }
+
+    @Test
     void everyStoredTextReadsBackToTheSameRoundAndIsWrittenTheSameWay() {
         java.util.Random random = new java.util.Random(7);
         RoundDraw.MeterBefore meter = new RoundDraw.MeterBefore(0, BigDecimal.ZERO, "start-7");
@@ -99,6 +134,10 @@ class RoundDrawTest {
                 public int segment(BonusSettings.Wheel wheel) {
                     return random.nextInt(wheel.segments().size());
                 }
+
+                public int megaBall(BonusSettings.MegaBall megaBall) {
+                    return random.nextInt(4) == 0 ? random.nextInt(megaBall.multipliers().size()) : -1;
+                }
             });
             RoundWin.Outcome read = RoundWin.parse(r.slotText(), r.multiplierText(), r.bonusText());
             assertThat(read.slots()).isEqualTo(r.slots());
@@ -114,6 +153,8 @@ class RoundDrawTest {
             if (read.gateBoost() != null) {
                 again.gates(read.gateBoost());
             }
+            read.megaBalls().forEach(x -> again.megaBall(x.ball(), x.multiplier()));
+            assertThat(read.megaBalls()).hasSize(r.megaBalls().size());
             read.spins().forEach(x -> again.spin(x.ball(), x.segment(), x.multiplier()));
             read.megaSpins().forEach(x -> again.mega(x.stake(), x.segment(), x.multiplier()));
             again.meter(read.meter().charges(), read.meter().of(), read.meter().pot(), read.meter().prev());
@@ -146,6 +187,8 @@ class RoundDrawTest {
         BigDecimal firstSegment = mega.wheel().segments().get(0).multiplier();
         assertThat(r.bonusText()).isEqualTo("path:3," + ((1 << spinSlot) - 1) + ";gates:" + boost.toPlainString() + ";spin:1@0x"
                 + firstSegment.toPlainString());
-        assertThat(r.totalWin()).isEqualByComparingTo(r.wins().get(0).add(r.wins().get(1)).add(RoundWin.ball(BigDecimal.ONE, firstSegment)));
+        // the spin pays the SPIN slot ball's own win again times the segment
+        assertThat(r.spins().get(0).win()).isEqualByComparingTo(RoundWin.ball(BigDecimal.ONE, r.multipliers().get(1).multiply(firstSegment)));
+        assertThat(r.totalWin()).isEqualByComparingTo(r.wins().get(0).add(r.wins().get(1)).add(r.spins().get(0).win()));
     }
 }

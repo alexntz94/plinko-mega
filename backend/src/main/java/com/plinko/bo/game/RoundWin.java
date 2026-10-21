@@ -16,8 +16,10 @@ import java.util.List;
  * <ul>
  * <li>{@code path:<path>,...}: every ball's path (see {@code MegaBoard}), one per ball;</li>
  * <li>{@code gates:<boost>}: what each gate a path goes through multiplies the prize by;</li>
- * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: balls in a SPIN slot and what their wheel spin paid (times the
- *     bet);</li>
+ * <li>{@code megaball:<ball>x<multiplier>,...}: balls that dropped as a MEGA BALL and what it multiplied their win by
+ *     (already in the ball's multiplier);</li>
+ * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: balls in a SPIN slot and what their wheel spin multiplied that
+ *     ball's win by (paid on top of the ball's own win);</li>
  * <li>{@code mega:<stake>@<segment>x<multiplier>,...}: MEGA SPINs of the gold wheel paid by a full meter (each for its
  *     own stake from the pot);</li>
  * <li>{@code meter:...}: the meter state after the round (not part of the win);</li>
@@ -34,8 +36,17 @@ public final class RoundWin {
         return stake.multiply(multiplier).setScale(2, RoundingMode.DOWN);
     }
 
-    /** A wheel spin: the paid ball whose SPIN slot started it, the segment it stopped on and what that pays. */
+    /** What a wheel spin pays: the ball's own win (its stake times its multiplier) times the segment, rounded down. */
+    public static BigDecimal spin(BigDecimal stake, BigDecimal ballMultiplier, BigDecimal segment) {
+        return ball(stake, ballMultiplier.multiply(segment));
+    }
+
+    /** A wheel spin: the paid ball whose SPIN slot started it, the segment it stopped on and what that multiplies. */
     public record Spin(int ball, int segment, BigDecimal multiplier) {
+    }
+
+    /** A MEGA BALL: the paid ball it was and what it multiplied that ball's win by. */
+    public record MegaBall(int ball, BigDecimal multiplier) {
     }
 
     /** A MEGA SPIN of the gold wheel: its stake (from the pot), the segment it stopped on and what that pays. */
@@ -59,12 +70,14 @@ public final class RoundWin {
     }
 
     /**
-     * Writes a round's bonus parts in the stored format, always in the same order (path, gates, spin, mega, meter, capped),
+     * Writes a round's bonus parts in the stored format, always in the same order (path, gates, megaball, spin, mega,
+     * meter, capped),
      * whatever order they are added in; null when the round had none.
      */
     public static final class Text {
         private final List<String> paths = new ArrayList<>();
         private String gates;
+        private final List<String> megaBalls = new ArrayList<>();
         private final List<String> spins = new ArrayList<>();
         private final List<String> megas = new ArrayList<>();
         private String meter;
@@ -77,6 +90,11 @@ public final class RoundWin {
 
         public Text gates(BigDecimal boost) {
             gates = "gates:" + boost.stripTrailingZeros().toPlainString();
+            return this;
+        }
+
+        public Text megaBall(int ball, BigDecimal multiplier) {
+            megaBalls.add(ball + "x" + multiplier.stripTrailingZeros().toPlainString());
             return this;
         }
 
@@ -109,6 +127,9 @@ public final class RoundWin {
             if (gates != null) {
                 parts.add(gates);
             }
+            if (!megaBalls.isEmpty()) {
+                parts.add("megaball:" + String.join(",", megaBalls));
+            }
             if (!spins.isEmpty()) {
                 parts.add("spin:" + String.join(",", spins));
             }
@@ -128,19 +149,26 @@ public final class RoundWin {
     /**
      * A stored outcome read back. meter: the meter after the round (or null);
      * capped: the win before the cap (or null); paths: every ball's path; gateBoost:
-     * what a gate multiplied by (null: no gates); spins and megaSpins: the wheel spins the round paid.
+     * what a gate multiplied by (null: no gates); spins and megaSpins: the wheel spins the round paid; megaBalls: the
+     * balls that dropped as a MEGA BALL.
      */
     public record Outcome(List<Integer> slots, List<BigDecimal> multipliers, Meter meter, BigDecimal capped,
-                          List<Integer> paths, BigDecimal gateBoost, List<Spin> spins, List<MegaSpin> megaSpins) {
+                          List<Integer> paths, BigDecimal gateBoost, List<Spin> spins, List<MegaSpin> megaSpins,
+                          List<MegaBall> megaBalls) {
 
-        /** The win before any cap: every ball and wheel spin at the bet, every MEGA SPIN at its own stake. */
+        /** What ball {@code ball}'s MEGA BALL multiplied its win by (1: a plain ball). */
+        public BigDecimal megaBallTimes(int ball) {
+            return megaBalls.stream().filter(m -> m.ball() == ball).map(MegaBall::multiplier).findFirst().orElse(BigDecimal.ONE);
+        }
+
+        /** The win before any cap: every ball at the bet, every wheel spin its ball's win again times the segment, every MEGA SPIN at its own stake. */
         public BigDecimal raw(BigDecimal bet) {
             BigDecimal sum = BigDecimal.ZERO;
             for (BigDecimal multiplier : multipliers) {
                 sum = sum.add(ball(bet, multiplier));
             }
             for (Spin spin : spins) {
-                sum = sum.add(ball(bet, spin.multiplier()));
+                sum = sum.add(spin(bet, multipliers.get(spin.ball()), spin.multiplier()));
             }
             for (MegaSpin mega : megaSpins) {
                 sum = sum.add(ball(mega.stake(), mega.multiplier()));
@@ -174,6 +202,7 @@ public final class RoundWin {
         BigDecimal gateBoost = null;
         List<Spin> spins = new ArrayList<>();
         List<MegaSpin> megaSpins = new ArrayList<>();
+        List<MegaBall> megaBalls = new ArrayList<>();
         if (bonus != null) {
             for (String part : bonus.split(";", -1)) {
                 int colon = part.indexOf(':');
@@ -192,6 +221,18 @@ public final class RoundWin {
                         }
                     }
                     case "gates" -> gateBoost = new BigDecimal(value);
+                    case "megaball" -> {
+                        if (!megaBalls.isEmpty()) {
+                            throw new IllegalArgumentException("two megaball parts");
+                        }
+                        for (String entry : value.split(",", -1)) {
+                            String[] ballAndTimes = entry.split("x", -1);
+                            if (ballAndTimes.length != 2) {
+                                throw new IllegalArgumentException("megaball: " + entry);
+                            }
+                            megaBalls.add(new MegaBall(Integer.parseInt(ballAndTimes[0]), new BigDecimal(ballAndTimes[1])));
+                        }
+                    }
                     case "spin" -> {
                         for (String entry : value.split(",", -1)) {
                             String[] ballAndRest = entry.split("@", -1);
@@ -231,7 +272,12 @@ public final class RoundWin {
         if (paths == null || paths.size() != slots.size()) {
             throw new IllegalArgumentException("every ball needs its path");
         }
+        for (Spin spin : spins) {
+            if (spin.ball() < 0 || spin.ball() >= slots.size()) {
+                throw new IllegalArgumentException("wheel spin of ball " + spin.ball() + ", which was not played");
+            }
+        }
         return new Outcome(List.copyOf(slots), List.copyOf(multipliers), meter, capped,
-                List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins));
+                List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins), List.copyOf(megaBalls));
     }
 }

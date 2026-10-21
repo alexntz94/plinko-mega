@@ -15,6 +15,8 @@ export class Stub {
   alpha = 1;
   position = { set: () => undefined, x: 0, y: 0 };
   scale = { set: () => undefined, x: 1, y: 1 };
+  /** Pixi's point conversion, for a container at the origin. */
+  toLocal(point: { x: number; y: number }) { return point; }
 
   constructor(...args: unknown[]) {
     this.args = args;

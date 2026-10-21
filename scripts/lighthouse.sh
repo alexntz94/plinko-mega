@@ -1,14 +1,14 @@
 #!/bin/sh
 # Page weight and load time on a phone (review 5.6, 4.x): Lighthouse CI (mobile profile) on the game as players get it,
 # through nginx, for a few themes, against the budget in tests/lighthouse/lighthouserc.json.
-#   scripts/lighthouse.sh <test.env> [theme ...]         default: loteria-muerta
+#   scripts/lighthouse.sh <test.env> [theme ...]         default: bombs-away
 # Needs the test stack running as project plinkotest (tests/launch_tokens.py makes the launch tokens), Node and Chrome.
 # Reports go to $OUT (default ./lighthouse-out); exits non-zero when an "error" line of the budget is missed (the
 # timings are warnings until the targets are agreed, decision D7).
 set -eu
 env_file=${1:?usage: scripts/lighthouse.sh <test.env> [theme ...]}
 shift
-[ $# -gt 0 ] || set -- loteria-muerta
+[ $# -gt 0 ] || set -- bombs-away
 here=$(cd "$(dirname "$0")/.." && pwd)
 game=${GAME:-http://localhost:8080}
 out=${OUT:-lighthouse-out}

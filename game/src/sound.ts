@@ -4,7 +4,7 @@ import { assetUrl } from './version';
 // Sound effects. Every theme can bring its own (theme.json "sounds": the names it ships as sfx_<name>.ogg with an
 // .mp3 for Safari, in its folder); anything it leaves out comes from the shared set (/assets/sounds).
 export const SOUND_NAMES = ['click', 'change', 'ball', 'hit', 'clack', 'noScore', 'score', 'big', 'huge', 'golden', 'win',
-  'lose', 'bigWin', 'result', 'gate', 'riser', 'heart', 'coins', 'tick', 'spin', 'jackpot'] as const;
+  'lose', 'bigWin', 'result', 'gate', 'riser', 'heart', 'coins', 'tick', 'spin', 'jackpot', 'drop'] as const;
 export type SoundName = typeof SOUND_NAMES[number];
 
 const SHARED: Partial<Record<SoundName, string>> = {
@@ -19,6 +19,7 @@ const MUTE_KEY = 'plinkoMuted';
 const sounds = new Map<SoundName, Howl>();
 let userMuted = false;
 let lastHit = 0;
+let lastDrop = 0;
 
 export function initSounds(path = '', themed: readonly SoundName[] = []): void {
   try { userMuted = window.localStorage.getItem(MUTE_KEY) === '1'; } catch { /* storage blocked: sound on */ }
@@ -44,6 +45,12 @@ export function play(name: SoundName, { volume = 1, rate = 1, pan = 0 }: { volum
     const now = performance.now();
     if (now - lastHit < 30) return;
     lastHit = now;
+  }
+  if (name === 'drop') {
+    // a ball let go: one at a time is plenty when 100 drop in a row
+    const now = performance.now();
+    if (now - lastDrop < 150) return;
+    lastDrop = now;
   }
   const sound = sounds.get(name) ?? (STANDS_IN[name] ? sounds.get(STANDS_IN[name]!) : undefined);
   if (!sound) return;

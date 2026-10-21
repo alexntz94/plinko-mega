@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { betLadder, nextBet, prizeIndexOfSlot, round2, slotTier } from '../src/rules';
+import { ballSteps, betLadder, nextBet, prizeIndexOfSlot, round2, slotTier } from '../src/rules';
 
 // Review N15.5: the layout both sides are tested against (the server's OddsTest reads the same file), for the boards
 // the server offers (8 to 14 rows): the game must put every prize where the server pays it. The file lives with the
@@ -47,5 +47,18 @@ describe('bets (review 5.7 #3)', () => {
     expect(round2(0.1 + 0.2)).toBe(0.3);
     expect(round2(0.2 * 3)).toBe(0.6);
     expect(round2(12.3456)).toBe(12.35);
+  });
+});
+
+describe('balls a round can drop', () => {
+  it('go in tens up to the maximum, and end on the maximum when it is not a ten', () => {
+    expect(ballSteps(100)).toEqual([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
+    expect(ballSteps(35)).toEqual([10, 20, 30, 35]);
+    expect(ballSteps(10)).toEqual([10]);
+  });
+
+  it('under a maximum of 10, go one by one', () => {
+    expect(ballSteps(3)).toEqual([1, 2, 3]);
+    expect(ballSteps(1)).toEqual([1]);
   });
 });

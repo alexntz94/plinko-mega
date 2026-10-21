@@ -22,13 +22,16 @@ import tools.jackson.databind.ObjectMapper;
  * <p>
  * The maths: a ball through g gates pays its prize times boost^g; every path to a slot is equally likely, so the gates
  * multiply a slot's prize by a known average (see {@link MegaBoard#gateFactor}) and the table's return by the
- * probability-weighted mean of those. A ball in a SPIN slot also spins the wheel for bet * segment: it adds
- * {@code P(SPIN slot) * E[wheel]}. The bonus meter takes a share s of the bet of every ball that lands on a prize of
+ * probability-weighted mean of those. A ball in a SPIN slot also spins the wheel, which pays that ball's win again times
+ * the segment: it adds {@code P(SPIN slot) * prize * gates * MEGA BALL factor * E[wheel]} (the wheel is drawn apart
+ * from the ball, so the averages multiply). The bonus meter takes a share s of the bet of every ball that lands on a prize of
  * at least the minimum (probability f on that table) into a pot of money, and a full meter pays it as one MEGA SPIN of
  * the gold wheel, worth pot * segment: every ball adds {@code f * s * E[gold wheel]}, whatever the table it is later
  * paid on. (A pot a player never fills is never paid, so over time players get very slightly less than the total,
- * never more.) Total RTP = table RTP * gate factor + what the wheels add; the hard RTP limits apply to the total, and
- * base tables are rebuilt so the total stays on target.
+ * never more.) A share c of balls drop as a MEGA BALL, which multiplies that ball's prize by a drawn m: the balls'
+ * prizes are worth {@code 1 + c * (E[m] - 1)} times as much. Total RTP = table RTP * gate factor * MEGA BALL factor +
+ * what the wheels add; the hard RTP limits apply to the total, and base tables are rebuilt so the total stays on
+ * target.
  */
 @Service
 public class BonusService {
@@ -80,7 +83,8 @@ public class BonusService {
         return new BonusSettings(bonus.meter() == null ? BonusSettings.OFF.meter() : bonus.meter(),
                 bonus.gates() == null ? BonusSettings.OFF.gates() : bonus.gates(),
                 bonus.wheel() == null ? BonusSettings.OFF.wheel() : bonus.wheel(),
-                bonus.megaWheel() == null ? BonusSettings.OFF.megaWheel() : bonus.megaWheel());
+                bonus.megaWheel() == null ? BonusSettings.OFF.megaWheel() : bonus.megaWheel(),
+                bonus.megaBall() == null ? BonusSettings.OFF.megaBall() : bonus.megaBall());
     }
 
     public String toJson(BonusSettings bonus) {
@@ -118,7 +122,41 @@ public class BonusService {
         if (bonus.megaWheel() != null) {
             wheelErrors("The gold wheel", bonus.megaWheel(), errors);
         }
+        BonusSettings.MegaBall megaBall = bonus.megaBall();
+        if (megaBall != null) {
+            if (megaBall.chance() == null || megaBall.chance().signum() <= 0 || megaBall.chance().compareTo(BigDecimal.valueOf(50)) > 0
+                    || megaBall.chance().stripTrailingZeros().scale() > 2) {
+                errors.add("The share of MEGA BALLs must be above 0% and at most 50%, with at most 2 decimals");
+            }
+            megaBallErrors(megaBall, errors);
+        }
         return errors;
+    }
+
+    private static void megaBallErrors(BonusSettings.MegaBall megaBall, List<String> errors) {
+        List<BonusSettings.Segment> multipliers = megaBall.multipliers();
+        if (multipliers == null || multipliers.isEmpty() || multipliers.size() > 10) {
+            errors.add("MEGA BALLs need 1 to 10 multipliers");
+            return;
+        }
+        BigDecimal weights = BigDecimal.ZERO;
+        for (BonusSettings.Segment m : multipliers) {
+            if (m == null || m.multiplier() == null || m.weight() == null) {
+                errors.add("MEGA BALLs: every multiplier needs a value and a weight");
+                return;
+            }
+            if (m.multiplier().compareTo(BigDecimal.ONE) <= 0 || m.multiplier().compareTo(BigDecimal.valueOf(100)) > 0
+                    || m.multiplier().stripTrailingZeros().scale() > 2) {
+                errors.add("MEGA BALLs multiply by above 1x and at most 100x, with at most 2 decimals");
+            }
+            if (m.weight().signum() <= 0 || m.weight().stripTrailingZeros().scale() > 2) {
+                errors.add("MEGA BALLs: weights must be above 0, with at most 2 decimals");
+            }
+            weights = weights.add(m.weight());
+        }
+        if (weights.compareTo(OddsTable.HUNDRED) != 0) {
+            errors.add("MEGA BALLs: weights must add up to 100% (now " + weights.stripTrailingZeros().toPlainString() + "%)");
+        }
     }
 
     private static final java.util.Set<String> JACKPOTS = java.util.Set.of("MINI", "MAJOR", "MEGA");
@@ -158,11 +196,31 @@ public class BonusService {
                 .divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
     }
 
+    /** What a MEGA BALL multiplies by on average. */
+    public static BigDecimal expected(BonusSettings.MegaBall megaBall) {
+        return megaBall.multipliers().stream().map(s -> s.multiplier().multiply(s.weight())).reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
+    }
+
+    /** How much MEGA BALLs multiply what the balls' prizes are worth: 1 + share * (E[m] - 1) (1 when off). */
+    public static BigDecimal megaBallFactor(BonusSettings bonus) {
+        if (!bonus.megaBallOn()) {
+            return BigDecimal.ONE;
+        }
+        BigDecimal share = bonus.megaBall().chance().divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
+        return BigDecimal.ONE.add(share.multiply(expected(bonus.megaBall()).subtract(BigDecimal.ONE))).round(MathContext.DECIMAL64);
+    }
+
     /**
-     * How much the gates multiply this table's own return: each slot's prize times the average gate boost of a ball
-     * landing there, weighted by how often balls land there (1 when the gates are off).
+     * How much the gates and MEGA BALLs multiply this table's own return: each slot's prize times the average gate
+     * boost of a ball landing there, weighted by how often balls land there, times the MEGA BALL factor (1 when both
+     * are off).
      */
     public static BigDecimal gateFactor(BonusSettings bonus, OddsTable table) {
+        return gatesOnly(bonus, table).multiply(megaBallFactor(bonus), MathContext.DECIMAL64);
+    }
+
+    private static BigDecimal gatesOnly(BonusSettings bonus, OddsTable table) {
         if (!bonus.gatesOn()) {
             return BigDecimal.ONE;
         }
@@ -183,8 +241,15 @@ public class BonusService {
     public static BigDecimal extra(BonusSettings bonus, OddsTable table) {
         BigDecimal extra = BigDecimal.ZERO;
         if (bonus.wheelOn()) {
-            BigDecimal spin = table.prizes().get(MegaBoard.spinPrizeIndex(table.rows())).probability().divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
-            extra = extra.add(spin.multiply(expected(bonus.wheel())));
+            int rows = table.rows();
+            int index = MegaBoard.spinPrizeIndex(rows);
+            OddsTable.Prize prize = table.prizes().get(index);
+            BigDecimal chance = prize.probability().divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
+            // what a ball in a SPIN slot wins on average: its prize, times its gates (both SPIN slots alike), times MEGA BALLs
+            double gates = bonus.gatesOn() ? (MegaBoard.gateFactor(rows, PlinkoBoard.leftSlot(rows, index), bonus.gates().boost().doubleValue())
+                    + MegaBoard.gateFactor(rows, PlinkoBoard.rightSlot(rows, index), bonus.gates().boost().doubleValue())) / 2 : 1;
+            BigDecimal ballWin = prize.multiplier().multiply(BigDecimal.valueOf(gates)).multiply(megaBallFactor(bonus));
+            extra = extra.add(chance.multiply(ballWin).multiply(expected(bonus.wheel())));
         }
         if (bonus.meterOn()) {
             BigDecimal share = bonus.meter().potShare().divide(OddsTable.HUNDRED, MathContext.DECIMAL64);
@@ -294,6 +359,23 @@ public class BonusService {
             }
         }
         return path;
+    }
+
+    /** Whether a ball drops as a MEGA BALL, and its multiplier's index if so (-1: a plain ball). */
+    public int rollMegaBall(BonusSettings.MegaBall megaBall) {
+        if (random.nextDouble() * 100 >= megaBall.chance().doubleValue()) {
+            return -1;
+        }
+        double pick = random.nextDouble() * 100;
+        double cumulative = 0;
+        List<BonusSettings.Segment> multipliers = megaBall.multipliers();
+        for (int i = 0; i < multipliers.size(); i++) {
+            cumulative += multipliers.get(i).weight().doubleValue();
+            if (pick < cumulative) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     /** Draws a segment of a wheel by its weights; returns its index. */

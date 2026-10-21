@@ -18,6 +18,7 @@ vi.mock('../src/board', async () => {
     rows = 8;
     bumpButton = new Stub();
     setRows(rows: number) { this.rows = rows; this.calls.push(['setRows', rows]); }
+    slotPoint() { return { x: 0, y: 0 }; }
     /** A ball lands a second after it is dropped, on the slot the server chose. */
     dropBall(slot: number, handlers: { onLand: (landing: object) => void }, boost = 1) {
       this.calls.push(['dropBall', slot, boost]);
@@ -59,7 +60,8 @@ vi.mock('../src/effects', async () => {
   const { Stub } = await import('./stubs');
   return {
     BigWin: class BigWin extends Stub {},
-    winLevel: (win: number, bet: number) => (bet > 0 && win / bet >= 10 ? 'BIG WIN' : null),
+    CoinShower: class CoinShower extends Stub {},
+    winLevel: (win: number, bet: number) => (bet > 0 && win / bet >= 3 ? 'BIG WIN' : null),
   };
 });
 vi.mock('../src/screens', async () => {
@@ -85,7 +87,7 @@ const THEME = {
   accent: '#ff0', text: '#fff', background: '#000', playText: undefined, landscapeExitFromPortrait: false,
   layout: {}, board: { fx: 'standard', peg: null, slots: [] },
   wheel: { faces: ['#fff'], text: ['#000'], rim: '#000', ink: '#000', title: '#fff', gold: { faces: ['#ff0'], text: ['#000'], rim: '#000' },
-    hub: null, pointer: null, gate: null }, ui: { style: 'flat', drop: null, controls: null, ink: '#000', panel: '#fff' },
+    hub: null, pointer: null, gate: null }, ambient: { colours: ['#fff'], rise: false }, ui: { style: 'flat', drop: null, controls: null, ink: '#000', panel: '#fff' },
 } as unknown as Theme;
 
 const METER: MeterInfo = { enabled: true, charges: 1, of: 5, positions: { '8:0': [4], '8:1': [3, 4], '10:0': [5] } };
@@ -93,7 +95,7 @@ const METER: MeterInfo = { enabled: true, charges: 1, of: 5, positions: { '8:0':
 function session(balance: number, extra: Partial<Session['config']> = {}): Session {
   const prizes = (rows: number) => Array.from({ length: rows / 2 + 1 }, (_, i) => [0.5 + i, 0.4 + 2 * i, 0.2 + 3 * i]);
   return {
-    sessionId: 's1', player: { username: 'alice' }, currency: 'EUR', currencySymbol: '€', balance, theme: 'loteria-muerta',
+    sessionId: 's1', player: { username: 'alice' }, currency: 'EUR', currencySymbol: '€', balance, theme: 'bombs-away',
     config: { minBet: 0.1, maxBet: 100, defaultBet: 1, maxBalls: 100, rows: [{ rows: 8, prizes: prizes(8) }, { rows: 10, prizes: prizes(10) }],
       holdToDrop: true, ...extra },
     meter: METER,
@@ -126,7 +128,8 @@ interface BarActions { play(): void; auto(): void; bet(up: boolean): void; risk(
 
 /**
  * A game on its table (the start screen's button pressed), and its control bar's actions; balls(index) and rows(index)
- * choose a value by its place (index 0: 1 ball, the fewest rows), stepping the bar's − and + there.
+ * choose a value by its place (index 0: the fewest balls, 10 here, or 1 under a maximum below 10; the fewest rows),
+ * stepping the bar's − and + there.
  */
 async function table(start: number, extra: Partial<Session['config']> = {}, fresh?: Partial<Session>) {
   fatal = [];
@@ -319,17 +322,17 @@ describe('quick taps (review 5.7 #3)', () => {
     expect(controls().last('setTotalBet')).toBe(betBefore);
     expect(controls().last('setRows')).toBe(8);
     expect(controls().last('setRisk')).toBe('LOW');
-    expect(controls().last('setBalls')).toBe(1);
+    expect(controls().last('setBalls')).toBe(10);
     await vi.runAllTimersAsync();
     expect(controls().last('setPlaying')).toBe(false);
     actions.bet(true);
-    expect(controls().last('setTotalBet')).toBe('€2.00');
+    expect(controls().last('setTotalBet')).toBe('€20.00');
   });
 });
 
 describe('bet steps, ½ and 2X (review 5.7 #3)', () => {
   it('½ and 2X step along the ladder and stop at the limits', async () => {
-    const { actions } = await table(1000, { minBet: 0.2, maxBet: 50, defaultBet: 0.75 });
+    const { actions } = await table(1000, { minBet: 0.2, maxBet: 50, defaultBet: 0.75, maxBalls: 1 });
     expect(controls().last('setTotalBet')).toBe('€0.75');
     actions.bet(true);
     expect(controls().last('setTotalBet')).toBe('€1.00');
@@ -347,9 +350,21 @@ describe('bet steps, ½ and 2X (review 5.7 #3)', () => {
 
   it('the price of a play is the bet times the balls', async () => {
     const { actions } = await table(1000);
-    actions.balls(9);
+    expect(statuses().at(-1)).toBe('PLAY €10.00');
+    actions.balls(2);
     actions.bet(true);
-    expect(statuses().at(-1)).toBe('PLAY €20.00');
+    expect(statuses().at(-1)).toBe('PLAY €60.00');
+  });
+
+  it('the balls go 10, 20, 30 … and stop at the maximum', async () => {
+    const { bar } = await table(1000);
+    expect(controls().last('setBalls')).toBe(10);
+    bar.balls(1);
+    expect(controls().last('setBalls')).toBe(20);
+    for (let i = 0; i < 20; i++) bar.balls(1);
+    expect(controls().last('setBalls')).toBe(100);
+    for (let i = 0; i < 20; i++) bar.balls(-1);
+    expect(controls().last('setBalls')).toBe(10);
   });
 });
 
@@ -385,7 +400,7 @@ describe('what a failed round shows (review 5.7 #1)', () => {
       expect(fatal).toEqual([]);
       expect(statuses().at(-1)).toBe(text);
       await vi.runAllTimersAsync();
-      expect(statuses().at(-1)).toBe('PLAY €1.00');
+      expect(statuses().at(-1)).toBe('PLAY €10.00');
     });
   }
 

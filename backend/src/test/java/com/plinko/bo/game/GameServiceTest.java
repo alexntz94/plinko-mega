@@ -173,12 +173,12 @@ class GameServiceTest {
     @Test
     void playingOrResumingExtendsTheSessionByItsConfiguredLength() {
         Duration ttl = Duration.ofMinutes(game.properties.sessionTtlMinutes());
-        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().plusSeconds(30), "loteria-muerta"));
+        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().plusSeconds(30), "bombs-away"));
         Instant before = Instant.now();
         game.play("1.00", 1);
         assertThat(expiry()).isBetween(before.plus(ttl).minusSeconds(1), Instant.now().plus(ttl).plusSeconds(1));
 
-        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().plusSeconds(30), "loteria-muerta"));
+        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().plusSeconds(30), "bombs-away"));
         before = Instant.now();
         game.game.resumeSession("s");
         assertThat(expiry()).isBetween(before.plus(ttl).minusSeconds(1), Instant.now().plus(ttl).plusSeconds(1));
@@ -187,7 +187,7 @@ class GameServiceTest {
     @Test
     void anExpiredSessionCantPlayResumeOrReadItsHistory() {
         game.play("1.00", 1);
-        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().minusSeconds(1), "loteria-muerta"));
+        game.repository.addSession(new GameRepository.Session("s", game.player.id(), "tok", Instant.now().minusSeconds(1), "bombs-away"));
         List<String> calls = List.copyOf(game.wallet.calls);
         for (Runnable call : List.<Runnable>of(() -> game.play("1.00", 1), () -> game.game.resumeSession("s"),
                 () -> game.game.history("s", null, 10))) {

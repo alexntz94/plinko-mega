@@ -1,0 +1,126 @@
+{
+  "name": "Bombs Away",
+  "title": "Bombs Away · Plinko",
+  "background": "#0c0e11",
+  "accent": "#f2b705",
+  "text": "#e9e4d4",
+  "playText": "#e9e4d4",
+  "retina": true,
+  "font": {
+    "family": "Black Ops One",
+    "file": "black-ops-one.woff2",
+    "weight": "400"
+  },
+  "video": {
+    "wide": "background.mp4",
+    "tall": "background_p.mp4"
+  },
+  "board": {
+    "fx": "war",
+    "peg": "item_peg.png",
+    "pegFlash": "#ff8a1a",
+    "trail": "#ff8a1a",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#3e454d",
+        "text": "#e9e4d4"
+      },
+      {
+        "face": "#5c6629",
+        "text": "#f1f3d8"
+      },
+      {
+        "face": "#a8884f",
+        "text": "#1a1206"
+      },
+      {
+        "face": "#d86a1e",
+        "text": "#fff3d6"
+      },
+      {
+        "face": "#e0262f",
+        "text": "#ffe28a"
+      }
+    ]
+  },
+  "wheel": {
+    "faces": [
+      "#4a525c",
+      "#6b7a2a",
+      "#a8884f",
+      "#3d5a73",
+      "#9a4a14",
+      "#2b3036"
+    ],
+    "text": [
+      "#f3ecd6",
+      "#f3ecd6",
+      "#f3ecd6",
+      "#f3ecd6",
+      "#ffe28a",
+      "#f2b705"
+    ],
+    "rim": "#6e5216",
+    "ink": "#0b0d10",
+    "title": "#f2b705",
+    "gold": {
+      "faces": [
+        "#c8a24a",
+        "#e9e4d4",
+        "#c1121f",
+        "#f3dc8e"
+      ],
+      "text": [
+        "#0b0d10",
+        "#0b0d10",
+        "#ffe28a",
+        "#0b0d10"
+      ],
+      "rim": "#6e5216"
+    },
+    "hub": "item_wheel_hub.png",
+    "pointer": "item_wheel_pointer.png",
+    "bezel": "item_wheel_rim.png",
+    "glass": "item_wheel_glass.png"
+  },
+  "ambient": {
+    "colours": [
+      "#ff8a1a",
+      "#ffd76a",
+      "#ff3b1a"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#0b0d10",
+    "panel": "#2b3036"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "music": "music.mp3"
+}

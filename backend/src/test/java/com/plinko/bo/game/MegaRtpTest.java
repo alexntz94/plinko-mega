@@ -121,9 +121,13 @@ class MegaRtpTest {
             public int segment(BonusSettings.Wheel wheel) {
                 return bonus.rollSegment(wheel);
             }
+
+            public int megaBall(BonusSettings.MegaBall megaBall) {
+                return bonus.rollMegaBall(megaBall);
+            }
         };
         int rounds = 40_000, batches = 100, perBatch = rounds / batches;
-        int spins = 0, megas = 0;
+        int spins = 0, megas = 0, megaBalls = 0, roundsWithSpin = 0, played = 0;
         for (int rows = PlinkoBoard.MIN_ROWS; rows <= PlinkoBoard.MAX_ROWS; rows++) {
             for (int risk = 0; risk < PlinkoBoard.RISK_LEVELS; risk++) {
                 OddsTable table = odds.forTargetRtp(rows, risk, TARGET, MEGA);
@@ -134,6 +138,9 @@ class MegaRtpTest {
                     batch[round / perBatch] += r.totalWin().doubleValue() / (BALLS * BET.doubleValue()) / perBatch;
                     spins += r.spins().size();
                     megas += r.megaSpins().size();
+                    megaBalls += r.megaBalls().size();
+                    roundsWithSpin += r.spins().isEmpty() ? 0 : 1;
+                    played++;
                     meter = new RoundDraw.MeterBefore(r.chargesAfter(), r.potAfter(), "r" + round);
                 }
                 // the pot left at the end is owed to the player: what its MEGA SPIN will pay on average
@@ -151,5 +158,9 @@ class MegaRtpTest {
         }
         assertThat(spins).as("wheel spins").isPositive();
         assertThat(megas).as("MEGA SPINs").isPositive();
+        // about 1 ball in 15 is a MEGA BALL
+        assertThat((double) megaBalls / ((double) played * BALLS)).as("MEGA BALL share").isBetween(0.06, 0.073);
+        System.out.printf("rounds with a wheel spin: %.1f%%, MEGA BALLs per round: %.2f%n", 100.0 * roundsWithSpin / played,
+                (double) megaBalls / played);
     }
 }

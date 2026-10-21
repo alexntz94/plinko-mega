@@ -32,7 +32,7 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.board.peg ? [theme.board.peg] : []),
     ...(theme.board.slotArt ? SLOT_ART : []),
     ...neonLayers(theme).flat(),
-    ...[theme.wheel.hub, theme.wheel.pointer, theme.wheel.gate].filter((file): file is string => file !== null),
+    ...[theme.wheel.hub, theme.wheel.pointer, theme.wheel.gate, theme.wheel.bezel, theme.wheel.glass].filter((file): file is string => file !== null),
   ];
 }
 
@@ -192,8 +192,10 @@ async function start(): Promise<void> {
 
   const app = new Application();
   const holder = document.getElementById('game')!;
-  await app.init({ width: window.innerWidth, height: window.innerHeight, background: theme.background, antialias: true,
-    autoDensity: false, roundPixels: true, resolution: Math.min(window.devicePixelRatio || 1, 3) });
+  // a sharp (Retina) screen needs no antialiasing and no more than 2x: both cost the graphics card a lot on a big
+  // window; positions are not rounded to whole pixels, so the balls glide instead of stepping
+  await app.init({ width: window.innerWidth, height: window.innerHeight, background: theme.background, antialias: !sharp,
+    autoDensity: false, roundPixels: false, resolution: Math.min(window.devicePixelRatio || 1, 2) });
   holder.appendChild(app.canvas);
   // one clock for everything: GSAP moves things on Pixi's tick, right before Pixi draws the frame (no stutter
   // from two separate animation loops drifting against each other)
@@ -248,7 +250,7 @@ async function start(): Promise<void> {
     height = h;
     holder.style.width = w + 'px';
     holder.style.height = h + 'px';
-    app.renderer.resolution = Math.min(window.devicePixelRatio || 1, 3);
+    app.renderer.resolution = Math.min(window.devicePixelRatio || 1, 2);
     app.renderer.resize(w, h);
     layout();
   };

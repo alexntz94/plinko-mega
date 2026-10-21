@@ -69,6 +69,9 @@ public class BonusAdminController {
         model.addAttribute("jackpots", List.of("MINI", "MAJOR", "MEGA"));
         model.addAttribute("wheelPays", BonusService.expected(wheelForm).setScale(2, RoundingMode.HALF_UP).toPlainString());
         model.addAttribute("goldPays", BonusService.expected(goldForm).setScale(2, RoundingMode.HALF_UP).toPlainString());
+        BonusSettings.MegaBall megaBallForm = current.megaBall() != null ? current.megaBall() : BonusSettings.MEGA.megaBall();
+        model.addAttribute("megaBallForm", megaBallForm);
+        model.addAttribute("megaBallPays", BonusService.expected(megaBallForm).setScale(2, RoundingMode.HALF_UP).toPlainString());
         model.addAttribute("rtpRows", rows);
         model.addAttribute("riskNames", PlinkoBoard.RISK_NAMES);
         model.addAttribute("pending", changes.pendingFor(ChangeRequestService.BONUS, "bonus").orElse(null));
@@ -84,9 +87,11 @@ public class BonusAdminController {
                           @RequestParam(required = false) List<String> wheelMultiplier, @RequestParam(required = false) List<String> wheelWeight,
                           @RequestParam(required = false) List<String> goldName, @RequestParam(required = false) List<String> goldMultiplier,
                           @RequestParam(required = false) List<String> goldWeight,
+                          @RequestParam(required = false) Boolean megaBallEnabled, @RequestParam(required = false) String megaBallChance,
+                          @RequestParam(required = false) List<String> megaBallMultiplier, @RequestParam(required = false) List<String> megaBallWeight,
                           Principal principal, RedirectAttributes redirect) {
         try {
-            // a form without the gates' or wheels' fields keeps the ones in force
+            // a form without the gates', wheels' or MEGA BALL's fields keeps the ones in force
             BonusSettings current = bonus.current();
             BonusSettings.Gates gates = gateBoost == null ? current.gates()
                     : new BonusSettings.Gates(Boolean.TRUE.equals(gatesEnabled), new BigDecimal(gateBoost.trim()));
@@ -94,8 +99,11 @@ public class BonusAdminController {
                     : new BonusSettings.Wheel(Boolean.TRUE.equals(wheelEnabled), segments(wheelName, wheelMultiplier, wheelWeight));
             BonusSettings.Wheel gold = goldMultiplier == null ? current.megaWheel()
                     : new BonusSettings.Wheel(false, segments(goldName, goldMultiplier, goldWeight));
+            BonusSettings.MegaBall megaBall = megaBallChance == null || megaBallMultiplier == null ? current.megaBall()
+                    : new BonusSettings.MegaBall(Boolean.TRUE.equals(megaBallEnabled), new BigDecimal(megaBallChance.trim()),
+                            segments(null, megaBallMultiplier, megaBallWeight));
             BonusSettings next = new BonusSettings(new BonusSettings.Meter(meterEnabled, Integer.parseInt(meterCharges.trim()), new BigDecimal(meterMin.trim()),
-                            new BigDecimal(meterShare.trim())), gates, wheel, gold);
+                            new BigDecimal(meterShare.trim())), gates, wheel, gold, megaBall);
             long id = changes.proposeBonus(next, principal.getName());
             redirect.addFlashAttribute("message", "Change #" + id + " proposed. It takes effect after another admin approves it.");
         } catch (NumberFormatException e) {

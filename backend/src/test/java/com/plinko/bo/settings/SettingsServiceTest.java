@@ -14,7 +14,7 @@ class SettingsServiceTest {
         Map<String, String> values = Map.of(
                 "game.bonus", "{\"golden\":{\"chance\":8},\"note\":\"a=1;b:2\"}",
                 "game.empty", "",
-                "game.themes", "loteria-muerta",
+                "game.themes", "bombs-away",
                 "game.ünïcode", "💥 5:x=y;");
         assertThat(SettingsService.parse(SettingsService.canonical(values))).isEqualTo(values);
         assertThat(SettingsService.parse(SettingsService.canonical(Map.of()))).isEmpty();

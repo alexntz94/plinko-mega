@@ -101,6 +101,21 @@ class WinCheckTest {
     }
 
     @Test
+    void aMegaBallPasses() {
+        // the edge ball (5.6x) was a MEGA BALL x10: 56x
+        assertThat(problem(round("4,3,0", "0.5,1,56", "megaball:2x10", "57.50"))).isNull();
+    }
+
+    @Test
+    void aMegaBallThatDoesNotMatchItsBallIsCaught() {
+        // stored as x5, paid as x10
+        assertThat(problem(round("4,3,0", "0.5,1,56", "megaball:2x5", "57.50"))).startsWith("C5: ball 2 in slot 0 paid 56x");
+        // a MEGA BALL on a ball that does not exist, or twice on one ball
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "megaball:3x2", "7.10"))).startsWith("C5: MEGA BALL 3");
+        assertThat(problem(round("4,3,0", "1,1,5.6", "megaball:0x2,0x2", "7.60"))).startsWith("C5: MEGA BALL 0");
+    }
+
+    @Test
     void aCappedWinPasses() {
         maxWin = new BigDecimal("5.00");
         assertThat(problem(round("4,3,0", "0.5,1,5.6", "capped:7.10", "5.00"))).isNull();

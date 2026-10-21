@@ -9,7 +9,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-/** Which themes are on and which is the default (Plinko Mega ships one theme, Lotería Muerta). */
+/** Which themes are on and which is the default (Plinko Mega ships one theme, Bombs Away). */
 class ThemeServiceTest {
 
     private static ThemeService with(Map<String, String> values) {
@@ -19,25 +19,25 @@ class ThemeServiceTest {
     }
 
     @Test
-    void aFreshInstallPlaysLoteriaMuerta() {
+    void aFreshInstallPlaysBombsAway() {
         ThemeService.Themes themes = with(Map.of()).current();
-        assertThat(themes.enabled()).containsExactly("loteria-muerta");
-        assertThat(themes.defaultTheme()).isEqualTo("loteria-muerta");
-        assertThat(with(Map.of()).resolve("old-theme")).isEqualTo("loteria-muerta");
+        assertThat(themes.enabled()).containsExactly("bombs-away");
+        assertThat(themes.defaultTheme()).isEqualTo("bombs-away");
+        assertThat(with(Map.of()).resolve("old-theme")).isEqualTo("bombs-away");
     }
 
     @Test
     void namesThatAreNotThemesAreIgnored() {
-        ThemeService.Themes themes = with(Map.of("game.themes", "old-theme,loteria-muerta", "game.theme.default", "old-theme")).current();
-        assertThat(themes.enabled()).containsExactly("loteria-muerta");
-        assertThat(themes.defaultTheme()).isEqualTo("loteria-muerta");
+        ThemeService.Themes themes = with(Map.of("game.themes", "old-theme,bombs-away", "game.theme.default", "old-theme")).current();
+        assertThat(themes.enabled()).containsExactly("bombs-away");
+        assertThat(themes.defaultTheme()).isEqualTo("bombs-away");
     }
 
     @Test
     void aChoiceMustBeKnownThemesWithTheDefaultOn() {
         ThemeService themes = with(Map.of());
-        assertThat(themes.validate(List.of(), "loteria-muerta")).isNotEmpty();
+        assertThat(themes.validate(List.of(), "bombs-away")).isNotEmpty();
         assertThat(themes.validate(List.of("old-theme"), "old-theme")).containsExactly("Unknown theme");
-        assertThat(themes.validate(List.of("loteria-muerta"), "loteria-muerta")).isEmpty();
+        assertThat(themes.validate(List.of("bombs-away"), "bombs-away")).isEmpty();
     }
 }

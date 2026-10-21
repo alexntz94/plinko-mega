@@ -10,14 +10,20 @@ import java.util.List;
  * @param meter     balls landing on a big prize charge a meter that pays its pot as a MEGA SPIN of the gold wheel when
  *                  full (null: off)
  * @param gates     a ball's prize is multiplied by the boost for every gate bar its path crosses (null: off)
- * @param wheel     a ball landing in a SPIN slot also spins the wheel, which pays its bet times the segment (null: off)
+ * @param wheel     a ball landing in a SPIN slot also spins the wheel, which pays its win again times the segment (null: off)
  * @param megaWheel the gold wheel a full meter spins: it pays the pot times the segment
+ * @param megaBall  some balls drop as a MEGA BALL that multiplies whatever that ball wins (null: off)
  */
-public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWheel) {
+public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWheel, MegaBall megaBall) {
 
     /** Only the meter; a full meter spins the standard gold wheel. */
     public BonusSettings(Meter meter) {
-        this(meter, null, null, GOLD_WHEEL);
+        this(meter, null, null, GOLD_WHEEL, null);
+    }
+
+    /** Without MEGA BALLs. */
+    public BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWheel) {
+        this(meter, gates, wheel, megaWheel, null);
     }
 
     /**
@@ -32,7 +38,7 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
     }
 
     /**
-     * One segment of a wheel: what it pays (times the bet, or the pot on the gold wheel) and how often it comes up
+     * One segment of a wheel: what it pays (times the ball's win, or the pot on the gold wheel) and how often it comes up
      * (weights are percentages and add up to 100); name: MINI, MAJOR or MEGA on a jackpot segment, else null.
      */
     public record Segment(String name, BigDecimal multiplier, BigDecimal weight) {
@@ -40,6 +46,16 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
 
     public record Wheel(boolean enabled, List<Segment> segments) {
     }
+
+    /**
+     * chance: percent of balls that drop as a MEGA BALL; multipliers: what a MEGA BALL multiplies its ball's win by
+     * (weights are percentages and add up to 100; the name is unused).
+     */
+    public record MegaBall(boolean enabled, BigDecimal chance, List<Segment> multipliers) {
+    }
+
+    /** About 1 ball in 15 is a MEGA BALL, worth x2 to x10. */
+    private static final MegaBall MEGA_BALL = new MegaBall(false, new BigDecimal("6.67"), wheel("2", "50", "3", "30", "5", "15", "10", "5"));
 
     /** The gold wheel a full meter spins (its own switch is the meter's). */
     private static final Wheel GOLD_WHEEL = new Wheel(false, wheel(
@@ -50,13 +66,14 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
             new Meter(false, 10, new BigDecimal("2"), new BigDecimal("10")),
             new Gates(false, new BigDecimal("1.5")),
             new Wheel(false, wheel(
-                    "1", "28", "2", "26", "3", "18", "5", "13", "10", "8", "25", "4", "MINI:50", "2", "MAJOR:250", "0.75", "MEGA:1000", "0.25")),
-            GOLD_WHEEL);
+                    "1", "65", "2", "22", "3", "7", "5", "3.5", "10", "1.6", "25", "0.6", "MINI:50", "0.2", "MAJOR:100", "0.08", "MEGA:500", "0.02")),
+            GOLD_WHEEL, MEGA_BALL);
 
-    /** The starting point before an admin has saved anything: gates, the wheel and the meter's MEGA SPIN on. */
+    /** The starting point before an admin has saved anything: gates, the wheel, MEGA BALLs and the meter's MEGA SPIN on. */
     public static final BonusSettings MEGA = new BonusSettings(
             new Meter(true, OFF.meter().charges(), OFF.meter().minMultiplier(), OFF.meter().potShare()),
-            new Gates(true, OFF.gates().boost()), new Wheel(true, OFF.wheel().segments()), new Wheel(true, OFF.megaWheel().segments()));
+            new Gates(true, OFF.gates().boost()), new Wheel(true, OFF.wheel().segments()), new Wheel(true, OFF.megaWheel().segments()),
+            new MegaBall(true, MEGA_BALL.chance(), MEGA_BALL.multipliers()));
 
     /** Segments from pairs of ("[NAME:]multiplier", "weight"). */
     private static List<Segment> wheel(String... pairs) {
@@ -80,7 +97,11 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
         return wheel != null && wheel.enabled();
     }
 
+    public boolean megaBallOn() {
+        return megaBall != null && megaBall.enabled();
+    }
+
     public boolean anyOn() {
-        return meterOn() || gatesOn() || wheelOn();
+        return meterOn() || gatesOn() || wheelOn() || megaBallOn();
     }
 }

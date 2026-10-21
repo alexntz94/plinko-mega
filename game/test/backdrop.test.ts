@@ -10,7 +10,7 @@ vi.mock('../src/version', () => ({ assetUrl: (path: string) => path }));
 
 type FakeVideo = { src: string; style: object; paused: boolean; play: () => Promise<void>; pause: () => void;
   setAttribute: () => void; addEventListener: () => void; canPlayType: () => string };
-const theme = { path: 'themes/loteria-muerta/', video: { wide: 'background.mp4', tall: 'background_p.mp4' } } as unknown as Theme;
+const theme = { path: 'themes/bombs-away/', video: { wide: 'background.mp4', tall: 'background_p.mp4' } } as unknown as Theme;
 
 describe('the moving background (backdrop.ts)', () => {
   let videos: FakeVideo[];
@@ -62,7 +62,7 @@ describe('the moving background (backdrop.ts)', () => {
     backdrop.start();
     expect(redraw).toHaveBeenCalled();
     expect(backdrop.texture(true)).toBeNull(); // the still picture until it plays
-    expect(videos.map(video => video.src)).toEqual(['themes/loteria-muerta/background.mp4']);
+    expect(videos.map(video => video.src)).toEqual(['themes/bombs-away/background.mp4']);
   });
 
   it('never loads for a player who turned it off, even after a round', () => {
@@ -79,6 +79,6 @@ describe('the moving background (backdrop.ts)', () => {
     backdrop.toggle();
     expect(stored).toBe('moving');
     backdrop.texture(false);
-    expect(videos.map(video => video.src)).toEqual(['themes/loteria-muerta/background_p.mp4']);
+    expect(videos.map(video => video.src)).toEqual(['themes/bombs-away/background_p.mp4']);
   });
 });

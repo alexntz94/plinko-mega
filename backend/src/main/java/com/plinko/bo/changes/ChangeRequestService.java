@@ -291,7 +291,10 @@ public class ChangeRequestService {
                 + "gold wheel " + segments(settings.megaWheel());
         String gates = !settings.gatesOn() ? "gates off" : "gates x" + settings.gates().boost().stripTrailingZeros().toPlainString();
         String wheel = !settings.wheelOn() ? "wheel off" : "wheel " + segments(settings.wheel());
-        return meter + "; " + gates + "; " + wheel;
+        String megaBall = !settings.megaBallOn() ? "MEGA BALL off"
+                : "MEGA BALL " + settings.megaBall().chance().stripTrailingZeros().toPlainString() + "% of balls, "
+                + segments(new BonusSettings.Wheel(true, settings.megaBall().multipliers()));
+        return meter + "; " + gates + "; " + wheel + "; " + megaBall;
     }
 
     /** A wheel's segments for the change's description: "2x 26%, MEGA 1000x 0.25%, ...". */

@@ -94,16 +94,17 @@ class RealRoundsPassWinCheckTest {
         properties = properties("10000");
         for (int balls : new int[] {10, 100}) {
             GameService game = game(BonusSettings.OFF, true);
-            // the biggest bet the game takes on this board: its top prize times the bet stays within the limit
+            // the biggest bet the game takes on this board: one ball on its top prize stays within the limit
             BigDecimal top = com.plinko.bo.odds.TestOdds.with(BonusSettings.OFF, properties).get(8, 2).maxMultiplier();
-            BigDecimal bet = new BigDecimal("40").divide(top.multiply(BigDecimal.valueOf(balls)), 2, java.math.RoundingMode.DOWN);
+            BigDecimal bet = new BigDecimal("40").divide(top, 2, java.math.RoundingMode.DOWN);
             assertThat(bet).as("a bet the game takes").isGreaterThanOrEqualTo(new BigDecimal("0.01"));
             GameService.PlayResponse response = game.play("s", new GameService.PlayRequest(8, 2, bet, balls));
             GameRepository.Round round = rounds.get(response.roundId());
             BigDecimal perBall = RoundWin.ball(bet, top);
             assertThat(response.slots()).hasSize(balls);
             assertThat(response.wins()).allSatisfy(w -> assertThat(w).isEqualByComparingTo(perBall));
-            assertThat(response.totalWin()).isEqualByComparingTo(perBall.multiply(BigDecimal.valueOf(balls))).isLessThanOrEqualTo(new BigDecimal("40.00"));
+            // every ball on the top prize: the round is cut to the limit
+            assertThat(response.totalWin()).isEqualByComparingTo(perBall.multiply(BigDecimal.valueOf(balls)).min(new BigDecimal("40.00")));
             assertThat(round.status()).isEqualTo(RoundStatus.COMPLETED);
             BigDecimal oneCentMore = bet.add(new BigDecimal("0.01"));
             assertThatThrownBy(() -> game.play("s", new GameService.PlayRequest(8, 2, oneCentMore, balls)))
@@ -174,7 +175,7 @@ class RealRoundsPassWinCheckTest {
         lastPam.set(pam);
         when(repository.lastRoundAt(anyLong())).thenAnswer(i -> Optional.ofNullable(lastRoundAt.get()));
         when(repository.findSession(anyString())).thenReturn(Optional.of(new GameRepository.Session("s", 7, "tok",
-                Instant.now().plusSeconds(3600), "loteria-muerta")));
+                Instant.now().plusSeconds(3600), "bombs-away")));
         when(repository.findPlayer(7)).thenReturn(Optional.of(player));
         when(repository.claimRound(anyLong(), anyString(), anyLong())).thenReturn(true);
         doAnswer(i -> {

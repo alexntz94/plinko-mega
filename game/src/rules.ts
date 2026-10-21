@@ -18,6 +18,14 @@ export function nextBet(ladder: number[], current: number, up: boolean): number 
   return [...ladder].reverse().find(step => step < current - 0.001) ?? current;
 }
 
+/** The balls a round can drop: 10, 20, 30 … up to the casino's maximum (and the maximum itself); under 10, 1 to it. */
+export function ballSteps(max: number): number[] {
+  if (max < 10) return Array.from({ length: Math.max(1, max) }, (_, i) => i + 1);
+  const steps = Array.from({ length: Math.floor(max / 10) }, (_, i) => (i + 1) * 10);
+  if (steps[steps.length - 1] !== max) steps.push(max);
+  return steps;
+}
+
 export const round2 = (value: number) => Math.round(value * 100) / 100;
 
 export const RISKS = ['LOW', 'MID', 'HIGH'];

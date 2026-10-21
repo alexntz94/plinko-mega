@@ -188,7 +188,8 @@ public class WinCheck {
             if (outcome.gateBoost() != null) {
                 gates = outcome.gateBoost().pow(MegaBoard.gatesPassed(round.rows(), outcome.paths().get(ball)));
             }
-            String problem = ballProblem(round, "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball), gates, prizes);
+            String problem = ballProblem(round, "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball),
+                    gates.multiply(outcome.megaBallTimes(ball)), prizes);
             if (problem != null) {
                 return problem;
             }
@@ -196,7 +197,10 @@ public class WinCheck {
         return null;
     }
 
-    /** Paths to the balls' own slots, a gate boost above 1, wheel spins on SPIN slots only, at most 3 MEGA SPINs. */
+    /**
+     * Paths to the balls' own slots, a gate boost above 1, MEGA BALLs on real balls (once each, above 1x), wheel spins
+     * on SPIN slots only, at most 3 MEGA SPINs.
+     */
     private static String megaProblem(GameRepository.Round round, RoundWin.Outcome outcome) {
         for (int ball = 0; ball < outcome.slots().size(); ball++) {
             if (outcome.slots().get(ball) < 0 || outcome.slots().get(ball) > round.rows()) {
@@ -211,6 +215,15 @@ public class WinCheck {
         }
         if (outcome.gateBoost() != null && outcome.gateBoost().compareTo(BigDecimal.ONE) <= 0) {
             return "C5: gates boost " + outcome.gateBoost() + " is not above 1";
+        }
+        java.util.Set<Integer> megaBalls = new java.util.HashSet<>();
+        for (RoundWin.MegaBall megaBall : outcome.megaBalls()) {
+            if (megaBall.ball() < 0 || megaBall.ball() >= outcome.slots().size() || !megaBalls.add(megaBall.ball())) {
+                return "C5: MEGA BALL " + megaBall.ball() + " does not exist or is repeated";
+            }
+            if (megaBall.multiplier().compareTo(BigDecimal.ONE) <= 0) {
+                return "C5: MEGA BALL " + megaBall.ball() + " multiplies by " + megaBall.multiplier() + ", not above 1";
+            }
         }
         java.util.Set<Integer> spun = new java.util.HashSet<>();
         for (RoundWin.Spin spin : outcome.spins()) {

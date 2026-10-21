@@ -2,7 +2,7 @@
   "about": "Review N9: every request the v1.0.0 game client (tag v1.0.0, commit 0716643) sends, as it sends them. v1.0.0 has no tests/client_requests.json (it was added after), so this copy was recorded from v1.0.0's own game/src/api.ts with the Vitest recording of game/test/requests.test.ts (fetch stood in for; every request a POST of JSON, with the Bearer session once there is one). scripts/compat-check.sh replays it against the new backend when the previous release is v1.0.0. Placeholders as in tests/client_requests.json: $TOKEN (a fresh launch token), $UUID (a new id), $NEXT (the cursor from the history answer before; skipped when there is none).",
   "requests": [
     {"path": "/api/game/session", "body": {"token": "$TOKEN"}},
-    {"path": "/api/game/session", "body": {"token": "$TOKEN", "theme": "loteria-muerta"}},
+    {"path": "/api/game/session", "body": {"token": "$TOKEN", "theme": "bombs-away"}},
     {"path": "/api/game/resume", "body": {}},
     {"path": "/api/game/play", "body": {"rows": 8, "risk": 0, "bet": 1, "balls": 2, "requestId": "$UUID"}},
     {"path": "/api/game/history", "body": {}},

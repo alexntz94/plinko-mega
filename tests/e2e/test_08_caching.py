@@ -14,15 +14,15 @@ def test_caching_and_compression(check):
     check("4.3 scripts are sent gzipped", h.get("Content-Encoding") == "gzip", h.get("Content-Encoding"))
     check("4.2 cached files keep the security headers", h.get("X-Frame-Options") == "DENY" and "default-src 'self'" in (h.get("Content-Security-Policy") or ""))
     version = re.search(rb'v=([0-9a-f]{12})', body if h.get("Content-Encoding") != "gzip" else gzip.decompress(body))
-    _, h, _ = head(f"/themes/loteria-muerta/logo@2x.png?v={version.group(1).decode() if version else 'x'}")
+    _, h, _ = head(f"/themes/bombs-away/logo@2x.png?v={version.group(1).decode() if version else 'x'}")
     check("4.2 versioned theme images are cached for a year", "max-age=31536000" in (h.get("Cache-Control") or ""), h.get("Cache-Control"))
-    _, h, _ = head("/themes/loteria-muerta/logo@2x.png")
+    _, h, _ = head("/themes/bombs-away/logo@2x.png")
     check("4.2 unversioned theme images are re-checked", h.get("Cache-Control") == "no-cache", h.get("Cache-Control"))
     # R5: a missing file is never stored, versioned or not, theme file or hashed script (nginx's year applies to 200/206/304 only)
     for path in ("/themes/rat-race/does-not-exist.avif?v=abc123", "/assets/sounds/missing.ogg?v=abc123", "/assets/index-ZZZZZZZZ.js"):
         status, h, _ = head(path)
         check(f"R5 a 404 is not cacheable: {path}", status == 404 and h.get("Cache-Control") == "no-store", f"{status} {h.get('Cache-Control')}")
-    _, h, _ = head("/themes/loteria-muerta/theme.json?v=1")
+    _, h, _ = head("/themes/bombs-away/theme.json?v=1")
     check("4.2 theme.json is always re-checked", h.get("Cache-Control") == "no-cache", h.get("Cache-Control"))
     r = urllib.request.Request(GAME + "/api/game/session", data=b'{"token":"x"}', method="POST",
                                headers={"Content-Type": "application/json", "Accept-Encoding": "gzip"})

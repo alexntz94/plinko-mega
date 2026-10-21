@@ -4,13 +4,13 @@ import { errorText, formatAmount, playRound, resumeSession, type ApiError, type 
 import { HistoryPanel } from './historyPanel';
 import { ResponsiblePlay } from './responsible';
 import { Board, type Landing, type PegHit } from './board';
-import { BigWin, winLevel } from './effects';
+import { BigWin, CoinShower, winLevel } from './effects';
 import { FortuneWheel } from './fortuneWheel';
 import { MegaControls } from './megaControls';
 import { WinTicker } from './ticker';
 import { Ambient, Screen, WinBanner } from './juice';
 import { Meter } from './meter';
-import { betLadder, nextBet, RISKS, round2 } from './rules';
+import { ballSteps, betLadder, nextBet, RISKS, round2 } from './rules';
 import { ExitDialog, Menu, Options, ResultScreen, type MotionSwitch } from './screens';
 import { isMuted, play as sound, setMuted } from './sound';
 import { neonLayers, type Theme } from './theme';
@@ -50,6 +50,8 @@ export class Game extends Container {
   private readonly result: ResultScreen;
   private readonly options: Options;
   private readonly bigWin: BigWin;
+  /** Coins over the table: out of the wheel on its wins, out of a MEGA BALL's slot, with the WIN banner. */
+  private readonly shower = new CoinShower();
   /** The fortune wheel under the board, and the control bar. */
   private readonly wheel: FortuneWheel;
   private readonly bar: MegaControls;
@@ -59,7 +61,6 @@ export class Game extends Container {
   private readonly banner = new WinBanner();
   private readonly screen = new Screen();
   private turbo = false;
-  private slowMotion: number | null = null;
   private ballsLeft = 0;          // balls dropped and not landed yet (PLAY shows them)
   private readonly meter: Meter;
 
@@ -71,7 +72,7 @@ export class Game extends Container {
   private bet: number;
   private risk = 0;
   private rows: number;
-  private balls = 1;              // balls per round (the drawer's BALLS)
+  private balls: number;          // balls per round (the BALLS control: 10, 20, 30 …)
   private requesting = false;     // a round request is on its way (only one at a time)
   private inAir = 0;              // rounds whose balls are still falling
   private replaying = false;      // an earlier round is being shown again (review 7.5): no bet, nothing paid
@@ -95,6 +96,7 @@ export class Game extends Container {
     const defaultBet = config.defaultBet || config.minBet;
     this.ladder = betLadder(config.minBet, config.maxBet, defaultBet);
     this.bet = defaultBet;
+    this.balls = ballSteps(config.maxBalls)[0];
     this.balance = session.balance;
 
     this.menu = new Menu(tex('logo.png'), tex('logo_p.png'), tex('button_start.png'), () => this.start(),
@@ -114,10 +116,21 @@ export class Game extends Container {
     this.board.setMega(mega?.gates ?? {}, mega?.gateBoost ?? null, mega?.wheel ? mega.spinSlots ?? {} : {});
     this.board.onGate = () => sound('gate', { volume: 0.8 });
     this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
-      value => this.money(value));
-    this.wheel.onTick = () => sound('hit', { volume: 0.35 });
+      value => this.money(value), theme.ui.panel,
+      { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
+        explode: theme.board.fx === 'war' });
+    this.wheel.onTick = () => sound('tick', { volume: 0.5 });
+    this.wheel.onWin = big => {
+      // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
+      const at = this.toLocal(this.wheel.winPoint());
+      this.shower.burst(at.x, at.y, big ? 70 : 28, big ? 1100 : 800);
+      if (big) this.shower.pour(30, 0, 0, 0, 2.2);
+      if (theme.board.fx !== 'war') return;
+      sound(big ? 'huge' : 'big');
+      if (big) this.screen.flash(0.5);
+    };
     this.wheel.visible = !!mega?.wheel;
-    this.wheel.setWheel(mega?.wheel ?? [], this.bet);
+    this.wheel.setWheel(mega?.wheel ?? []);
     this.bar = new MegaControls({ gold: theme.wheel.title, ink: theme.wheel.ink, panel: theme.ui.panel, text: theme.text }, {
       play: () => this.play(),
       auto: () => { if (this.holding) this.stopHolding(); else if (this.page === 'game') void this.autoplay(); },
@@ -125,11 +138,15 @@ export class Game extends Container {
       bump: () => { sound('clack'); this.board.bump(); },
       bet: up => this.changeBet(up),
       risk: step => this.changeRisk(step),
-      balls: step => this.changeBalls(Math.min(config.maxBalls, Math.max(1, this.balls + step))),
+      balls: step => {
+        const steps = ballSteps(config.maxBalls);
+        const at = Math.max(0, steps.findIndex(balls => balls >= this.balls));
+        this.changeBalls(steps[Math.min(steps.length - 1, Math.max(0, at + step))]);
+      },
       rows: step => this.changeRows(this.rowOptions.indexOf(this.rows) + step),
     });
     this.ticker = new WinTicker(theme.wheel.title);
-    this.ambient = new Ambient([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? []), theme.wheel.title]);
+    this.ambient = new Ambient(theme.ambient.colours, theme.ambient.rise);
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
     this.table.addChild(this.ambient, this.board, this.ticker, this.wheel, this.banner, this.meter, this.bar);
 
@@ -142,7 +159,7 @@ export class Game extends Container {
     () => { if (!this.busy()) this.historyPanel.show(); });
     this.options.on('pointertap', () => sound('click'));
 
-    this.addChild(this.menu, this.table, this.screen, this.bigWin, this.result, this.exitDialog, this.options);
+    this.addChild(this.menu, this.table, this.screen, this.shower, this.bigWin, this.result, this.exitDialog, this.options);
     this.historyPanel = new HistoryPanel(value => this.money(value), entry => void this.replay(entry));
     this.responsible = new ResponsiblePlay(config, session.sessionId, value => this.money(value), () => { this.stopHolding(); this.go('menu'); });
     this.go('menu');
@@ -163,11 +180,18 @@ export class Game extends Container {
     this.exitDialog.layout(view);
     this.result.layout(view);
     this.bigWin.layout(view);
+    this.shower.layout(view);
     // the board with the wheel right under it, as one column; portrait: the bar below them, landscape: beside them
     const visibleH = view.stageH - 2 * view.offsetY;
     if (view.landscape) this.wheel.place(view.stageW * 0.4, view.stageH - view.offsetY - Math.min(115, visibleH * 0.2) * 0.45, Math.min(115, visibleH * 0.2));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.735, Math.min(150, visibleH * 0.16));
-    this.bar.layout(view, view.landscape ? view.stageW * 0.79 : view.stageW / 2);
+    if (view.landscape) {
+      // the column right of the board and wheel (they end at about 0.6 of the width)
+      const left = view.stageW * 0.6, right = view.stageW - view.offsetX - 8;
+      this.bar.layout(view, (left + right) / 2, right - left);
+    } else {
+      this.bar.layout(view, view.stageW / 2);
+    }
     this.ambient.layout(view);
     this.screen.layout(view);
     // the WIN banner over the top of the board
@@ -290,7 +314,6 @@ export class Game extends Container {
     this.bar.setRisk(RISKS[this.risk]);
     this.bar.setBalls(this.balls, this.money(this.bet));
     this.bar.setRows(this.rows);
-    this.wheel.setStake(this.bet);
   }
 
   private idleStatus(): void {
@@ -328,7 +351,8 @@ export class Game extends Container {
       if (!this.holding) break;
       const round = await this.launchRound();
       if (!round) { this.stopHolding(); break; }
-      if (winLevel(round.totalWin, round.totalBet)) { this.stopHolding(); break; }
+      // a win of 10x the round's cost or more stops autoplay (the big-win screen comes from 3x)
+      if (round.totalBet > 0 && round.totalWin >= 10 * round.totalBet) { this.stopHolding(); break; }
       await wait(Math.max(0.45, 0.06 * round.slots.length));
     }
   }
@@ -438,28 +462,36 @@ export class Game extends Container {
     const count = round.slots.length;
     const drops: Promise<void>[] = [];
     let streak = 0;
-    // one ball a round (the first worth it) gets slow motion: one heading for 10x or more, or for a SPIN slot
+    let spinsWon = 0;   // the SPINS counter goes up as each ball lands in a SPIN slot
     const spinBalls = new Set((round.spins ?? []).map(spin => spin.ball));
-    const dramaBall = this.holding || this.turbo || count > 30 ? -1
-      : round.multipliers.findIndex((m, i) => m >= 10 || spinBalls.has(i));
+    const megaBalls = new Map((round.megaBalls ?? []).map(m => [m.ball, m.multiplier]));
     for (let i = 0; i < count; i++) {
-      if (i > 0) await wait((this.holding ? 0.18 : 0.4) * random(0.6, 1.3));
+      if (i > 0) await wait((this.holding ? 0.12 : 0.25) * random(0.6, 1.3));
       if (!this.holding) {
         const left = count - i - 1;
         this.board.setStatus(left > 0 ? `PLAYING... (${left} BALLS)` : 'PLAYING...');
       }
       const multiplier = round.multipliers[i] ?? 0;
+      const mega = megaBalls.get(i) ?? 1;
+      if (mega > 1) { sound('huge'); this.screen.flash(0.35); } else if (!this.turbo) sound('drop', { volume: 0.5, rate: random(0.9, 1.12) });
       drops.push(this.board.dropBall(round.slots[i], {
         onPeg: pegSound,
-        onDrama: i === dramaBall ? () => this.slowDown() : undefined,
         onLand: landing => {
-          if (i === dramaBall) this.speedUp(true);
-          else if (multiplier >= 5) this.screen.flash(0.3);
+          // coins out of the slot for a ball worth 3x or more (more coins, the more it paid), a fountain for a MEGA BALL
+          if (mega > 1 || multiplier >= 3) {
+            const at = this.toLocal(this.board.slotPoint(landing.slot));
+            this.shower.burst(at.x, at.y, mega > 1 ? 40 : Math.min(36, Math.round(6 + multiplier * 2)), mega > 1 ? 950 : 650 + multiplier * 15);
+          }
+          if (mega > 1) {
+            this.screen.flash(0.7);
+            sound('jackpot');
+          } else if (multiplier >= 5) this.screen.flash(multiplier >= 10 ? 0.6 : 0.3);
           const win = round.wins?.[i] ?? cents(bet * multiplier);
           land(win);
           this.board.showAmount(landing.slot, this.money(win), multiplier > 1);
           this.ticker.add(this.money(win), multiplier);
-          if (charging.includes(landing.prizeIndex)) this.meter.charge();
+          if (charging.includes(landing.prizeIndex)) { this.meter.charge(); sound('golden', { volume: 0.7 }); }
+          if (spinBalls.has(i)) this.wheel.setSpins(++spinsWon);
           landSound(multiplier, landing);
           // winning balls in a row make a combo
           streak = multiplier > 1 ? streak + 1 : 0;
@@ -467,7 +499,7 @@ export class Game extends Container {
           this.ballsLeft = Math.max(0, this.ballsLeft - 1);
           this.bar.setPlaying(true, this.holding, this.ballsLeft);
         },
-      }, round.paths?.[i] ?? null));
+      }, round.paths?.[i] ?? null, mega));
     }
     await Promise.all(drops);
     this.board.combo(0);
@@ -475,7 +507,7 @@ export class Game extends Container {
     // every ball in a SPIN slot turns the wheel under the board, then a full meter's MEGA SPINs turn it gold
     const config = this.session.config.mega;
     const spins = round.spins ?? [];
-    spins.forEach((_, i) => this.wheel.setSpins(i + 1));
+    if (spinsWon !== spins.length) this.wheel.setSpins(spins.length);
     for (let i = 0; i < spins.length; i++) {
       const spin = spins[i];
       if (!config?.wheel?.[spin.segment]) { land(spin.win); continue; }
@@ -502,6 +534,10 @@ export class Game extends Container {
     const lessThanBet = this.session.config.quietSmallWins && round.totalWin < round.totalBet;
     if (round.totalWin >= round.totalBet && round.totalWin > 0 && !lessThanBet && !winLevel(round.totalWin, round.totalBet) && this.inAir <= 1) {
       sound('coins', { volume: 0.7 });
+      if (!this.holding && !this.turbo) {
+        this.shower.burst(this.banner.x, this.banner.y, 26, 800);
+        this.shower.pour(10, 0, 0, 0, 1.4);
+      }
       await this.banner.show(round.totalWin, round.totalWin / round.totalBet, value => this.money(value), this.holding || this.turbo);
     }
     if (!this.holding && this.inAir <= 1) {
@@ -520,7 +556,7 @@ export class Game extends Container {
     // a round that paid 10x its cost or more gets a celebration (the amount is the server's; tap to skip)
     const level = winLevel(round.totalWin, round.totalBet);
     if (level) sound('bigWin');
-    if (level) await this.bigWin.show(level, round.totalWin, value => this.money(value));
+    if (level) await this.bigWin.show(level, round.totalWin, value => this.money(value), round.totalBet);
   }
 
   /** Everything has landed: the screen shows exactly the server's balance; out of credit ends the game. */
@@ -615,28 +651,6 @@ export class Game extends Container {
     this.board.update(deltaMs);
     this.ambient.update(deltaMs);
     this.wheel.update(deltaMs);
-  }
-
-  /**
-   * Slow motion: everything on the clock slows to a third while a ball falls its last rows towards something big, the
-   * screen's edges darken; the landing ends it with a flash. Looks only: where the ball lands was decided before.
-   */
-  private slowDown(): void {
-    if (this.slowMotion !== null) return;
-    gsap.globalTimeline.timeScale(0.3);
-    this.screen.dim(true);
-    sound('heart');
-    // never stuck slow, whatever happens to the ball
-    this.slowMotion = window.setTimeout(() => this.speedUp(false), 3500);
-  }
-
-  private speedUp(hit: boolean): void {
-    if (this.slowMotion === null) return;
-    window.clearTimeout(this.slowMotion);
-    this.slowMotion = null;
-    gsap.globalTimeline.timeScale(1);
-    this.screen.dim(false);
-    if (hit) this.screen.flash(0.75);
   }
 
   private openExit(): void {

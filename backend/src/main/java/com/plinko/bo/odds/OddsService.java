@@ -39,7 +39,7 @@ public class OddsService implements ApplicationRunner {
     private final java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
 
     private static final BigDecimal PROBABILITY_TOLERANCE = new BigDecimal("0.0001");
-    public static final BigDecimal DEFAULT_RTP = new BigDecimal("98");
+    public static final BigDecimal DEFAULT_RTP = new BigDecimal("96");
 
     private static final Logger log = LoggerFactory.getLogger(OddsService.class);
 
@@ -127,7 +127,7 @@ public class OddsService implements ApplicationRunner {
         java.util.function.IntPredicate fixed = prize -> (bonusSettings.wheelOn() && prize == MegaBoard.spinPrizeIndex(rows))
                 || BonusService.chargesMeter(bonusSettings, rows, risk, prize);
         OddsTable table = buildForBase(rows, risk, target, fixed);
-        boolean dependsOnTable = bonusSettings.meterOn() || bonusSettings.gatesOn() || bonusSettings.wheelOn();
+        boolean dependsOnTable = bonusSettings.anyOn();
         for (int pass = 0; pass < 12 && dependsOnTable; pass++) {
             double base = (target - BonusService.extra(bonusSettings, table).doubleValue())
                     / BonusService.gateFactor(bonusSettings, table).doubleValue();
@@ -152,14 +152,16 @@ public class OddsService implements ApplicationRunner {
         double[] p = new double[n];
         double[] value = new double[n];
         double boost = bonus.gatesOn() ? bonus.gates().boost().doubleValue() : 1;
+        double megaBall = BonusService.megaBallFactor(bonus).doubleValue();
         double wheel = bonus.wheelOn() ? BonusService.expected(bonus.wheel()).doubleValue() : 0;
         double gold = bonus.meterOn() ? bonus.meter().potShare().doubleValue() / 100 * BonusService.expected(bonus.megaWheel()).doubleValue() : 0;
         for (int i = 0; i < n; i++) {
             p[i] = table.prizes().get(i).probability().doubleValue() / 100;
             int left = PlinkoBoard.leftSlot(rows, i), right = PlinkoBoard.rightSlot(rows, i);
             double gates = bonus.gatesOn() ? (MegaBoard.gateFactor(rows, left, boost) + MegaBoard.gateFactor(rows, right, boost)) / 2 : 1;
-            value[i] = table.prizes().get(i).multiplier().doubleValue() * gates
-                    + (bonus.wheelOn() && i == MegaBoard.spinPrizeIndex(rows) ? wheel : 0)
+            // a SPIN slot's ball is paid again times the wheel
+            value[i] = table.prizes().get(i).multiplier().doubleValue() * gates * megaBall
+                    * (1 + (bonus.wheelOn() && i == MegaBoard.spinPrizeIndex(rows) ? wheel : 0))
                     + (BonusService.chargesMeter(bonus, rows, table.risk(), i) ? gold : 0);
         }
         double total = 0;

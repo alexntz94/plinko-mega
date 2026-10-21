@@ -124,14 +124,14 @@ jobs:
       - run: docker compose --env-file "$(sh scripts/test-env.sh "$RUNNER_TEMP/plinko")" build
       - name: Fixable HIGH or CRITICAL vulnerabilities in the images (Trivy)
         run: |
-          for image in plinko-backend:local plinko-web:local plinko-db:local; do
+          for image in plinko-mega-backend:local plinko-mega-web:local plinko-mega-db:local; do
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image \
               --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$image"
           done
       - name: SBOM (CycloneDX) of every image, kept with the build
         run: |
           mkdir sbom
-          for image in plinko-backend plinko-web plinko-db; do
+          for image in plinko-mega-backend plinko-mega-web plinko-mega-db; do
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/sbom:/out" "$TRIVY_IMAGE" image \
               --format cyclonedx --output "/out/$image.cdx.json" --no-progress "$image:local"
           done

@@ -1,0 +1,5 @@
+# Windows files keep Windows line endings; scripts that run inside the containers keep Unix ones (a Windows checkout
+# or unzip must not change them)
+*.cmd -text
+*.ps1 text eol=crlf
+*.sh text eol=lf

@@ -3,6 +3,9 @@
 #   game:  http://localhost:8080        (public)
 #   admin: http://127.0.0.1:8081/admin  (bound to localhost only; reach it through a VPN or SSH tunnel)
 
+# Its own Compose project (containers, networks and volumes), so it can run on the same machine as Plinko
+name: plinko-mega
+
 x-hardening: &hardening
   read_only: true
   cap_drop: [ALL]
@@ -18,7 +21,7 @@ services:
     build:
       context: .
       dockerfile: deploy/mysql/Dockerfile
-    image: plinko-db:local
+    image: plinko-mega-db:local
     environment:
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/MYSQL_ROOT_PASSWORD
       MYSQL_ROOT_HOST: localhost        # root can only log in from inside the database container
@@ -42,7 +45,7 @@ services:
   # holds the owner's password; the running backend uses the restricted application user.
   migrate:
     <<: *hardening
-    image: plinko-backend:local
+    image: plinko-mega-backend:local
     restart: "no"
     depends_on:
       db: {condition: service_healthy}
@@ -63,7 +66,7 @@ services:
   backend:
     <<: *hardening
     build: ./backend
-    image: plinko-backend:local
+    image: plinko-mega-backend:local
     depends_on:
       db: {condition: service_healthy}
       migrate: {condition: service_completed_successfully}
@@ -113,7 +116,7 @@ services:
     build:
       context: .
       dockerfile: deploy/nginx/Dockerfile
-    image: plinko-web:local
+    image: plinko-mega-web:local
     depends_on:
       backend: {condition: service_healthy}
     tmpfs: [/tmp]

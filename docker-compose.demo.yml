@@ -10,17 +10,20 @@ services:
       DEMO_MODE: "true"
       DEMO_CREDITS: ${DEMO_CREDITS:-1000}
       DEMO_WALLETS_PER_DAY: ${DEMO_WALLETS_PER_DAY:-2000}
-      # the admin panel is reached over SSH at http://127.0.0.1:8081
+      # the admin panel is reached on the server itself (or over SSH) at http://127.0.0.1:8091
       COOKIE_SECURE: "false"
+    ports: !override
+      - "127.0.0.1:8091:8081"
 
   web:
     build:
       args:
         CLIENT_IP: client-ip-cloudflare.conf   # visitor address from Cloudflare's CF-Connecting-IP
-    image: plinko-web:demo
-    # only the tunnel reaches nginx; nothing is open to the internet on the server
+    image: plinko-mega-web:demo
+    # only the tunnel reaches nginx; nothing is open to the internet on the server. 8090, not 8080: Plinko's own demo
+    # can run on the same machine
     ports: !override
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8090:8080"
     # nginx also joins the tunnel's own network (the backend is not on it)
     networks: [edge, tunnel]
 

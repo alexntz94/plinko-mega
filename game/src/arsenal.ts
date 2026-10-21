@@ -123,7 +123,7 @@ export class ArsenalPanel extends Container {
     this.dim.clear().rect(0, 0, view.stageW, view.stageH).fill({ color: '#000000', alpha: 0.75 });
     this.hitArea = new Rectangle(0, 0, view.stageW, view.stageH);
     const visibleH = view.stageH - 2 * view.offsetY;
-    const w = Math.min(view.stageW - 24, 620);
+    const w = Math.min(view.stageW - 2 * view.offsetX - 20, 620);   // what is on screen (a phone hides the stage's sides)
     const h = Math.min(78, (visibleH - 150) / this.cards.length - 8);
     const gap = 8;
     const listH = this.cards.length * (h + gap) - gap;
@@ -137,24 +137,26 @@ export class ArsenalPanel extends Container {
       v.lit.clear().roundRect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6, 8).stroke({ color: this.look.gold, width: 4 });
       v.lit.visible = v.card.id === this.armed || v.zones.some(z => z.id === this.armed);
       const [name, text] = v.root.children.filter((c): c is Text => c instanceof Text && c !== v.price);
-      const left = -w / 2 + Math.max(24, w * 0.06);
+      // the card's art has a riveted rim: everything stays inside its dark panel, `inset` in from each side
+      const inset = Math.max(26, w * 0.065);
+      const left = -w / 2 + inset;
       for (const [t, y, size] of [[name, -h * 0.18, Math.min(18, h * 0.26)], [text, h * 0.18, Math.min(13, h * 0.19)]] as const) {
         t.anchor.set(0, 0.5);
         t.style.fontSize = Math.round(size);
         t.position.set(left, y);
       }
       // the price, or the zone buttons, on the right
-      const right = w * 0.42;
+      const right = w * 0.4;
       v.price.anchor.set(1, 0.5);
       v.price.style.fontSize = Math.round(Math.min(14, h * 0.2));
-      v.price.position.set(w / 2 - 22, 0);
+      v.price.position.set(w / 2 - inset, 0);
       fit(v.price, right - 10);
-      fit(name, w - right - 50);
-      fit(text, w - right - 50);
+      fit(name, w - 2 * inset - right - 12);
+      fit(text, w - 2 * inset - right - 12);
       const zw = right / Math.max(1, v.zones.length);
       v.zones.forEach((zone, z) => {
-        zone.root.position.set(w / 2 - 18 - right + zw * (z + 0.5), 0);
-        zone.back.clear().roundRect(-zw / 2 + 2, -h * 0.3, zw - 4, h * 0.6, 5).fill({ color: '#000000', alpha: 0.55 })
+        zone.root.position.set(w / 2 - inset - right + zw * (z + 0.5), 0);
+        zone.back.clear().roundRect(-zw / 2 + 2, -h * 0.25, zw - 4, h * 0.5, 5).fill({ color: '#000000', alpha: 0.55 })
           .stroke({ color: this.look.gold, width: 1.5 });
         zone.text.style.fontSize = Math.round(Math.min(12, h * 0.17));
         fit(zone.text, zw - 10);

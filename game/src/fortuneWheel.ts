@@ -5,10 +5,11 @@
 import { BlurFilter, Container, FillGradient, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { label, textQuality, typeface, fit } from './ui';
-import { Particles, calm, shake } from './effects';
+import { Particles, calm, photoBlast, shake } from './effects';
 import { counting, goldText, mix, shade } from './paint';
 import type { Segment } from './api';
 import type { RevolverArt, WheelLook, WheelStyle } from './theme';
+import { chamberLayout } from './revolver';
 
 /** A revolver from pictures (theme wheel.revolverArt): its textures and its measured geometry. */
 export interface PhotoRevolver {
@@ -99,11 +100,6 @@ export class FortuneWheel extends Container {
     return photo && !this.gold && photo.spec.chambers.length === segments.length ? photo : null;
   }
 
-  /** The angle of each chamber of the photo revolver, round its centre (radians; the first near the top). */
-  private chamberAngles(photo: PhotoRevolver): number[] {
-    const [cx, cy] = photo.spec.centre;
-    return photo.spec.chambers.map(([x, y]) => Math.atan2(y - cy, x - cx));
-  }
 
   /** Every frame: the marquee lights chase round the rim, and the glow breathes. */
   update(deltaMs: number): void {
@@ -168,7 +164,7 @@ export class FortuneWheel extends Container {
     const offset = this.style.revolver ? 0 : random(-0.3, 0.3) * step;
     // the photo revolver: its chamber stops exactly under the hammer (the chambers are not quite evenly spaced)
     const photo = this.photo(segments);
-    const stop = photo ? -(this.chamberAngles(photo)[index] + Math.PI / 2) : -index * step;
+    const stop = photo ? chamberLayout(photo.spec, this.radius)[index].stop : -index * step;
     const target = stop + offset - turns * Math.PI * 2 + Math.min(0, start);
     let lastTick = Math.floor(this.disc.rotation / step);
     const tick = () => {
@@ -179,7 +175,7 @@ export class FortuneWheel extends Container {
       gsap.fromTo(this.pointer, { rotation: 0.25 }, { rotation: 0, duration: 0.12, overwrite: true });
     };
     // the rainbow ring lights up behind the wheel while it turns
-    this.rainbow.visible = !this.photo(segments);   // blurred: only drawn while the wheel turns (not round the photo revolver)
+    this.rainbow.visible = !this.style.revolver;   // blurred: only while a wheel turns; never round a revolver
     gsap.to(this.rainbow, { alpha: 0.9, duration: 0.3 });
     this.chaseSpeed = 22;
     const glowSpin = gsap.to(this.rainbow, { rotation: '+=' + Math.PI * 2, duration: 1.2, repeat: -1, ease: 'none' });
@@ -289,6 +285,17 @@ export class FortuneWheel extends Container {
     const r = this.radius;
     const y = -r * 0.42;
     // soft edges drawn in (rings of falling opacity), not blurred: cheap on a phone
+    // the theme's photo explosion over the wheel, when it has one
+    if (photoBlast(this.burst, 0, y, r * (big ? 2.2 : 1.6))) {
+      this.sparks.burst(0, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 40 : 22, big ? 850 : 600, 500);
+      const word = goldText(big ? 'KABOOM!' : 'BOOM!', r * (big ? 0.34 : 0.26));
+      word.position.set(0, y - r * 0.55);
+      this.burst.addChild(word);
+      gsap.timeline()
+        .fromTo(word.scale, { x: 2.6, y: 2.6 }, { x: 1, y: 1, duration: 0.2, ease: 'power3.in' }, 0)
+        .to(word, { y: word.y - r * 0.2, alpha: 0, duration: 0.6, ease: 'power1.in' }, 0.9);
+      return;
+    }
     const soft = (radius: number, colour: string, alpha = 1) => new Graphics()
       .circle(0, 0, radius).fill({ color: colour, alpha: 0.25 * alpha }).circle(0, 0, radius * 0.8).fill({ color: colour, alpha: 0.35 * alpha })
       .circle(0, 0, radius * 0.6).fill({ color: colour, alpha: 0.5 * alpha });
@@ -399,6 +406,7 @@ export class FortuneWheel extends Container {
     // with the theme's bezel the disc is smaller, so the whole wheel keeps its size
     const r = this.art.bezel ? this.radius * 0.84 : this.radius;
     const look = this.gold ? this.style.gold : this.style;
+    this.glow.visible = !this.style.revolver;   // no coloured glow round a revolver
     this.glow.clear().circle(0, 0, r * 1.32).fill({ color: this.gold ? '#ffd76a' : this.style.title, alpha: 0.18 });
     this.rainbow.clear();
     RAINBOW.forEach((colour, i) => {
@@ -471,21 +479,20 @@ export class FortuneWheel extends Container {
     const cylinder = new Sprite({ texture: photo.cylinder, anchor: { x: spec.centre[0], y: spec.centre[1] } });
     cylinder.scale.set(s);
     this.disc.addChild(cylinder);
-    const angles = this.chamberAngles(photo);
+    const places = chamberLayout(spec, r);
     segments.forEach((segment, i) => {
-      const [x, y] = spec.chambers[i];
-      const at = { x: (x - spec.centre[0]) * w * s, y: (y - spec.centre[1]) * w * s };
+      const place = places[i];
       const kind = segment.name === 'MINI' || segment.name === 'MAJOR' || segment.name === 'MEGA' ? segment.name : 'plain';
       const head = new Sprite({ texture: photo.cartridges[kind], anchor: 0.5 });
-      head.width = head.height = r * 0.42;
-      head.position.set(at.x, at.y);
-      head.rotation = angles[i] + Math.PI / 2;
+      head.width = head.height = place.size;
+      head.position.set(place.x, place.y);
+      head.rotation = place.rotation;
       const words = new Text({ text: segmentText(segment), anchor: 0.5, resolution: textQuality(),
         style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(r * (segment.name ? 0.085 : 0.12)),
           fill: '#fff6dc', stroke: { color: '#000000', width: r * 0.025, join: 'round' } } });
       words.position.copyFrom(head.position);
       words.rotation = head.rotation;
-      if (words.width > r * 0.34) words.scale.set(r * 0.34 / words.width);
+      if (words.width > place.size * 0.7) words.scale.set(place.size * 0.7 / words.width);
       this.disc.addChild(head, words);
     });
     const dial = new Sprite({ texture: photo.dial, anchor: { x: spec.opening[0], y: spec.opening[1] } });

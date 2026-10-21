@@ -53,7 +53,7 @@ export interface WheelStyle extends WheelLook { ink: string; title: string; gold
 export interface RevolverArt {
   cylinder: string; dial: string; flash: string;
   cartridges: { plain: string; MINI: string; MAJOR: string; MEGA: string };
-  centre: [number, number]; radius: number; chambers: [number, number][];
+  centre: [number, number]; radius: number; chambers: [number, number][]; chamberRadius: number;
   opening: [number, number]; openingRadius: number;
 }
 export interface Theme {
@@ -70,6 +70,8 @@ export interface Theme {
   ui: ThemeUi;
   /** a console under the board for the controls (its art: the DROP plate, a readout panel, a key), or null */
   console: { drop: string; panel: string; key: string; back: string | null } | null;
+  /** a photo explosion (fireball, ground dust ring, smoke plume) for every blast, or null: drawn in code */
+  blast: { fire: string; dust: string; smoke: string } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -128,10 +130,18 @@ function readRevolverArt(json: unknown): RevolverArt | null {
   const chambers = Array.isArray(r.chambers) ? r.chambers.map(pair) : [];
   const parts = [png(r.cylinder), png(r.dial), png(r.flash), png(c.plain), png(c.MINI), png(c.MAJOR), png(c.MEGA)];
   const centre = pair(r.centre), opening = pair(r.opening), radius = share(r.radius), openingRadius = share(r.openingRadius);
-  if (parts.some(p => !p) || !centre || !opening || !radius || !openingRadius || chambers.length < 3 || chambers.some(c => !c)) return null;
+  const chamberRadius = share(r.chamberRadius);
+  if (parts.some(p => !p) || !centre || !opening || !radius || !openingRadius || !chamberRadius || chambers.length < 3 || chambers.some(c => !c)) return null;
   const [cylinder, dial, flash, plain, MINI, MAJOR, MEGA] = parts as string[];
   return { cylinder, dial, flash, cartridges: { plain, MINI, MAJOR, MEGA }, centre, radius, chambers: chambers as [number, number][],
-    opening, openingRadius };
+    chamberRadius, opening, openingRadius };
+}
+
+function readBlast(json: unknown): Theme['blast'] {
+  const b = (json ?? null) as Record<string, unknown> | null;
+  if (!b) return null;
+  const [fire, dust, smoke] = [fileName(b.fire, /\.png$/), fileName(b.dust, /\.png$/), fileName(b.smoke, /\.png$/)];
+  return fire && dust && smoke ? { fire, dust, smoke } : null;
 }
 
 function readConsole(json: unknown): Theme['console'] {
@@ -206,6 +216,7 @@ export async function loadTheme(id: string): Promise<Theme> {
     retina: json.retina === true,
     ui: readUi(json.ui),
     console: readConsole(json.console),
+    blast: readBlast(json.blast),
     landscapeExitFromPortrait: json.landscapeExitFromPortrait === true,
     video: {
       wide: fileName((json.video as Record<string, unknown> | undefined)?.wide, /\.(mp4|webm)$/),

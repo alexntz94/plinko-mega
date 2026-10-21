@@ -13,6 +13,7 @@ import { atlasUrls, imageUrls, inAtlas, type Formats } from './images';
 import { computeViewport } from './viewport';
 import { initSounds, startMusic } from './sound';
 import { setTextQuality, setTypeface } from './ui';
+import { setBlastArt } from './effects';
 import { setMegaLook, setSlotArt, setSlotLooks, setSpinMark } from './board';
 import { Game } from './game';
 import { BackdropVideo } from './backdrop';
@@ -37,6 +38,7 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.wheel.revolverArt ? [theme.wheel.revolverArt.cylinder, theme.wheel.revolverArt.dial, theme.wheel.revolverArt.flash,
       ...Object.values(theme.wheel.revolverArt.cartridges)] : []),
     ...(theme.wheel.spinMark ? [theme.wheel.spinMark] : []),
+    ...(theme.blast ? [theme.blast.fire, theme.blast.dust, theme.blast.smoke] : []),
     ...Object.values(theme.board.fit ?? {}).flatMap(f => [f.frame, f.framePortrait]),
   ];
 }
@@ -194,6 +196,7 @@ async function start(): Promise<void> {
   if (theme.board.slotArt) setSlotArt(SLOT_ART.map(tex));
   setMegaLook(theme.wheel.title, theme.wheel.ink, theme.wheel.gate ? tex(theme.wheel.gate) : null);
   setSpinMark(theme.wheel.spinMark ? tex(theme.wheel.spinMark) : null);
+  setBlastArt(theme.blast ? { fire: tex(theme.blast.fire), dust: tex(theme.blast.dust), smoke: tex(theme.blast.smoke) } : null);
   initSounds(theme.path, theme.sounds);
 
   const app = new Application();

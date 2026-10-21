@@ -150,44 +150,45 @@
       },
       "centre": [
         0.4992,
-        0.4992
+        0.4973
       ],
-      "radius": 0.4753,
+      "radius": 0.4759,
       "chambers": [
         [
-          0.4984,
-          0.1627
+          0.4971,
+          0.1775
         ],
         [
-          0.752,
-          0.2799
+          0.744,
+          0.2856
         ],
         [
-          0.811,
-          0.5455
+          0.8139,
+          0.5316
         ],
         [
-          0.6555,
-          0.7488
+          0.6799,
+          0.7507
         ],
         [
-          0.3469,
-          0.7536
+          0.3182,
+          0.7507
         ],
         [
-          0.1842,
-          0.547
+          0.1833,
+          0.5316
         ],
         [
-          0.2464,
-          0.2807
+          0.256,
+          0.2866
         ]
       ],
       "opening": [
         0.4992,
         0.5327
       ],
-      "openingRadius": 0.2951
+      "openingRadius": 0.2951,
+      "chamberRadius": 0.1157
     }
   },
   "ambient": {
@@ -233,5 +234,10 @@
     "panel": "console_panel.png",
     "key": "console_key.png",
     "back": "console_back.png"
+  },
+  "blast": {
+    "fire": "blast_fire.png",
+    "dust": "blast_dust.png",
+    "smoke": "blast_smoke.png"
   }
 }

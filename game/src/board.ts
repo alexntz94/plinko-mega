@@ -2,7 +2,7 @@ import { Container, Graphics, GraphicsContext, Sprite, Text, Texture } from 'pix
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { label, textQuality, typeface } from './ui';
-import { Particles, shake } from './effects';
+import { Particles, photoBlast, shake } from './effects';
 import { goldText } from './paint';
 import type { BoardStyle, FitFrame, ThemeFx } from './theme';
 import { prizeIndexOfSlot, slotTier } from './rules';
@@ -1019,13 +1019,16 @@ export class Board extends Container {
     this.particles.burst(x, y - 6, ['#3a3d42', '#55595f', '#24272b'], [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
     // debris: dark chunks thrown out and falling back
     if (size >= 1) this.particles.burst(x, y, ['#1a1d21', '#4b5320', '#2b3036'], [0, 6, 10, 16][size], [0, 260, 360, 480][size], 1400);
-    const flash = new Graphics().circle(0, 0, [10, 16, 24, 36][size]).fill('#fff3b0');
-    flash.blendMode = 'add';
-    flash.position.set(x, y);
-    this.textLayer.addChild(flash);
-    gsap.timeline({ onComplete: () => flash.destroy() })
-      .fromTo(flash.scale, { x: 0.3, y: 0.3 }, { x: 1.4, y: 1.4, duration: 0.18, ease: 'power2.out' })
-      .to(flash, { alpha: 0, duration: 0.25 }, 0.05);
+    // the theme's photo explosion when it has one (smoke only from 1x up), else a flash
+    if (!photoBlast(this.textLayer, x, y, [26, 38, 56, 84][size], size >= 1)) {
+      const flash = new Graphics().circle(0, 0, [10, 16, 24, 36][size]).fill('#fff3b0');
+      flash.blendMode = 'add';
+      flash.position.set(x, y);
+      this.textLayer.addChild(flash);
+      gsap.timeline({ onComplete: () => flash.destroy() })
+        .fromTo(flash.scale, { x: 0.3, y: 0.3 }, { x: 1.4, y: 1.4, duration: 0.18, ease: 'power2.out' })
+        .to(flash, { alpha: 0, duration: 0.25 }, 0.05);
+    }
     if (size < 2) return;
     shake(this, size === 3 ? 9 : 4);
     const words = size === 3 ? ['DIRECT HIT!', 'KABOOM!', 'NUKED!'] : ['BOOM!', 'BLAM!', 'HIT!'];

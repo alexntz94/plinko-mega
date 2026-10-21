@@ -1,4 +1,4 @@
-import { Container, Graphics, GraphicsContext, Rectangle, type Text } from 'pixi.js';
+import { Container, Graphics, GraphicsContext, Rectangle, Sprite, type Text, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { counting, goldText } from './paint';
@@ -273,6 +273,63 @@ export class CoinShower extends Container implements Shower {
 }
 
 
+/** A theme's photo explosion (a fireball, a ground dust ring, a smoke plume), or null: blasts are drawn in code. */
+let blastArt: { fire: Texture; dust: Texture; smoke: Texture } | null = null;
+export function setBlastArt(art: { fire: Texture; dust: Texture; smoke: Texture } | null): void {
+  blastArt = art;
+}
+let liveBlasts = 0;
+const MAX_BLASTS = 24;   // photo blasts on screen at once (100 balls landing must stay smooth on a phone)
+
+/**
+ * A photo explosion at (x, y) on `layer`, about `radius` across its fireball: the dust ring bursts out along the ground,
+ * the fireball flashes up and burns out, and the smoke rolls up out of it and fades. False when the theme has no photo
+ * explosion or too many are already on screen (the caller draws its own then).
+ */
+export function photoBlast(layer: Container, x: number, y: number, radius: number, smoke = true): boolean {
+  if (!blastArt || calm) return false;
+  if (liveBlasts >= MAX_BLASTS) return true;   // skipped quietly: the screen is full of them already
+  liveBlasts++;
+  const parts: Sprite[] = [];
+  const part = (texture: Texture, ax: number, ay: number) => {
+    const sprite = new Sprite({ texture, anchor: { x: ax, y: ay } });
+    sprite.position.set(x, y);
+    layer.addChild(sprite);
+    parts.push(sprite);
+    return sprite;
+  };
+  const size = (sprite: Sprite, width: number) => sprite.scale.set(width / sprite.texture.width);
+  let smokeOut: Sprite | null = null;
+  if (smoke) {
+    smokeOut = part(blastArt.smoke, 0.5, 0.86);
+    size(smokeOut, radius * 1.4);
+    smokeOut.alpha = 0;
+  }
+  const dust = part(blastArt.dust, 0.5, 0.6);
+  size(dust, radius * 1.2);
+  const fire = part(blastArt.fire, 0.5, 0.5);
+  fire.rotation = random(-0.6, 0.6);
+  size(fire, radius * 0.3);
+  const end = fire.scale.x * (2 * radius / (radius * 0.3)) * random(0.9, 1.1);
+  const tl = gsap.timeline({ onComplete: () => {
+    parts.forEach(p => { gsap.killTweensOf([p, p.scale]); if (!p.destroyed) p.destroy(); });
+    liveBlasts = Math.max(0, liveBlasts - 1);
+  } });
+  tl.to(fire.scale, { x: end, y: end, duration: 0.2, ease: 'power3.out' }, 0)
+    .to(fire.scale, { x: end * 1.12, y: end * 1.12, duration: 0.45, ease: 'none' }, 0.2)
+    .to(fire, { alpha: 0, duration: 0.4, ease: 'power1.in' }, 0.25)
+    .to(dust.scale, { x: dust.scale.x * 2.6, y: dust.scale.y * 2, duration: 0.55, ease: 'power2.out' }, 0)
+    .to(dust, { alpha: 0, duration: 0.45, ease: 'power1.in' }, 0.25);
+  if (smokeOut) {
+    const s0 = smokeOut.scale.x;
+    tl.to(smokeOut, { alpha: 0.85, duration: 0.25 }, 0.18)
+      .fromTo(smokeOut.scale, { x: s0 * 0.5, y: s0 * 0.5 }, { x: s0 * 1.25, y: s0 * 1.25, duration: 1.4, ease: 'power1.out' }, 0.18)
+      .to(smokeOut, { y: y - radius * 0.7, duration: 1.4, ease: 'power1.out' }, 0.18)
+      .to(smokeOut, { alpha: 0, duration: 0.7, ease: 'power1.in' }, 0.9);
+  }
+  return true;
+}
+
 /** Soft-edged discs shared by every blast: one per colour (rings of falling opacity, no blur filter). */
 const softDiscs = new Map<string, GraphicsContext>();
 function softDisc(colour: string): GraphicsContext {
@@ -353,6 +410,10 @@ export class BlastShower extends Container implements Shower {
 
   /** One explosion at (x, y), size about 1 (a wheel win) to 2 (a big win). */
   private blast(x: number, y: number, size: number): void {
+    if (photoBlast(this, x, y, 70 * size)) {
+      this.particles.burst(x, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], Math.round(8 * size), 380 * size, 600);
+      return;
+    }
     if (this.live >= this.max) return;
     this.live++;
     const parts: Graphics[] = [];

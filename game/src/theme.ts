@@ -71,7 +71,9 @@ export interface Theme {
   /** a console under the board for the controls (its art: the DROP plate, a readout panel, a key), or null */
   console: { drop: string; panel: string; key: string; back: string | null } | null;
   /** a photo explosion (fireball, ground dust ring, smoke plume) for every blast, or null: drawn in code */
-  blast: { fire: string; dust: string; smoke: string; kinds: Partial<Record<'small' | 'fireball' | 'napalm' | 'impact' | 'mushroom', string>> } | null;
+  blast: { fire: string; dust: string; smoke: string; kinds: Partial<Record<BlastName, string>>;
+    /** animated explosions: per kind, a sprite sheet of 16 frames (4x4) */
+    sheets: Partial<Record<BlastName, string>> } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -137,17 +139,23 @@ function readRevolverArt(json: unknown): RevolverArt | null {
     chamberRadius, opening, openingRadius };
 }
 
+const BLAST_NAMES = ['small', 'fireball', 'heavy', 'napalm', 'impact', 'mushroom'] as const;
+type BlastName = typeof BLAST_NAMES[number];
+
 function readBlast(json: unknown): Theme['blast'] {
   const b = (json ?? null) as Record<string, unknown> | null;
   if (!b) return null;
   const [fire, dust, smoke] = [fileName(b.fire, /\.png$/), fileName(b.dust, /\.png$/), fileName(b.smoke, /\.png$/)];
-  const k = (b.kinds ?? {}) as Record<string, unknown>;
-  const kinds: Partial<Record<'small' | 'fireball' | 'napalm' | 'impact' | 'mushroom', string>> = {};
-  for (const name of ['small', 'fireball', 'napalm', 'impact', 'mushroom'] as const) {
-    const file = fileName(k[name], /\.png$/);
-    if (file) kinds[name] = file;
-  }
-  return fire && dust && smoke ? { fire, dust, smoke, kinds } : null;
+  const files = (json: unknown) => {
+    const k = (json ?? {}) as Record<string, unknown>;
+    const out: Partial<Record<BlastName, string>> = {};
+    for (const name of BLAST_NAMES) {
+      const file = fileName(k[name], /\.png$/);
+      if (file) out[name] = file;
+    }
+    return out;
+  };
+  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets) } : null;
 }
 
 function readConsole(json: unknown): Theme['console'] {

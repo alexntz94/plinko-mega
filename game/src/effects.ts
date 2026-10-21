@@ -1,4 +1,4 @@
-import { Container, Graphics, GraphicsContext, Rectangle, Sprite, type Text, type Texture } from 'pixi.js';
+import { AnimatedSprite, Container, Graphics, GraphicsContext, Rectangle, Sprite, Texture, type Text } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { counting, goldText } from './paint';
@@ -273,6 +273,31 @@ export class CoinShower extends Container implements Shower {
 }
 
 
+/**
+ * An explosion played from its frames (the theme's sprite sheet): the whole animation once, `width` across, mirrored at
+ * random so repeats don't look alike; gone when it ends.
+ */
+function animatedBlast(layer: Container, kind: BlastKind, x: number, y: number, width: number): boolean {
+  if (liveBlasts >= MAX_BLASTS) return true;
+  liveBlasts++;
+  const frames = kindFrames[kind]!;
+  const k = KIND[kind];
+  const blast = new AnimatedSprite({ textures: frames, anchor: { x: k.anchor[0], y: k.anchor[1] }, autoUpdate: true });
+  blast.position.set(x, y);
+  const scale = width / frames[0].width;
+  blast.scale.set(Math.random() < 0.5 ? -scale : scale, scale);
+  blast.loop = false;
+  blast.animationSpeed = frames.length / (k.life * 1.3 * 60);   // the frames over the kind's life (a little slower: they are real fire)
+  const done = () => {
+    if (!blast.destroyed) blast.destroy();
+    liveBlasts = Math.max(0, liveBlasts - 1);
+  };
+  blast.onComplete = done;
+  layer.addChild(blast);
+  blast.play();
+  return true;
+}
+
 /** A theme's photo explosion (a fireball, a ground dust ring, a smoke plume), or null: blasts are drawn in code. */
 let blastArt: { fire: Texture; dust: Texture; smoke: Texture } | null = null;
 export function setBlastArt(art: { fire: Texture; dust: Texture; smoke: Texture } | null): void {
@@ -280,15 +305,26 @@ export function setBlastArt(art: { fire: Texture; dust: Texture; smoke: Texture 
 }
 
 /** The kinds of explosion a theme can bring, smallest to biggest. */
-export type BlastKind = 'small' | 'fireball' | 'napalm' | 'impact' | 'mushroom';
+export type BlastKind = 'small' | 'fireball' | 'heavy' | 'napalm' | 'impact' | 'mushroom';
 let kindArt: Partial<Record<BlastKind, Texture>> = {};
 export function setBlastKinds(art: Partial<Record<BlastKind, Texture>>): void {
   kindArt = art;
+}
+/** Animated explosions: per kind, the frames of its sprite sheet (16, a 4x4 grid, read left to right, top to bottom). */
+let kindFrames: Partial<Record<BlastKind, Texture[]>> = {};
+export function setBlastSheets(sheets: Partial<Record<BlastKind, Texture>>): void {
+  kindFrames = {};
+  for (const [kind, sheet] of Object.entries(sheets) as [BlastKind, Texture][]) {
+    const w = sheet.frame.width / 4, h = sheet.frame.height / 4;
+    kindFrames[kind] = Array.from({ length: 16 }, (_, i) => new Texture({
+      source: sheet.source, frame: new Rectangle(sheet.frame.x + (i % 4) * w, sheet.frame.y + Math.floor(i / 4) * h, w, h) }));
+  }
 }
 /** How each kind stands and moves: where it touches the point (anchor), how much it grows, how long it lasts. */
 const KIND: Record<BlastKind, { anchor: [number, number]; from: number; grow: number; life: number; rise: number }> = {
   small: { anchor: [0.5, 0.5], from: 0.3, grow: 1.15, life: 0.55, rise: 0 },
   fireball: { anchor: [0.5, 0.55], from: 0.25, grow: 1.2, life: 0.9, rise: 0.1 },
+  heavy: { anchor: [0.5, 0.55], from: 0.25, grow: 1.2, life: 1.0, rise: 0.1 },
   napalm: { anchor: [0.5, 0.85], from: 0.15, grow: 1.1, life: 1.1, rise: 0 },
   impact: { anchor: [0.5, 0.95], from: 0.2, grow: 1.12, life: 0.95, rise: 0 },
   mushroom: { anchor: [0.5, 0.92], from: 0.1, grow: 1.08, life: 1.7, rise: 0.12 },
@@ -299,7 +335,8 @@ const KIND: Record<BlastKind, { anchor: [number, number]; from: number; grow: nu
  * little and drifts up, then fades. False when the theme has no picture of that kind (the caller falls back).
  */
 export function kindBlast(layer: Container, kind: BlastKind, x: number, y: number, width: number): boolean {
-  const texture = kindArt[kind];
+  if (kindFrames[kind] && !calm) return animatedBlast(layer, kind, x, y, width);
+  const texture = kindArt[kind] ?? (kind === 'heavy' ? kindArt.fireball : undefined);
   if (!texture || calm) return false;
   if (liveBlasts >= MAX_BLASTS) return true;
   liveBlasts++;
@@ -480,7 +517,7 @@ export class BlastShower extends Container implements Shower {
 
   /** One explosion at (x, y), size about 1 (a wheel win) to 2 (a big win). */
   private blast(x: number, y: number, size: number): void {
-    if (kindBlast(this, size >= 1.9 ? 'mushroom' : size >= 1.2 ? 'fireball' : 'small', x, y, 150 * size)) {
+    if (kindBlast(this, size >= 1.9 ? 'mushroom' : size >= 1.2 ? 'heavy' : 'fireball', x, y, 150 * size)) {
       this.particles.burst(x, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], Math.round(8 * size), 380 * size, 600);
       return;
     }

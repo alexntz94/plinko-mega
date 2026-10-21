@@ -245,6 +245,14 @@
       "napalm": "blast_napalm.png",
       "impact": "blast_impact.png",
       "mushroom": "blast_mushroom.png"
+    },
+    "sheets": {
+      "small": "anim_small.png",
+      "fireball": "anim_fireball.png",
+      "heavy": "anim_heavy.png",
+      "napalm": "anim_napalm.png",
+      "impact": "anim_impact.png",
+      "mushroom": "anim_mushroom.png"
     }
   }
 }

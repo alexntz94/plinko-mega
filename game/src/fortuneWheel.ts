@@ -288,7 +288,7 @@ export class FortuneWheel extends Container {
     const y = -r * 0.42;
     // soft edges drawn in (rings of falling opacity), not blurred: cheap on a phone
     // the theme's explosion over the wheel: a mushroom cloud for a jackpot, a fireball for a win; else the photo blast
-    if (kindBlast(this.burst, big ? 'mushroom' : 'fireball', 0, big ? r * 0.55 : y, r * (big ? 3.2 : 2.4))
+    if (kindBlast(this.burst, big ? 'mushroom' : 'heavy', 0, big ? r * 0.55 : y, r * (big ? 3.2 : 2.4))
         || photoBlast(this.burst, 0, y, r * (big ? 2.2 : 1.6))) {
       this.sparks.burst(0, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 40 : 22, big ? 850 : 600, 500);
       const word = goldText(big ? 'KABOOM!' : 'BOOM!', r * (big ? 0.34 : 0.26));

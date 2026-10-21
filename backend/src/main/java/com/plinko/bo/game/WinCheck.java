@@ -197,7 +197,9 @@ public class WinCheck {
                 gates = outcome.gateBoost().pow(MegaBoard.gatesPassed(MegaBoard.layouts(round.rows()).get(outcome.layout()), outcome.paths().get(ball)));
             }
             String problem = ballProblem(round, "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball),
-                    gates.multiply(outcome.megaBallTimes(ball)), prizes);
+                    gates.multiply(outcome.megaBallTimes(ball)).multiply(outcome.crateTimes(ball))
+                            .multiply(com.plinko.bo.bonus.BonusService.slotFactor(outcome.power(), round.rows(), round.risk(), outcome.slots().get(ball))),
+                    prizes);
             if (problem != null) {
                 return problem;
             }
@@ -240,6 +242,16 @@ public class WinCheck {
                 if (slot < 0 || slot > round.rows()) {
                     return "C5: a decoy landed in slot " + slot + ", outside a board of " + round.rows() + " rows";
                 }
+            }
+        }
+        if (!outcome.crates().isEmpty() && !"crates".equals(outcome.power())) {
+            return "C5: ammo crates in a round not bought with chain reaction";
+        }
+        java.util.Set<Integer> crateBalls = new java.util.HashSet<>();
+        for (RoundWin.MegaBall crate : outcome.crates()) {
+            if (crate.ball() < 0 || crate.ball() >= outcome.slots().size() || !crateBalls.add(crate.ball())
+                    || com.plinko.bo.bonus.BonusService.CRATES.stream().noneMatch(c -> c.multiplier().compareTo(crate.multiplier()) == 0)) {
+                return "C5: ammo crate on ball " + crate.ball() + " x" + crate.multiplier() + " does not exist";
             }
         }
         java.util.Set<Integer> megaBalls = new java.util.HashSet<>();

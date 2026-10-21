@@ -405,7 +405,63 @@ public class BonusService {
     }
 
     /** The power-ups a round can be bought with. */
-    public static final java.util.List<String> POWERS = java.util.List.of("heavy", "cluster");
+    public static final java.util.List<String> POWERS = java.util.List.of("heavy", "cluster", "strike-left", "strike-centre", "strike-right",
+            "crates", "missile", "night");
+
+    /** Chain reaction: the share of balls that hit an ammo crate, and what a crate multiplies by (weights add up to 100). */
+    public static final BigDecimal CRATE_CHANCE = new BigDecimal("20");
+    public static final java.util.List<BonusSettings.Segment> CRATES = java.util.List.of(
+            new BonusSettings.Segment(null, new BigDecimal("2"), new BigDecimal("60")),
+            new BonusSettings.Segment(null, new BigDecimal("3"), new BigDecimal("30")),
+            new BonusSettings.Segment(null, new BigDecimal("5"), new BigDecimal("10")));
+
+    /**
+     * What a power-up multiplies the prize of a ball landing in this slot by (1 for the others and for the power-ups
+     * that don't work by slot). strike-left/centre/right: the slots of that third of the board x2; missile: the two
+     * outermost prize positions x3; night: the positions whose standard prize is 2x or more x3, under 1x x0.6.
+     */
+    public static BigDecimal slotFactor(String power, int rows, int risk, int slot) {
+        if (power == null) {
+            return BigDecimal.ONE;
+        }
+        int third = Math.round((rows + 1) / 3f);
+        int index = PlinkoBoard.prizeIndexOfSlot(rows, slot);
+        return switch (power) {
+            case "strike-left" -> slot < third ? BigDecimal.TWO : BigDecimal.ONE;
+            case "strike-right" -> slot > rows - third ? BigDecimal.TWO : BigDecimal.ONE;
+            case "strike-centre" -> slot >= third && slot <= rows - third ? BigDecimal.TWO : BigDecimal.ONE;
+            case "missile" -> index >= PlinkoBoard.prizeCount(rows) - 2 ? BigDecimal.valueOf(3) : BigDecimal.ONE;
+            case "night" -> {
+                double[][] shape = com.plinko.bo.odds.OddsDefaults.MULTIPLIERS.get(rows);
+                double standard = shape == null ? 1 : shape[index][risk];
+                yield standard >= 2 ? BigDecimal.valueOf(3) : standard < 1 ? new BigDecimal("0.6") : BigDecimal.ONE;
+            }
+            default -> BigDecimal.ONE;
+        };
+    }
+
+    /** The biggest slot factor or crate a power-up can give a ball (for the win limit). */
+    public static BigDecimal maxFactor(String power, BonusSettings bonus) {
+        if (power == null) {
+            return BigDecimal.ONE;
+        }
+        return switch (power) {
+            case "heavy" -> bonus.megaBall().multipliers().stream().map(BonusSettings.Segment::multiplier).max(BigDecimal::compareTo).orElse(BigDecimal.ONE);
+            case "crates" -> BigDecimal.valueOf(5);
+            case "missile", "night" -> BigDecimal.valueOf(3);
+            case "strike-left", "strike-centre", "strike-right" -> BigDecimal.TWO;
+            default -> BigDecimal.ONE;
+        };
+    }
+
+    /** What a crate multiplies by on average. */
+    static double crateExpected() {
+        double sum = 0;
+        for (BonusSettings.Segment s : CRATES) {
+            sum += s.multiplier().doubleValue() * s.weight().doubleValue() / 100;
+        }
+        return sum;
+    }
 
     /**
      * What each prize position of this table is worth to one ball per unit of bet, all features included (its prize
@@ -414,6 +470,13 @@ public class BonusService {
      * megaBall: the MEGA BALL factor to use (1 + share * (E - 1) normally; E for a ball that is always one).
      */
     static double[] positionValues(BonusSettings bonus, OddsTable table, double megaBall) {
+        double[] none = new double[table.prizes().size()];
+        java.util.Arrays.fill(none, 1);
+        return positionValues(bonus, table, megaBall, none);
+    }
+
+    /** The same, each position's prize (and its wheel spin) also multiplied by factor[i]. */
+    static double[] positionValues(BonusSettings bonus, OddsTable table, double megaBall, double[] factor) {
         int rows = table.rows(), n = table.prizes().size();
         double boost = bonus.gatesOn() ? bonus.gates().boost().doubleValue() : 1;
         double wheel = bonus.wheelOn() ? expected(bonus.wheel()).doubleValue() : 0;
@@ -422,7 +485,7 @@ public class BonusService {
         for (int i = 0; i < n; i++) {
             int left = PlinkoBoard.leftSlot(rows, i), right = PlinkoBoard.rightSlot(rows, i);
             double gates = bonus.gatesOn() ? (MegaBoard.gateFactor(rows, left, boost) + MegaBoard.gateFactor(rows, right, boost)) / 2 : 1;
-            value[i] = table.prizes().get(i).multiplier().doubleValue() * gates * megaBall
+            value[i] = table.prizes().get(i).multiplier().doubleValue() * gates * megaBall * factor[i]
                     * (1 + (bonus.wheelOn() && i == MegaBoard.spinPrizeIndex(rows) ? wheel : 0))
                     + (chargesMeter(bonus, rows, table.risk(), i) ? gold : 0);
         }
@@ -460,6 +523,19 @@ public class BonusService {
                 powered += (Math.pow(upTo, 3) - Math.pow(below, 3)) * plain[i];
                 below = upTo;
             }
+        } else if (POWERS.contains(power)) {
+            // by slot (airstrike, missile, night): each position's two slots equally likely; crates: every ball alike
+            int rows = table.rows();
+            double[] factor = new double[n];
+            for (int i = 0; i < n; i++) {
+                factor[i] = "crates".equals(power) ? 1 + CRATE_CHANCE.doubleValue() / 100 * (crateExpected() - 1)
+                        : (slotFactor(power, rows, table.risk(), PlinkoBoard.leftSlot(rows, i)).doubleValue()
+                        + slotFactor(power, rows, table.risk(), PlinkoBoard.rightSlot(rows, i)).doubleValue()) / 2;
+            }
+            double[] boosted = positionValues(bonus, table, plainBall, factor);
+            for (int i = 0; i < n; i++) {
+                powered += p[i] * boosted[i];
+            }
         } else {
             throw new IllegalArgumentException("unknown power-up " + power);
         }
@@ -480,6 +556,21 @@ public class BonusService {
     /** What a round with this power-up costs: bet x balls x the power's price, rounded up to the cent. */
     public static BigDecimal powerCost(BigDecimal bet, int balls, BigDecimal price) {
         return bet.multiply(BigDecimal.valueOf(balls)).multiply(price).setScale(2, RoundingMode.CEILING);
+    }
+
+    /** Whether a ball hits an ammo crate (chain reaction): the index of its multiplier in CRATES, or -1. */
+    public int rollCrate() {
+        if (random.nextDouble() * 100 >= CRATE_CHANCE.doubleValue()) {
+            return -1;
+        }
+        double pick = random.nextDouble() * 100, cumulative = 0;
+        for (int i = 0; i < CRATES.size(); i++) {
+            cumulative += CRATES.get(i).weight().doubleValue();
+            if (pick < cumulative) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     /** Whether a ball drops as a MEGA BALL, and its multiplier's index if so (-1: a plain ball). */

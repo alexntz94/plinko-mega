@@ -20,6 +20,7 @@ import java.util.List;
  * <li>{@code power:<name>x<price>}: a power-up bought for the round (heavy, cluster) and what a ball cost with it (x
  *     the bet): the round's total bet is bet x balls x price, rounded up to the cent;</li>
  * <li>{@code decoys:<ball>@<slot>/<slot>,...}: for a cluster shell, the two landings each ball did not keep;</li>
+ * <li>{@code crate:<ball>x<multiplier>,...}: chain reaction: balls that hit an ammo crate and what it multiplied by;</li>
  * <li>{@code megaball:<ball>x<multiplier>,...}: balls that dropped as a MEGA BALL and what it multiplied their win by
  *     (already in the ball's multiplier);</li>
  * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: balls in a SPIN slot and what their wheel spin multiplied that
@@ -84,6 +85,7 @@ public final class RoundWin {
         private String layout;
         private String power;
         private final List<String> decoys = new ArrayList<>();
+        private final List<String> crates = new ArrayList<>();
         private final List<String> megaBalls = new ArrayList<>();
         private final List<String> spins = new ArrayList<>();
         private final List<String> megas = new ArrayList<>();
@@ -107,6 +109,11 @@ public final class RoundWin {
 
         public Text power(String name, BigDecimal price) {
             power = "power:" + name + "x" + price.toPlainString();
+            return this;
+        }
+
+        public Text crate(int ball, BigDecimal times) {
+            crates.add(ball + "x" + times.stripTrailingZeros().toPlainString());
             return this;
         }
 
@@ -158,6 +165,9 @@ public final class RoundWin {
             if (!decoys.isEmpty()) {
                 parts.add("decoys:" + String.join(",", decoys));
             }
+            if (!crates.isEmpty()) {
+                parts.add("crate:" + String.join(",", crates));
+            }
             if (!megaBalls.isEmpty()) {
                 parts.add("megaball:" + String.join(",", megaBalls));
             }
@@ -185,7 +195,14 @@ public final class RoundWin {
      */
     public record Outcome(List<Integer> slots, List<BigDecimal> multipliers, Meter meter, BigDecimal capped,
                           List<Integer> paths, BigDecimal gateBoost, List<Spin> spins, List<MegaSpin> megaSpins,
-                          List<MegaBall> megaBalls, int layout, String power, BigDecimal powerPrice, List<List<Integer>> decoys) {
+                          List<MegaBall> megaBalls, int layout, String power, BigDecimal powerPrice, List<List<Integer>> decoys,
+                          List<MegaBall> crates) {
+
+        /** What ball {@code ball}'s ammo crate multiplied its win by (1: none). */
+        public BigDecimal crateTimes(int ball) {
+            return crates.stream().filter(m -> m.ball() == ball).map(MegaBall::multiplier).findFirst().orElse(BigDecimal.ONE);
+        }
+
 
         /** What ball {@code ball}'s MEGA BALL multiplied its win by (1: a plain ball). */
         public BigDecimal megaBallTimes(int ball) {
@@ -238,6 +255,7 @@ public final class RoundWin {
         String power = null;
         BigDecimal powerPrice = null;
         List<List<Integer>> decoys = new ArrayList<>();
+        List<MegaBall> crates = new ArrayList<>();
         if (bonus != null) {
             for (String part : bonus.split(";", -1)) {
                 int colon = part.indexOf(':');
@@ -264,6 +282,15 @@ public final class RoundWin {
                         }
                         power = value.substring(0, x);
                         powerPrice = new BigDecimal(value.substring(x + 1));
+                    }
+                    case "crate" -> {
+                        for (String entry : value.split(",", -1)) {
+                            String[] ballAndTimes = entry.split("x", -1);
+                            if (ballAndTimes.length != 2) {
+                                throw new IllegalArgumentException("crate: " + entry);
+                            }
+                            crates.add(new MegaBall(Integer.parseInt(ballAndTimes[0]), new BigDecimal(ballAndTimes[1])));
+                        }
                     }
                     case "decoys" -> {
                         for (String entry : value.split(",", -1)) {
@@ -333,6 +360,6 @@ public final class RoundWin {
         }
         return new Outcome(List.copyOf(slots), List.copyOf(multipliers), meter, capped,
                 List.copyOf(paths), gateBoost, List.copyOf(spins), List.copyOf(megaSpins), List.copyOf(megaBalls), layout, power, powerPrice,
-                List.copyOf(decoys));
+                List.copyOf(decoys), List.copyOf(crates));
     }
 }

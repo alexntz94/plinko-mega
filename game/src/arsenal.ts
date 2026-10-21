@@ -7,20 +7,23 @@ import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { label, fit } from './ui';
 
-export interface ArsenalCard { id: string; name: string; text: string; ready: boolean }
+/** zones: a card sold per zone (the airstrike): the ids of its zones and their names */
+export interface ArsenalCard { id: string; name: string; text: string; ready: boolean; zones?: [string, string][] }
 
 /** Every power-up of the arsenal, the ones on sale first. */
 export const ARSENAL: ArsenalCard[] = [
   { id: 'heavy', name: 'HEAVY SHELLS', text: 'Every ball is a MEGA BALL (x2 to x10)', ready: true },
   { id: 'cluster', name: 'CLUSTER SHELLS', text: 'Each ball splits in 3 - the best landing pays', ready: true },
-  { id: 'airstrike', name: 'PRECISION AIRSTRIKE', text: 'Pick a zone: its slots pay x2', ready: false },
-  { id: 'crates', name: 'CHAIN REACTION', text: 'Ammo crates on the board multiply wins', ready: false },
-  { id: 'missile', name: 'MISSILE STRIKE', text: 'The board reshuffles with boosted prizes', ready: false },
+  { id: 'airstrike', name: 'PRECISION AIRSTRIKE', text: 'Pick a zone: its slots pay x2', ready: true,
+    zones: [['strike-left', 'LEFT'], ['strike-centre', 'CENTRE'], ['strike-right', 'RIGHT']] },
+  { id: 'crates', name: 'CHAIN REACTION', text: '1 ball in 5 hits a crate: x2, x3 or x5', ready: true },
+  { id: 'missile', name: 'MISSILE STRIKE', text: 'The outer slots pay x3', ready: true },
+  { id: 'night', name: 'NIGHT RAID', text: 'Big prizes x3, small ones less', ready: true },
   { id: 'tank', name: 'TANK ASSAULT', text: 'Buy the bonus game', ready: false },
-  { id: 'night', name: 'NIGHT RAID', text: 'High-risk night board: bigger edges', ready: false },
 ];
 
-interface CardView { card: ArsenalCard; root: Container; art: Sprite; lit: Graphics; price: Text }
+interface CardView { card: ArsenalCard; root: Container; art: Sprite; lit: Graphics; price: Text;
+  zones: { id: string; root: Container; back: Graphics; text: Text }[] }
 
 export class ArsenalPanel extends Container {
   private readonly dim = new Graphics();
@@ -47,17 +50,31 @@ export class ArsenalPanel extends Container {
       name.y = -24;
       const text = label(card.text, 12, 'center', { fill: card.ready ? look.text : '#8a8f86' });
       text.anchor.set(0.5, 0.5);
-      const price = label(card.ready ? '' : 'COMING SOON', 15, 'center', { fill: card.ready ? '#ffffff' : '#6f746c' });
+      const price = label(card.ready ? '' : 'COMING SOON', 15, 'right', { fill: card.ready ? '#ffffff' : '#6f746c' });
       price.anchor.set(0.5, 0.5);
       price.y = 24;
       root.addChild(art, lit, name, text, price);
       root.alpha = card.ready ? 1 : 0.6;
-      if (card.ready) {
+      // a card sold per zone: a button per zone, each with its own price; the card itself is not a button
+      const zones = (card.zones ?? []).map(([id, zoneName]) => {
+        const zone = new Container();
+        const back = new Graphics();
+        const zoneText = label(zoneName, 12, 'center', { fill: '#ffffff', stroke: { color: '#000000', width: 2 } });
+        zoneText.anchor.set(0.5, 0.5);
+        zone.addChild(back, zoneText);
+        zone.eventMode = 'static';
+        zone.cursor = 'pointer';
+        zone.on('pointertap', () => this.pick(id));
+        root.addChild(zone);
+        return { id, root: zone, back, text: zoneText };
+      });
+      if (card.ready && !card.zones) {
         root.eventMode = 'static';
         root.cursor = 'pointer';
         root.on('pointertap', () => this.pick(card.id));
       }
-      this.cards.push({ card, root, art, lit, price });
+      if (card.zones) price.visible = false;
+      this.cards.push({ card, root, art, lit, price, zones });
       this.addChild(root);
     }
     // a tap outside the cards closes it
@@ -72,8 +89,20 @@ export class ArsenalPanel extends Container {
   setPrices(prices: Record<string, { times: number; cost: string } | null>): void {
     for (const view of this.cards) {
       if (!view.card.ready) continue;
+      if (view.zones.length) {
+        let any = false;
+        for (const zone of view.zones) {
+          const p = prices[zone.id];
+          zone.text.text = p ? `${(view.card.zones ?? []).find(z => z[0] === zone.id)?.[1]}\n${p.cost}` : 'OFF';
+          zone.root.eventMode = p ? 'static' : 'none';
+          zone.root.alpha = p ? 1 : 0.5;
+          any ||= !!p;
+        }
+        view.root.alpha = any ? 1 : 0.5;
+        continue;
+      }
       const p = prices[view.card.id];
-      view.price.text = p ? `x${p.times.toFixed(2)}  ·  ${p.cost} A ROUND` : 'NOT ON SALE';
+      view.price.text = p ? `${p.cost} A ROUND\nx${p.times.toFixed(2)}` : 'NOT ON SALE';
       view.root.eventMode = p ? 'static' : 'none';
       view.root.alpha = p ? 1 : 0.5;
     }
@@ -82,30 +111,54 @@ export class ArsenalPanel extends Container {
   setArmed(id: string | null): void {
     this.armed = id;
     for (const view of this.cards) {
-      const on = view.card.id === id;
+      const on = view.card.id === id || view.zones.some(z => z.id === id);
+      for (const zone of view.zones) zone.text.style.fill = zone.id === id ? this.look.gold : '#ffffff';
       view.lit.visible = on;
       view.art.tint = on ? '#ffcf6a' : '#ffffff';
     }
   }
 
+  /** The cards one under the other, as a list: the name on the left, what it does under it, the price on the right. */
   layout(view: Viewport): void {
-    this.dim.clear().rect(0, 0, view.stageW, view.stageH).fill({ color: '#000000', alpha: 0.72 });
+    this.dim.clear().rect(0, 0, view.stageW, view.stageH).fill({ color: '#000000', alpha: 0.75 });
     this.hitArea = new Rectangle(0, 0, view.stageW, view.stageH);
-    const cols = view.landscape ? 4 : 2;
-    const w = Math.min(view.landscape ? 300 : (view.stageW - 36) / 2, 300), h = w * 0.42;
-    const rows = Math.ceil(this.cards.length / cols);
-    const top = view.stageH / 2 - (rows * (h + 12)) / 2 + h / 2 + 20;
-    this.title.position.set(view.stageW / 2, top - h / 2 - 62);
-    this.hint.position.set(view.stageW / 2, top - h / 2 - 30);
+    const visibleH = view.stageH - 2 * view.offsetY;
+    const w = Math.min(view.stageW - 24, 620);
+    const h = Math.min(78, (visibleH - 150) / this.cards.length - 8);
+    const gap = 8;
+    const listH = this.cards.length * (h + gap) - gap;
+    const top = view.offsetY + Math.max(120, (visibleH - listH) / 2 + 40);
+    this.title.position.set(view.stageW / 2, top - 76);
+    this.hint.position.set(view.stageW / 2, top - 42);
     this.cards.forEach((v, i) => {
-      const r = Math.floor(i / cols), c = i % cols;
-      const inRow = Math.min(cols, this.cards.length - r * cols);
-      v.root.position.set(view.stageW / 2 + (c - (inRow - 1) / 2) * (w + 12), top + r * (h + 12));
+      v.root.position.set(view.stageW / 2, top + h / 2 + i * (h + gap));
       v.art.width = w;
       v.art.height = h;
       v.lit.clear().roundRect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6, 8).stroke({ color: this.look.gold, width: 4 });
-      v.lit.visible = v.card.id === this.armed;
-      for (const t of v.root.children) if (t instanceof Text) fit(t, w * 0.9);
+      v.lit.visible = v.card.id === this.armed || v.zones.some(z => z.id === this.armed);
+      const [name, text] = v.root.children.filter((c): c is Text => c instanceof Text && c !== v.price);
+      const left = -w / 2 + Math.max(24, w * 0.06);
+      for (const [t, y, size] of [[name, -h * 0.18, Math.min(18, h * 0.26)], [text, h * 0.18, Math.min(13, h * 0.19)]] as const) {
+        t.anchor.set(0, 0.5);
+        t.style.fontSize = Math.round(size);
+        t.position.set(left, y);
+      }
+      // the price, or the zone buttons, on the right
+      const right = w * 0.42;
+      v.price.anchor.set(1, 0.5);
+      v.price.style.fontSize = Math.round(Math.min(14, h * 0.2));
+      v.price.position.set(w / 2 - 22, 0);
+      fit(v.price, right - 10);
+      fit(name, w - right - 50);
+      fit(text, w - right - 50);
+      const zw = right / Math.max(1, v.zones.length);
+      v.zones.forEach((zone, z) => {
+        zone.root.position.set(w / 2 - 18 - right + zw * (z + 0.5), 0);
+        zone.back.clear().roundRect(-zw / 2 + 2, -h * 0.3, zw - 4, h * 0.6, 5).fill({ color: '#000000', alpha: 0.55 })
+          .stroke({ color: this.look.gold, width: 1.5 });
+        zone.text.style.fontSize = Math.round(Math.min(12, h * 0.17));
+        fit(zone.text, zw - 10);
+      });
     });
   }
 

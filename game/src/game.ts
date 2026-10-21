@@ -45,7 +45,13 @@ function photoRevolver(theme: Theme, tex: (file: string) => Texture): PhotoRevol
 }
 
 /** The power-ups' short names, for the status line and the ARSENAL key. */
-const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER' };
+const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER', 'strike-left': 'STRIKE L', 'strike-centre': 'STRIKE C',
+  'strike-right': 'STRIKE R', crates: 'CRATES', missile: 'MISSILE', night: 'NIGHT' };
+/** Every power-up the arsenal can sell. */
+const POWER_IDS = ['heavy', 'cluster', 'strike-left', 'strike-centre', 'strike-right', 'crates', 'missile', 'night'];
+/** What a bought round is announced as. */
+const POWER_STAMPS: Record<string, string> = { cluster: 'CLUSTER SHELLS', 'strike-left': 'AIRSTRIKE x2', 'strike-centre': 'AIRSTRIKE x2',
+  'strike-right': 'AIRSTRIKE x2', crates: 'CHAIN REACTION', missile: 'MISSILE STRIKE x3', night: 'NIGHT RAID' };
 
 /** Four quick bets for the console: the bet ladder's steps nearest 1, 5, 10 and 25 times the default bet. */
 function quickBets(ladder: number[], base: number): number[] {
@@ -151,6 +157,7 @@ export class Game extends Container {
     this.board.setMega(mega?.gates ?? {}, mega?.gateBoost ?? null, mega?.wheel ? mega.spinSlots ?? {} : {});
     this.board.onGate = () => sound('gate', { volume: 0.8 });
     this.board.onSmash = () => sound('score', { volume: 0.7 });
+    this.board.onCrate = () => sound('big', { volume: 0.8 });
     this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
@@ -349,7 +356,7 @@ export class Game extends Container {
   private openArsenal(): void {
     if (!this.arsenal || this.busy()) return;
     sound('click');
-    this.arsenal.setPrices(Object.fromEntries(['heavy', 'cluster'].map(id => {
+    this.arsenal.setPrices(Object.fromEntries(POWER_IDS.map(id => {
       const times = this.powerPrice(id);
       const plain = round2(this.bet * this.balls);
       return [id, times ? { times, cost: this.money(Math.ceil(plain * times * 100 - 1e-6) / 100) } : null];
@@ -620,7 +627,10 @@ export class Game extends Container {
     // a round bought with a power-up is announced once; then its MEGA BALLs are quiet (one of many)
     const heavy = round.power === 'heavy';
     if (heavy) { this.board.stamp(`HEAVY SHELLS x${count}`); sound('huge'); this.screen.flash(0.35); }
-    if (round.power === 'cluster') { this.board.stamp('CLUSTER SHELLS'); sound('huge'); }
+    if (round.power && POWER_STAMPS[round.power]) { this.board.stamp(POWER_STAMPS[round.power]); sound('huge'); }
+    // a power-up by slot: the boosted prizes and their targets (the night) for this round
+    if (round.slotFactors?.length) this.board.setPower(round.power ?? null, round.slotFactors);
+    const crateOf = new Map((round.crates ?? []).map(c => [c.ball, c.multiplier]));
     for (let i = 0; i < count; i++) {
       if (i > 0) await wait((this.holding ? 0.12 : 0.25) * random(0.6, 1.3));
       if (!this.holding) {
@@ -663,7 +673,7 @@ export class Game extends Container {
           this.ballsLeft = Math.max(0, this.ballsLeft - 1);
           this.bar.setPlaying(true, this.holding, this.ballsLeft);
         },
-      }, round.paths?.[i] ?? null, mega, { holes: before, smash, quiet: heavy }));
+      }, round.paths?.[i] ?? null, mega, { holes: before, smash, quiet: heavy, crate: crateOf.get(i) }));
       // cluster shells: the two decoys fall with it and fizzle in their own slots
       for (const decoy of round.decoys?.[i] ?? []) {
         drops.push(this.board.dropBall(decoy, {}, null, 1, { decoy: true }));
@@ -698,6 +708,9 @@ export class Game extends Container {
       sound(config.megaWheel[mega.segment].name ? 'jackpot' : 'coins');
     }
     if (onWheel) await this.hideWheel();
+    if (round.slotFactors?.length) this.board.setPower(null, []);
+    // the pegs a MEGA BALL blew away come back once the round is over
+    this.board.restorePegs();
 
     // the server's meter count is the one that counts
     if (round.meter) this.applyMeter(round.meter);

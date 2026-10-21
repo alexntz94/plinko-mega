@@ -202,6 +202,10 @@ class MegaRtpTest {
             public int path(int rows, int slot, java.util.Set<Integer> holes) {
                 return bonus.rollPath(rows, slot, holes);
             }
+
+            public int crate() {
+                return bonus.rollCrate();
+            }
         };
         int rounds = 20_000, batches = 100, perBatch = rounds / batches;
         for (String power : BonusService.POWERS) {
@@ -218,7 +222,7 @@ class MegaRtpTest {
                     meter = new RoundDraw.MeterBefore(r.chargesAfter(), r.potAfter(), "r" + round);
                     if ("heavy".equals(power)) {
                         assertThat(r.megaBalls()).hasSize(BALLS);
-                    } else {
+                    } else if ("cluster".equals(power)) {
                         assertThat(r.decoys()).hasSize(BALLS);
                     }
                 }
@@ -231,6 +235,7 @@ class MegaRtpTest {
                 double error = Math.sqrt(Math.max(squares - mean * mean, 0) / batches);
                 double approved = BonusService.totalRtp(table, MEGA).doubleValue() / 100;
                 System.out.printf("%s %d rows risk %d: price x%s, measured %.4f, approved %.4f%n", power, board[0], board[1], price, mean + owed, approved);
+                assertThat(price).as("%s is a power-up: it costs more than a plain round", power).isGreaterThan(BigDecimal.ONE);
                 assertThat(Math.abs(mean + owed - approved)).as("%s %d rows risk %d: measured %.4f approved %.4f", power, board[0], board[1],
                         mean + owed, approved).isLessThanOrEqualTo(SIGMAS * error + 2e-3);
             }

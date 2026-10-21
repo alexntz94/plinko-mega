@@ -126,7 +126,8 @@ public class GameService {
                                BigDecimal totalWin, BigDecimal balance,
                                MeterView meter, List<BigDecimal> wins,
                                List<Integer> paths, List<Integer> gates, List<SpinView> spins, List<MegaSpinView> megaSpins,
-                               List<MegaBallView> megaBalls, List<List<Integer>> gateLayout, String power, List<List<Integer>> decoys) {
+                               List<MegaBallView> megaBalls, List<List<Integer>> gateLayout, String power, List<List<Integer>> decoys,
+                               List<MegaBallView> crates, List<BigDecimal> slotFactors) {
     }
 
     private final GameRepository repository;
@@ -172,6 +173,11 @@ public class GameService {
         @Override
         public int layout(int count) {
             return bonus.rollLayout(count);
+        }
+
+        @Override
+        public int crate() {
+            return bonus.rollCrate();
         }
     };
 
@@ -434,7 +440,9 @@ public class GameService {
                 drawn.spins().stream().map(x -> new SpinView(x.ball(), x.segment(), x.multiplier(), x.win())).toList(),
                 drawn.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier(), x.win())).toList(),
                 drawn.megaBalls().stream().map(x -> new MegaBallView(x.ball(), x.multiplier())).toList(),
-                layoutView(setup.table().rows(), drawn.layout()), setup.power() == null ? null : setup.power().name(), drawn.decoys());
+                layoutView(setup.table().rows(), drawn.layout()), setup.power() == null ? null : setup.power().name(), drawn.decoys(),
+                drawn.crates().stream().map(x -> new MegaBallView(x.ball(), x.multiplier())).toList(),
+                slotFactors(setup.power() == null ? null : setup.power().name(), setup.table().rows(), setup.table().risk()));
     }
 
     /** The odds table and bonuses in force, the round's cost, and the hard win limit (a bet that could exceed it is refused). */
@@ -462,11 +470,7 @@ public class GameService {
         BigDecimal maxWin = properties.limits().maxWinPerRound().setScale(2, RoundingMode.DOWN);
         // one ball on the top prize must stay within the limit (a heavy shell's at its biggest MEGA BALL); many balls
         // together are cut to it when the round is paid
-        BigDecimal topBall = bet.multiply(table.maxMultiplier());
-        if (power != null && "heavy".equals(power.name())) {
-            topBall = topBall.multiply(current.bonus().megaBall().multipliers().stream().map(BonusSettings.Segment::multiplier)
-                    .max(BigDecimal::compareTo).orElse(BigDecimal.ONE));
-        }
+        BigDecimal topBall = bet.multiply(table.maxMultiplier()).multiply(BonusService.maxFactor(power == null ? null : power.name(), current.bonus()));
         if (topBall.compareTo(maxWin) > 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "BET_TOO_HIGH", "Bet exceeds the maximum win per round");
         }
@@ -663,6 +667,18 @@ public class GameService {
         return rebuilt(round, balance, meterView(player.id(), bonus.current()));
     }
 
+    /** What a power-up by slot multiplies each slot's prize by this round (the game shows the boosted prizes), or empty. */
+    private static List<BigDecimal> slotFactors(String power, int rows, int risk) {
+        if (power == null || !(power.startsWith("strike-") || "missile".equals(power) || "night".equals(power))) {
+            return List.of();
+        }
+        List<BigDecimal> factors = new ArrayList<>();
+        for (int slot = 0; slot <= rows; slot++) {
+            factors.add(BonusService.slotFactor(power, rows, risk, slot).stripTrailingZeros());
+        }
+        return factors;
+    }
+
     /** A gate layout as the game draws it: [step, from, to] per bar. */
     private static List<List<Integer>> layoutView(int rows, int layout) {
         return com.plinko.bo.odds.MegaBoard.layouts(rows).get(layout).stream().map(g -> List.of(g.step(), g.from(), g.to())).toList();
@@ -685,7 +701,9 @@ public class GameService {
                 outcome.megaSpins().stream().map(x -> new MegaSpinView(x.stake(), x.segment(), x.multiplier().stripTrailingZeros(),
                         RoundWin.ball(x.stake(), x.multiplier()))).toList(),
                 outcome.megaBalls().stream().map(x -> new MegaBallView(x.ball(), x.multiplier().stripTrailingZeros())).toList(),
-                layoutView(round.rows(), outcome.layout()), outcome.power(), outcome.decoys());
+                layoutView(round.rows(), outcome.layout()), outcome.power(), outcome.decoys(),
+                outcome.crates().stream().map(x -> new MegaBallView(x.ball(), x.multiplier().stripTrailingZeros())).toList(),
+                slotFactors(outcome.power(), round.rows(), round.risk()));
     }
 
     /** (c) the credit's answer, the round's status, the player's balance and the round lock released: one transaction. */

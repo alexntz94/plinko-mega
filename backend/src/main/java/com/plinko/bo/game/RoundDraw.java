@@ -39,6 +39,11 @@ final class RoundDraw {
             return path(rows, slot);
         }
 
+        /** Whether a ball hits an ammo crate: the index of its multiplier in BonusService.CRATES, or -1. */
+        default int crate() {
+            return -1;
+        }
+
         /** Which of the board's gate layouts this round uses (0..count-1, every one equally likely). */
         default int layout(int count) {
             return 0;
@@ -73,7 +78,7 @@ final class RoundDraw {
     record Result(List<Integer> slots, List<BigDecimal> multipliers, List<BigDecimal> wins, int chargesAfter, BigDecimal potAfter, String meterPrev, BigDecimal totalWin,
                   String slotText, String multiplierText, String bonusText,
                   List<Integer> paths, List<Integer> gates, List<Spin> spins, List<MegaSpin> megaSpins, List<MegaBall> megaBalls,
-                  int layout, List<List<Integer>> decoys) {
+                  int layout, List<List<Integer>> decoys, List<MegaBall> crates) {
     }
 
     /** A power-up bought for the round (heavy or cluster) and what a ball cost with it (x the bet), or none. */
@@ -116,6 +121,7 @@ final class RoundDraw {
         List<Integer> gates = new ArrayList<>();
         List<Spin> spins = new ArrayList<>();
         List<MegaBall> megaBalls = new ArrayList<>();
+        List<MegaBall> crates = new ArrayList<>();
         List<Integer> slots = new ArrayList<>();
         List<BigDecimal> multipliers = new ArrayList<>();
         BigDecimal totalWin = BigDecimal.ZERO;
@@ -146,6 +152,20 @@ final class RoundDraw {
             int path = holes.isEmpty() ? dice.path(table.rows(), slot) : dice.path(table.rows(), slot, holes);
             int passed = gateBoost == null ? 0 : MegaBoard.gatesPassed(layouts.get(layout), path);
             BigDecimal multiplier = prize.multiply(gateBoost == null ? BigDecimal.ONE : gateBoost.pow(passed));
+            // a power-up by slot (airstrike, missile, night) multiplies the prize where the ball landed
+            if (power != null) {
+                multiplier = multiplier.multiply(BonusService.slotFactor(power.name(), table.rows(), table.risk(), slot));
+            }
+            // chain reaction: an ammo crate on the ball's way multiplies its win
+            if (power != null && "crates".equals(power.name())) {
+                int crate = dice.crate();
+                if (crate >= 0) {
+                    BigDecimal times = BonusService.CRATES.get(crate).multiplier().stripTrailingZeros();
+                    multiplier = multiplier.multiply(times);
+                    crates.add(new MegaBall(ball, times));
+                    text.crate(ball, times);
+                }
+            }
             paths.add(path);
             gates.add(passed);
             text.path(path);
@@ -209,7 +229,7 @@ final class RoundDraw {
         return new Result(slots, multipliers, wins, charges, pot, meterPrev, totalWin,
                 slots.stream().map(String::valueOf).collect(Collectors.joining(",")),
                 multipliers.stream().map(BigDecimal::toPlainString).collect(Collectors.joining(",")), text.text(),
-                paths, gates, spins, megaSpins, megaBalls, layout, List.copyOf(decoys));
+                paths, gates, spins, megaSpins, megaBalls, layout, List.copyOf(decoys), List.copyOf(crates));
     }
 
     /** Each prize position's rank for a cluster shell (higher is better): by prize, then by position. */

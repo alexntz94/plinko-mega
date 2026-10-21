@@ -310,7 +310,8 @@ export class Board extends Container {
     }
     this.status.y = -10;
     gsap.fromTo(this.status, { alpha: 1 }, { alpha: 0.3, duration: 0.3, repeat: -1, yoyo: true, ease: 'none' });
-    this.field.addChild(this.status, this.gateLayer, this.holeLayer, this.slotLayer, this.trailLayer, this.ballLayer, this.particles, this.textLayer);
+    this.field.addChild(this.status, this.gateLayer, this.holeLayer, this.slotLayer, this.nightLayer, this.powerLayer, this.trailLayer,
+      this.ballLayer, this.particles, this.textLayer);
     this.addChild(this.frame, this.framePortrait, this.field);
   }
 
@@ -621,7 +622,7 @@ export class Board extends Container {
    */
   dropBall(slot: number, events: { onPeg?: (peg: PegHit) => void; onLand?: (landing: Landing) => void } = {},
            path: number | null = null, mega = 1,
-           pegs: { holes?: Set<number>; smash?: Set<number>; decoy?: boolean; quiet?: boolean } = {}): Promise<void> {
+           pegs: { holes?: Set<number>; smash?: Set<number>; decoy?: boolean; quiet?: boolean; crate?: number } = {}): Promise<void> {
     const holes = pegs.holes ?? new Set<number>();
     const smash = pegs.smash ?? new Set<number>();
     const rows = this.rows;
@@ -704,6 +705,14 @@ export class Board extends Container {
       // peg to peg: hops get a little quicker and flatter as the ball picks up speed. Where a MEGA BALL smashed the
       // peg, the ball falls straight down through the hole, past the next row, onto the peg two rows down.
       let prev = points[0];
+      // chain reaction: an ammo crate on a peg half way down this ball's path; it blows when the ball hits it
+      const crateRow = pegs.crate ? Math.max(2, Math.round(rows * 0.5)) : -1;
+      const crateBox = crateRow > 0 && points[crateRow] ? this.crate(points[crateRow].x, points[crateRow].y + BALL_REST) : null;
+      if (crateBox) {
+        this.powerLayer.addChild(crateBox);
+        gsap.fromTo(crateBox.scale, { x: 0, y: 0 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)' });
+      }
+      let crateDone = false;
       for (let i = 1; i < points.length; ) {
         const progress = i / points.length;
         const at = points[i];
@@ -733,6 +742,25 @@ export class Board extends Container {
         // a hole this ball can't fall through (the server let it bounce here): the peg is back just in time
         if (holes.has(key)) timeline.call(() => this.restorePeg(i, column));
         timeline.call(() => this.touchPeg(ball, i, column, events.onPeg, flight.size));
+        if (crateBox && !crateDone && i >= crateRow) {
+          crateDone = true;
+          const times = pegs.crate!;
+          timeline.call(() => {
+            const at = { x: crateBox.x, y: crateBox.y };
+            gsap.killTweensOf(crateBox.scale);
+            if (!crateBox.destroyed) crateBox.destroy();
+            kindBlast(this.textLayer, 'heavy', at.x, at.y, 110);
+            this.particles.burst(at.x, at.y, ['#3f4520', '#5c6629', '#d9c48a', '#ff8a1a'], 18, 360, 1400);
+            flight.heat++;
+            const pop = goldText('x' + times + ' CRATE!', 17);
+            pop.position.set(at.x, at.y - 34);
+            this.textLayer.addChild(pop);
+            gsap.timeline({ onComplete: () => pop.destroy() })
+              .fromTo(pop.scale, { x: 2.4, y: 2.4 }, { x: 1, y: 1, duration: 0.2, ease: 'power3.in' })
+              .to(pop, { y: pop.y - 26, alpha: 0, duration: 0.6 }, 0.6);
+            this.onCrate?.();
+          });
+        }
         // a MEGA BALL blows up the pegs it hits on the smash rows
         if (smash.has(key)) timeline.call(() => this.smashPeg(i, column));
         gateAt(i);
@@ -812,7 +840,7 @@ export class Board extends Container {
 
   /** A big word across the top of the board: it slams in, the board jolts, it fades. */
   stamp(text: string): void {
-    const stamp = goldText(text, 40);
+    const stamp = goldText(text, this.fitNow ? 26 : 40);
     stamp.position.set(0, PEG_SPACING * 0.6);
     if (stamp.width > PEG_SPACING * (this.rows + 1)) stamp.scale.set(PEG_SPACING * (this.rows + 1) / stamp.width);
     const size = stamp.scale.x;
@@ -829,7 +857,8 @@ export class Board extends Container {
     kindBlast(this.textLayer, 'napalm', x, y + 18, loud ? 210 : 150);
     this.particles.burst(x, y, ['#ffd76a', '#fff3b0', '#e9a91a', '#ffffff'], loud ? 48 : 16, loud ? 520 : 360);
     if (loud) this.particles.ring(x, y, '#ffd76a', 90);
-    const word = goldText('x' + times + (loud ? ' MEGA!' : ''), loud ? 44 : 28);
+    // sized to the board (a drawn board is shown bigger, so its words are set smaller)
+    const word = goldText('x' + times + (loud ? ' MEGA!' : ''), (loud ? 44 : 28) * (this.fitNow ? 0.55 : 1));
     word.position.set(x, y - 70);
     this.textLayer.addChild(word);
     gsap.timeline({ onComplete: () => word.destroy() })
@@ -1115,8 +1144,70 @@ export class Board extends Container {
     return this.fx === 'war' ? Math.sin(x / (radius * 3)) * 0.35 : x / radius;
   }
 
+  /** A power-up's look for the round: the night over the board, the target marks over boosted slots. */
+  private readonly nightLayer = new Container();
+  private readonly powerLayer = new Container();
+  /** What a power-up multiplies each slot's prize by this round (empty: none). */
+  private slotFactors: number[] = [];
+
+  /**
+   * The round's power-up on the board: slots show their boosted prizes, boosted ones under a pulsing target (red for an
+   * airstrike or a missile, gold at night), weakened ones dimmed; a night raid darkens the board and sweeps
+   * searchlights over it. power null: back to normal.
+   */
+  setPower(power: string | null, factors: number[]): void {
+    for (const layer of [this.nightLayer, this.powerLayer]) {
+      layer.removeChildren().forEach(child => { gsap.killTweensOf([child, child.scale]); child.destroy(); });
+    }
+    this.slotFactors = power ? factors : [];
+    this.slots.forEach((slot, i) => {
+      slot.setValue(this.multiplier(prizeIndexOfSlot(this.rows, i)) * (this.slotFactors[i] ?? 1));
+      slot.alpha = (this.slotFactors[i] ?? 1) < 1 ? 0.55 : 1;
+    });
+    if (!power) return;
+    const night = power === 'night';
+    if (night) {
+      const { w, h } = this.contentSize();
+      // the night over the triangle of pegs (not a box sticking out past the frame)
+      const dark = new Graphics().poly([0, -PEG_SPACING, -w / 2 - 10, h + 30, w / 2 + 10, h + 30]).fill({ color: '#02040a', alpha: 0.55 });
+      this.nightLayer.addChild(dark);
+      for (const side of [-1, 1]) {
+        const beam = new Graphics().poly([0, 0, -70, h + 40, 70, h + 40]).fill({ color: '#fff3c0', alpha: 0.12 });
+        beam.blendMode = 'add';
+        beam.position.set(side * w * 0.42, -10);
+        beam.rotation = side * 0.35;
+        this.nightLayer.addChild(beam);
+        gsap.to(beam, { rotation: -side * 0.35, duration: 2.4, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+      }
+    }
+    const colour = night ? '#ffd76a' : '#ff3b2a';
+    this.slotFactors.forEach((factor, i) => {
+      if (factor <= 1) return;
+      const mark = new Graphics()
+        .circle(0, 0, SLOT_W * 0.5).stroke({ color: colour, width: 2.5 })
+        .moveTo(-SLOT_W * 0.65, 0).lineTo(-SLOT_W * 0.3, 0).moveTo(SLOT_W * 0.3, 0).lineTo(SLOT_W * 0.65, 0)
+        .moveTo(0, -SLOT_W * 0.65).lineTo(0, -SLOT_W * 0.3).stroke({ color: colour, width: 2 });
+      mark.blendMode = 'add';
+      mark.position.set(this.slotX(i), this.slotY() - SLOT_H * 0.95);
+      this.powerLayer.addChild(mark);
+      gsap.fromTo(mark.scale, { x: 0.8, y: 0.8 }, { x: 1.1, y: 1.1, duration: 0.5, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+    });
+  }
+
+  /** An ammo crate on a peg (chain reaction), drawn: an olive box with a frame, straps and a stencilled X. */
+  private crate(x: number, y: number): Graphics {
+    const box = new Graphics()
+      .roundRect(-12, -10, 24, 20, 2).fill('#3f4520').stroke({ color: '#0b0d10', width: 2 })
+      .rect(-11, -9, 22, 4).fill('#5c6629').rect(-11, 5, 22, 4).fill('#5c6629')
+      .moveTo(-6, -4).lineTo(6, 4).moveTo(6, -4).lineTo(-6, 4).stroke({ color: '#d9c48a', width: 2 });
+    box.position.set(x, y);
+    return box;
+  }
+
   /** Pegs blown away this round, as "row:column", to put back at the next round. */
   private readonly smashedNow = new Set<string>();
+  /** An ammo crate blown (for its sound). */
+  onCrate: (() => void) | null = null;
   /** A peg smashed (for its sound). */
   onSmash: (() => void) | null = null;
 
@@ -1128,6 +1219,12 @@ export class Board extends Container {
     this.smashedNow.add(id);
     gsap.killTweensOf(peg.scale);
     peg.visible = false;
+    // a scorched crater where the peg was, so the hole reads as blasted (gone when the peg comes back)
+    const crater = new Graphics().circle(0, 0, 9).fill({ color: '#000000', alpha: 0.55 }).circle(0, 0, 5.5).fill({ color: '#1a0d05', alpha: 0.9 })
+      .circle(0, 0, 9).stroke({ color: '#ff8a1a', width: 1.5, alpha: 0.6 });
+    crater.position.set(peg.x, peg.y);
+    crater.label = 'crater:' + id;
+    this.holeLayer.addChild(crater);
     const flash = this.pegFlashes[row]?.[column];
     if (flash) { gsap.killTweensOf(flash); flash.alpha = 0; }
     this.particles.burst(peg.x, peg.y, ['#fff3b0', '#ffd76a', '#ff8a1a'], 10, 260);
@@ -1147,6 +1244,8 @@ export class Board extends Container {
   private restorePeg(row: number, column: number): void {
     const id = row + ':' + column;
     if (!this.smashedNow.delete(id)) return;
+    const crater = this.holeLayer.children.find(c => c.label === 'crater:' + id);
+    crater?.destroy();
     const peg = this.pegs[row]?.[column];
     if (!peg) return;
     peg.visible = true;

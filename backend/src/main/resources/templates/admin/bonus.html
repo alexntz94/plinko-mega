@@ -135,6 +135,10 @@
             <div class="form-row">
                 <label class="check-row"><input type="checkbox" name="heavyOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().heavy()}"> Heavy shells: every ball is a MEGA BALL</label>
                 <label class="check-row"><input type="checkbox" name="clusterOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().cluster()}"> Cluster shells: every ball lands three times, the best landing pays</label>
+                <label class="check-row"><input type="checkbox" name="airstrikeOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().airstrike()}"> Precision airstrike: the chosen third of the slots pays x2</label>
+                <label class="check-row"><input type="checkbox" name="cratesOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().crates()}"> Chain reaction: 1 ball in 5 hits an ammo crate, x2, x3 or x5</label>
+                <label class="check-row"><input type="checkbox" name="missileOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().missile()}"> Missile strike: the outer slots pay x3</label>
+                <label class="check-row"><input type="checkbox" name="nightOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().night()}"> Night raid: big prizes x3, prizes under 1x pay 0.6 of themselves</label>
             </div>
         </div>
 

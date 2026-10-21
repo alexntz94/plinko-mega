@@ -97,6 +97,7 @@ export class Particles extends Container {
       gsap.to(state, {
         t: life, duration: life, ease: 'none',
         onUpdate: () => {
+          if (p.destroyed) { gsap.killTweensOf(state); return; }   // cleared while flying
           p.x = x + vx * state.t;
           p.y = y + vy * state.t + gravity * state.t * state.t;
           p.rotation = spin * state.t;

@@ -206,7 +206,15 @@ async function start(): Promise<void> {
   // one clock for everything: GSAP moves things on Pixi's tick, right before Pixi draws the frame (no stutter
   // from two separate animation loops drifting against each other)
   gsap.ticker.remove(gsap.updateRoot);
-  app.ticker.add(ticker => gsap.updateRoot(ticker.lastTime / 1000));
+  // one broken effect (a tween on something already removed) must never stop the game's clock: it is logged, and the
+  // frame goes on
+  app.ticker.add(ticker => {
+    try {
+      gsap.updateRoot(ticker.lastTime / 1000);
+    } catch (e) {
+      console.error('animation error', e);
+    }
+  });
 
   // the background covers the whole screen; the game is drawn on the designers' stage and scaled to fit
   const background = new Sprite();

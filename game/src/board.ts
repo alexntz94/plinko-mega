@@ -443,6 +443,11 @@ export class Board extends Container {
   /** A ball went through a gate: the arch flashes and kicks, and the boost pops out of it. */
   private gatePass(gate: { view: Container }, boostSoFar: number): void {
     const v = gate.view;
+    // the gates moved for the next round while this ball was still falling: its gate is gone, the boost still counts
+    if (v.destroyed) {
+      this.onGate?.(boostSoFar);
+      return;
+    }
     // a quick bounce; a gate still bouncing is not restarted (balls cross the top gates every fraction of a second,
     // and restarting each time kept them stretched)
     if (!gsap.isTweening(v.scale)) gsap.fromTo(v.scale, { x: 1.06, y: 1.3 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)' });

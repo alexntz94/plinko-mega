@@ -97,7 +97,7 @@ export class FortuneWheel extends Container {
   /** The photo revolver, when the theme has one with a chamber per prize. */
   private photo(segments = this.segments): PhotoRevolver | null {
     const photo = this.art.photo;
-    return photo && !this.gold && photo.spec.chambers.length === segments.length ? photo : null;
+    return photo && photo.spec.chambers.length === segments.length ? photo : null;
   }
 
 
@@ -478,6 +478,7 @@ export class FortuneWheel extends Container {
     const s = r / (spec.radius * w);                   // cylinder picture to screen
     const cylinder = new Sprite({ texture: photo.cylinder, anchor: { x: spec.centre[0], y: spec.centre[1] } });
     cylinder.scale.set(s);
+    if (this.gold) cylinder.tint = '#ffcf6a';   // the MEGA SPIN: a gold-plated cylinder
     this.disc.addChild(cylinder);
     const places = chamberLayout(spec, r);
     segments.forEach((segment, i) => {

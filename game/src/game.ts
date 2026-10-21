@@ -153,7 +153,7 @@ export class Game extends Container {
       // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
       const at = this.toLocal(this.wheel.winPoint());
       this.shower.burst(at.x, at.y, big ? 70 : 28, big ? 1100 : 800);
-      if (big) this.shower.pour(30, 0, 0, 0, 2.2);
+      if (big) this.shower.pour(12, 0, 0, 0, 1.6);
       if (theme.board.fx !== 'war') return;
       sound(big ? 'huge' : 'big');
       if (big) this.screen.flash(0.5);

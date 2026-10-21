@@ -654,7 +654,8 @@ export class Board extends Container {
     // a MEGA BALL: gold, bigger, on fire from the start, its multiplier riding with it
     // a theme with its own board: the ball sized to its pegs' gap (a ball fills about 62% of the gap between two pegs)
     const fitted = this.fitNow ? 0.78 : 1;
-    const size = (mega > 1 ? 1.35 : 1) * fitted;
+    // a MEGA BALL is the same size as the others (its gold, halo and tag mark it), a hair bigger on a drawn board
+    const size = (mega > 1 && !this.fitNow ? 1.35 : 1) * fitted;
     const flight: Flight = { sprite: ball, x: 0, y: 0, ox: 0, oy: 0, vx: 0, vy: 0, free: true, cooldown: 0, heat: mega > 1 ? 2 : 0, size };
     this.flights.add(flight);
     // quiet: one of many MEGA BALLs in a round (heavy shells): the gold ball and its tag, no stamp of its own
@@ -786,15 +787,16 @@ export class Board extends Container {
    */
   private megaBall(ball: Sprite, times: number, announce = true): () => void {
     ball.tint = '#ffd76a';
-    const halo = new Graphics().circle(0, 0, 22).fill({ color: '#ffb000', alpha: 0.35 }).circle(0, 0, 14).fill({ color: '#fff3b0', alpha: 0.5 });
+    const r = this.fitNow ? 13 : 22;   // the halo fits the ball's size on the board
+    const halo = new Graphics().circle(0, 0, r).fill({ color: '#ffb000', alpha: 0.3 }).circle(0, 0, r * 0.64).fill({ color: '#fff3b0', alpha: 0.4 });
     halo.blendMode = 'add';
-    const tag = goldText('x' + times, 22);
+    const tag = goldText('x' + times, this.fitNow ? 15 : 22);
     this.ballLayer.addChildAt(halo, 0);
     this.textLayer.addChild(tag);
-    const pulse = gsap.to(halo.scale, { x: 1.5, y: 1.5, duration: 0.25, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+    const pulse = gsap.to(halo.scale, { x: 1.25, y: 1.25, duration: 0.25, yoyo: true, repeat: -1, ease: 'sine.inOut' });
     const follow = () => {
       halo.position.copyFrom(ball.position);
-      tag.position.set(ball.x, ball.y - 30);
+      tag.position.set(ball.x, ball.y - (this.fitNow ? 20 : 30));
     };
     follow();
     this.followers.add(follow);

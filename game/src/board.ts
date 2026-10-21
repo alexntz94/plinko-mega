@@ -1246,6 +1246,10 @@ export class Board extends Container {
     for (const n of [slot - 1, slot + 1]) {
       if (n < 0 || n > this.rows) continue;
       const x0 = this.slotX(slot), x1 = this.slotX(n);
+      this.slots[n]?.glow();
+      kindBlast(this.textLayer, 'small', x1, y, 56);
+      // the theme's animated arc, its ends on the two bays (they sit at 10% and 90% of its frame); else drawn here
+      if (kindBlast(this.textLayer, 'arc', (x0 + x1) / 2, y, Math.abs(x1 - x0) / 0.8 * 0.9)) continue;
       const bolt = new Graphics();
       const draw = () => {
         bolt.clear();
@@ -1265,8 +1269,6 @@ export class Board extends Container {
       gsap.timeline({ onComplete: () => bolt.destroy() })
         .call(draw, [], 0.07).call(draw, [], 0.14).call(draw, [], 0.21)
         .to(bolt, { alpha: 0, duration: 0.3 }, 0.28);
-      this.slots[n]?.glow();
-      kindBlast(this.textLayer, 'small', x1, y, 56);
     }
   }
 

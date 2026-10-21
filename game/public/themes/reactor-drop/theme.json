@@ -134,8 +134,59 @@
       ],
       "rim": "#ffb43c"
     },
-    "bezel": "wheel_bezel.png",
-    "hub": "wheel_hub.png"
+    "style": "revolver",
+    "revolverArt": {
+      "cylinder": "wheel_rotor.png",
+      "dial": "wheel_housing.png",
+      "flash": "wheel_flash.png",
+      "cartridges": {
+        "plain": "cap_copper.png",
+        "MINI": "cap_steel.png",
+        "MAJOR": "cap_cyan.png",
+        "MEGA": "cap_red.png"
+      },
+      "centre": [
+        0.4987,
+        0.4933
+      ],
+      "radius": 0.4833,
+      "chambers": [
+        [
+          0.4987,
+          0.1663
+        ],
+        [
+          0.7544,
+          0.2894
+        ],
+        [
+          0.8176,
+          0.5661
+        ],
+        [
+          0.6406,
+          0.7879
+        ],
+        [
+          0.3568,
+          0.7879
+        ],
+        [
+          0.1799,
+          0.5661
+        ],
+        [
+          0.243,
+          0.2894
+        ]
+      ],
+      "opening": [
+        0.4998,
+        0.4928
+      ],
+      "openingRadius": 0.323,
+      "chamberRadius": 0.08
+    }
   },
   "ambient": {
     "colours": [
@@ -236,6 +287,34 @@
       "fireball": [
         0.5,
         0.5
+      ],
+      "arc": [
+        0.5,
+        0.6
+      ]
+    },
+    "sheets": {
+      "heavy": "anim_burst.png",
+      "impact": "anim_burst.png",
+      "mushroom": "anim_burst.png",
+      "arc": "anim_arc.png"
+    },
+    "grids": {
+      "heavy": [
+        4,
+        4
+      ],
+      "impact": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
       ]
     }
   },

@@ -146,7 +146,7 @@ function readRevolverArt(json: unknown): RevolverArt | null {
     chamberRadius, opening, openingRadius };
 }
 
-const BLAST_NAMES = ['small', 'fireball', 'heavy', 'napalm', 'impact', 'mushroom', 'muzzle'] as const;
+const BLAST_NAMES = ['small', 'fireball', 'heavy', 'napalm', 'impact', 'mushroom', 'muzzle', 'arc'] as const;
 type BlastName = typeof BLAST_NAMES[number];
 
 function readBlast(json: unknown): Theme['blast'] {

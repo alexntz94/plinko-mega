@@ -282,13 +282,16 @@ function animatedBlast(layer: Container, kind: BlastKind, x: number, y: number, 
   liveBlasts++;
   const { frames, fill } = kindFrames[kind]!;
   const k = KIND[kind];
-  const blast = new AnimatedSprite({ textures: frames, anchor: { x: k.anchor[0], y: k.anchor[1] }, autoUpdate: true });
+  const [ax, ay] = kindAnchors[kind] ?? k.anchor;
+  const blast = new AnimatedSprite({ textures: frames, anchor: { x: ax, y: ay }, autoUpdate: true });
   blast.position.set(x, y);
   const scale = width / (frames[0].width * fill);
-  blast.scale.set(kind !== 'muzzle' && Math.random() < 0.5 ? -scale : scale, scale);
+  blast.scale.set(kind !== 'muzzle' && kind !== 'arc' && Math.random() < 0.5 ? -scale : scale, scale);
   blast.rotation = rotation;
   blast.loop = false;
-  blast.animationSpeed = frames.length / (k.life * 1.3 * 60);   // the frames over the kind's life (a little slower: they are real fire)
+  // the frames over the kind's life (a little slower: they are real fire), never under 20 a second (a short sheet
+  // stretched over a long life would stutter)
+  blast.animationSpeed = Math.max(frames.length / (k.life * 1.3 * 60), 20 / 60);
   const done = () => {
     if (!blast.destroyed) blast.destroy();
     liveBlasts = Math.max(0, liveBlasts - 1);
@@ -306,7 +309,7 @@ export function setBlastArt(art: { fire: Texture; dust: Texture; smoke: Texture 
 }
 
 /** The kinds of explosion a theme can bring, smallest to biggest. */
-export type BlastKind = 'small' | 'fireball' | 'heavy' | 'napalm' | 'impact' | 'mushroom' | 'muzzle';
+export type BlastKind = 'small' | 'fireball' | 'heavy' | 'napalm' | 'impact' | 'mushroom' | 'muzzle' | 'arc';
 let kindArt: Partial<Record<BlastKind, Texture>> = {};
 let kindAnchors: Partial<Record<BlastKind, [number, number]>> = {};
 /** Stills drawn as light (added, flickering): energy, not fire. */
@@ -346,6 +349,8 @@ const KIND: Record<BlastKind, { anchor: [number, number]; from: number; grow: nu
   mushroom: { anchor: [0.5, 0.752], from: 0.1, grow: 1.08, life: 1.7, rise: 0.12 },
   // a cannon's flash: it starts at the barrel and blows forward (to the right), never mirrored
   muzzle: { anchor: [0.15, 0.5], from: 0.3, grow: 1.1, life: 0.7, rise: 0 },
+  // a lightning arc between two points (its ends at 10% and 90% of the frame), never mirrored
+  arc: { anchor: [0.5, 0.6], from: 1, grow: 1, life: 0.45, rise: 0 },
 };
 
 /**

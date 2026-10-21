@@ -276,7 +276,7 @@ export class Game extends Container {
       // the board and its console, centred and as big as the screen allows (wide); the board on top (tall)
       this.board.layout(view, view.landscape
         ? { x: view.stageW / 2, y: view.offsetY + visibleH * 0.52, fit: 1, room: { w: view.stageW * 0.78, h: visibleH * 0.94 } }
-        : { x: view.stageW / 2, y: view.offsetY + 112 + visibleH * 0.21, fit: 1, room: { w: view.stageW * 1.16, h: visibleH * 0.42 } });
+        : { x: view.stageW / 2, y: view.offsetY + 100 + visibleH * 0.25, fit: 1, room: { w: view.stageW * 1.3, h: visibleH * 0.5 } });
       return;
     }
     this.board.layout(view, view.landscape ? { x: view.stageW * 0.32, y: view.offsetY + visibleH * 0.5, fit: 1 }

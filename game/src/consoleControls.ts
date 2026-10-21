@@ -159,11 +159,13 @@ export class ConsoleControls extends Container {
       this.place(rects);
       return;
     }
-    // tall, top to bottom, filling the screen: credits | win; bet | balls; quick bets; risk; the keys; DROP
+    // tall, top to bottom, filling the screen: credits | win; bet | balls; risk; the keys; DROP (no quick bets: the
+    // board gets the room)
     const w = Math.min(view.stageW - 20, 560);
     const x0 = (view.stageW - w) / 2;
     const bottom = view.stageH - view.offsetY - 12;
-    const unit = (bottom - top) / 7.9;
+    const unit = (bottom - top) / 6.9;
+    for (const k of this.quick) k.visible = false;
     const rowH = Math.min(84, unit * 0.8);
     if (this.back) {
       // one steel console behind everything, as on the board
@@ -178,8 +180,6 @@ export class ConsoleControls extends Container {
     this.row(this.betMinus, this.bet, this.betPlus, x0, w * 0.49, y, rowH);
     this.row(this.ballsMinus, this.balls, this.ballsPlus, x0 + w * 0.51, w * 0.49, y, rowH);
     y += unit * 1.1;
-    this.spread(this.quick, x0, w, y, rowH * 0.85);
-    y += unit;
     this.spread(this.risks, x0, w, y, rowH * 0.85);
     y += unit;
     this.spread([this.auto, this.turboKey, this.rowsKey, this.bumpKey], x0, w, y, rowH * 0.8);
@@ -192,6 +192,7 @@ export class ConsoleControls extends Container {
   /** Wide: BET and quick bets on the left panel, DROP on the centre plate, balls, risk and keys on the right panel. */
   private place(r: ConsoleRects): void {
     const { left, centre, right, credits } = r;
+    for (const k of this.quick) k.visible = true;
     const rowH = left.height * 0.42;
     this.row(this.betMinus, this.bet, this.betPlus, left.x, left.width, left.y + left.height * 0.27, rowH);
     this.spread(this.quick, left.x, left.width, left.y + left.height * 0.76, rowH * 0.85);

@@ -144,8 +144,11 @@ export class Slot extends Container {
     this.addChild(...body, this.flash, this.glint, this.text, this.meterMark, this.spinMark);
   }
 
+  /** A SPIN slot (a theme with its own board) reads SPIN instead of its prize. */
+  spinLabel = false;
+
   setValue(value: number): void {
-    this.text.text = multiplierText(value);
+    this.text.text = this.spinLabel ? 'SPIN' : multiplierText(value);
     this.text.scale.set(1);
     const max = SLOT_W - 5;
     if (this.text.width > max) this.text.scale.set(max / this.text.width);
@@ -377,7 +380,15 @@ export class Board extends Container {
     });
     this.gates = [];
     const spin = this.currentSpinSlots();
-    this.slots.forEach((slot, i) => { slot.spinMark.visible = spin.includes(i); });
+    // a theme with its own board: the SPIN slots say SPIN (no mark over them); others: a turning wheel mark over the slot
+    this.slots.forEach((slot, i) => {
+      const isSpin = spin.includes(i);
+      slot.spinMark.visible = isSpin && !this.style.fit;
+      if (this.style.fit && slot.spinLabel !== isSpin) {
+        slot.spinLabel = isSpin;
+        slot.setValue(this.multiplier(prizeIndexOfSlot(this.rows, i)));
+      }
+    });
     if (this.gateBoost <= 0) return;
     const bars = layout ?? this.megaGates[String(this.rows)] ?? [];
     this.gatesShown = JSON.stringify(bars);

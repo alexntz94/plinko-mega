@@ -20,6 +20,7 @@ public class ThemeService {
 
     static {
         KNOWN.put("bombs-away", "Bombs Away");
+        KNOWN.put("reactor-drop", "Reactor Drop");
     }
 
     public record Themes(List<String> enabled, String defaultTheme) {

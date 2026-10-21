@@ -198,7 +198,12 @@ export class ConsoleControls extends Container {
     this.spread([this.auto, this.turboKey, this.rowsKey, this.arsenalKey], x0, w, y, rowH * 0.8);
     this.bumpKey.visible = false;
     y += unit * 1.55;
-    this.drop.position.set(view.stageW / 2, y); this.drop.size(w * 0.8, Math.min(unit * 1.9, w * 0.3));
+    // a wide plate fills the row; a round key (Reactor Drop's RELEASE) keeps its shape, a little taller
+    const dropH = Math.min(unit * 1.9, w * 0.3);
+    const ratio = this.drop.art.texture.width / this.drop.art.texture.height;
+    this.drop.position.set(view.stageW / 2, y);
+    if (ratio < 1.6) this.drop.size(dropH * 1.3 * ratio, dropH * 1.3);
+    else this.drop.size(w * 0.8, dropH);
     this.drop.text.style.fontSize = Math.round(Math.min(unit * 0.8, 52));
     this.drop.base = 1;
   }

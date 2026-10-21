@@ -198,7 +198,8 @@ async function start(): Promise<void> {
   setMegaLook(theme.wheel.title, theme.wheel.ink, theme.wheel.gate ? tex(theme.wheel.gate) : null);
   setSpinMark(theme.wheel.spinMark ? tex(theme.wheel.spinMark) : null);
   setBlastArt(theme.blast ? { fire: tex(theme.blast.fire), dust: tex(theme.blast.dust), smoke: tex(theme.blast.smoke) } : null);
-  setBlastKinds(Object.fromEntries(Object.entries(theme.blast?.kinds ?? {}).map(([kind, file]) => [kind, tex(file)])));
+  setBlastKinds(Object.fromEntries(Object.entries(theme.blast?.kinds ?? {}).map(([kind, file]) => [kind, tex(file)])),
+    theme.blast?.anchors ?? {}, theme.board.fx === 'reactor');
   setBlastSheets(Object.fromEntries(Object.entries(theme.blast?.sheets ?? {}).map(([kind, file]) =>
     [kind, { sheet: tex(file), grid: theme.blast?.grids[kind as keyof typeof theme.blast.grids] ?? [4, 4] }])));
   initSounds(theme.path, theme.sounds);

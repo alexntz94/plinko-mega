@@ -175,7 +175,7 @@ export class FortuneWheel extends Container {
       gsap.fromTo(this.pointer, { rotation: 0.25 }, { rotation: 0, duration: 0.12, overwrite: true });
     };
     // the rainbow ring lights up behind the wheel while it turns
-    this.rainbow.visible = !this.style.revolver;   // blurred: only while a wheel turns; never round a revolver
+    this.rainbow.visible = false;   // no rainbow ring round any wheel (the user asked for none)
     gsap.to(this.rainbow, { alpha: 0.9, duration: 0.3 });
     this.chaseSpeed = 22;
     const glowSpin = gsap.to(this.rainbow, { rotation: '+=' + Math.PI * 2, duration: 1.2, repeat: -1, ease: 'none' });

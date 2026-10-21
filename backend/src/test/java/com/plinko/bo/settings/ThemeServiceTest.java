@@ -9,7 +9,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-/** Which themes are on and which is the default (Plinko Mega ships one theme, Bombs Away). */
+/** Which themes are on and which is the default (Plinko Mega ships Bombs Away, the default, and Reactor Drop). */
 class ThemeServiceTest {
 
     private static ThemeService with(Map<String, String> values) {
@@ -19,9 +19,9 @@ class ThemeServiceTest {
     }
 
     @Test
-    void aFreshInstallPlaysBombsAway() {
+    void aFreshInstallHasEveryThemeOnAndPlaysBombsAway() {
         ThemeService.Themes themes = with(Map.of()).current();
-        assertThat(themes.enabled()).containsExactly("bombs-away");
+        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop");
         assertThat(themes.defaultTheme()).isEqualTo("bombs-away");
         assertThat(with(Map.of()).resolve("old-theme")).isEqualTo("bombs-away");
     }
@@ -29,7 +29,8 @@ class ThemeServiceTest {
     @Test
     void namesThatAreNotThemesAreIgnored() {
         ThemeService.Themes themes = with(Map.of("game.themes", "old-theme,bombs-away", "game.theme.default", "old-theme")).current();
-        assertThat(themes.enabled()).containsExactly("bombs-away");
+        // reactor-drop is newer than that choice, so it comes on too
+        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop");
         assertThat(themes.defaultTheme()).isEqualTo("bombs-away");
     }
 
@@ -39,5 +40,6 @@ class ThemeServiceTest {
         assertThat(themes.validate(List.of(), "bombs-away")).isNotEmpty();
         assertThat(themes.validate(List.of("old-theme"), "old-theme")).containsExactly("Unknown theme");
         assertThat(themes.validate(List.of("bombs-away"), "bombs-away")).isEmpty();
+        assertThat(themes.validate(List.of("bombs-away", "reactor-drop"), "reactor-drop")).isEmpty();
     }
 }

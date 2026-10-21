@@ -1,0 +1,217 @@
+{
+  "name": "Reactor Drop",
+  "title": "Reactor Drop · Plinko",
+  "background": "#171b20",
+  "accent": "#46d9f2",
+  "text": "#eee4d1",
+  "playText": "#eee4d1",
+  "retina": true,
+  "font": {
+    "family": "Chakra Petch",
+    "file": "chakra-petch-semibold.woff2",
+    "weight": "600"
+  },
+  "board": {
+    "fx": "reactor",
+    "peg": "item_peg.png",
+    "pegFlash": "#46d9f2",
+    "trail": "#46d9f2",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#1b5f6e",
+        "text": "#d9f6fc"
+      },
+      {
+        "face": "#1f8fa8",
+        "text": "#eafbff"
+      },
+      {
+        "face": "#46d9f2",
+        "text": "#f2fdff"
+      },
+      {
+        "face": "#ffb43c",
+        "text": "#fff3dc"
+      },
+      {
+        "face": "#ff7a1a",
+        "text": "#fff0e0"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 0.5783,
+        "x": 384,
+        "y": 69.29,
+        "spacing": 53.111,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.5622,
+        "x": 384,
+        "y": 73.12,
+        "spacing": 47.8,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.5497,
+        "x": 384,
+        "y": 76.11,
+        "spacing": 43.455,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.5397,
+        "x": 384,
+        "y": 78.5,
+        "spacing": 39.833,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.5316,
+        "x": 384,
+        "y": 80.45,
+        "spacing": 36.769,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.5248,
+        "x": 384,
+        "y": 82.08,
+        "spacing": 34.143,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.519,
+        "x": 384,
+        "y": 83.46,
+        "spacing": 31.867,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    }
+  },
+  "wheel": {
+    "faces": [
+      "#22303a",
+      "#1b5f6e",
+      "#b66c35",
+      "#2b3a44",
+      "#46d9f2",
+      "#171b20"
+    ],
+    "text": [
+      "#eee4d1",
+      "#eee4d1",
+      "#fff2dc",
+      "#eee4d1",
+      "#0d1418",
+      "#46d9f2"
+    ],
+    "rim": "#b66c35",
+    "ink": "#0b0d10",
+    "title": "#46d9f2",
+    "gold": {
+      "faces": [
+        "#ffb43c",
+        "#eee4d1",
+        "#46d9f2",
+        "#b66c35"
+      ],
+      "text": [
+        "#1a1206",
+        "#1a1206",
+        "#0d1418",
+        "#fff2dc"
+      ],
+      "rim": "#ffb43c"
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#46d9f2",
+      "#9fefff",
+      "#ffb43c"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#0b0d10",
+    "panel": "#171b20"
+  },
+  "sounds": [],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        34,
+        410,
+        314,
+        484
+      ],
+      "centre": [
+        330,
+        400,
+        438,
+        494
+      ],
+      "right": [
+        456,
+        410,
+        736,
+        484
+      ]
+    }
+  },
+  "blast": {
+    "fire": "vfx_plasma.png",
+    "dust": "vfx_ring.png",
+    "smoke": "vfx_steam.png",
+    "kinds": {
+      "small": "vfx_spark.png",
+      "impact": "vfx_plasma.png",
+      "heavy": "vfx_discharge.png",
+      "napalm": "vfx_ring.png",
+      "mushroom": "vfx_discharge.png",
+      "fireball": "vfx_plasma.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.5
+      ],
+      "impact": [
+        0.5,
+        0.5
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.6
+      ],
+      "fireball": [
+        0.5,
+        0.5
+      ]
+    }
+  }
+}

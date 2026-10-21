@@ -26,7 +26,8 @@ export interface BoardStyle {
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
 export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: string }
-export type ThemeFx = 'standard' | 'war';
+/** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills) */
+export type ThemeFx = 'standard' | 'war' | 'reactor';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -69,13 +70,17 @@ export interface Theme {
   retina: boolean;               // images come as name@2x.png, drawn at double density (backgrounds excepted)
   ui: ThemeUi;
   /** a console under the board for the controls (its art: the DROP plate, a readout panel, a key), or null */
-  console: { drop: string; panel: string; key: string; back: string | null } | null;
+  console: { drop: string; panel: string; key: string; back: string | null;
+    /** where the controls go on the board's console, in the frame picture's 1x pixels: [x0, y0, x1, y1] each */
+    rects: { left: Rect4; centre: Rect4; right: Rect4 } } | null;
   /** a photo explosion (fireball, ground dust ring, smoke plume) for every blast, or null: drawn in code */
   blast: { fire: string; dust: string; smoke: string; kinds: Partial<Record<BlastName, string>>;
     /** animated explosions: per kind, a sprite sheet (a square grid of frames, `grids` per kind, 4 when not given) */
     sheets: Partial<Record<BlastName, string>>; grids: Partial<Record<BlastName, [number, number]>>;
     /** tank assault: the tank (facing right) and a target; null: the power-up isn't shown */
-    tank: { body: string; target: string } | null } | null;
+    tank: { body: string; target: string } | null;
+    /** per kind, where a still picture's blast point is (fractions of it); else the kind's own */
+    anchors: Partial<Record<BlastName, [number, number]>> } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -169,14 +174,28 @@ function readBlast(json: unknown): Theme['blast'] {
   const t = (b.tank ?? {}) as Record<string, unknown>;
   const body = fileName(t.body, /\.png$/), target = fileName(t.target, /\.png$/);
   const tank = body && target ? { body, target } : null;
-  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets), grids, tank } : null;
+  const an = (b.anchors ?? {}) as Record<string, unknown>;
+  const anchors: Partial<Record<BlastName, [number, number]>> = {};
+  for (const name of BLAST_NAMES) {
+    const v = an[name];
+    if (Array.isArray(v) && v.length === 2 && v.every(n => typeof n === 'number' && n >= 0 && n <= 1)) anchors[name] = [v[0], v[1]];
+  }
+  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets), grids, tank, anchors } : null;
 }
+
+export type Rect4 = [number, number, number, number];
+/** Bombs Away's console panels (the first console theme): the default when a theme gives none. */
+const CONSOLE_RECTS: { left: Rect4; centre: Rect4; right: Rect4 } = { left: [80, 418, 246, 498], centre: [276, 428, 492, 488], right: [522, 418, 694, 498] };
 
 function readConsole(json: unknown): Theme['console'] {
   const c = (json ?? null) as Record<string, unknown> | null;
   if (!c) return null;
   const [drop, panel, key] = [fileName(c.drop, /\.png$/), fileName(c.panel, /\.png$/), fileName(c.key, /\.png$/)];
-  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/) } : null;
+  const r = (c.rects ?? {}) as Record<string, unknown>;
+  const rect = (v: unknown, fallback: Rect4): Rect4 =>
+    Array.isArray(v) && v.length === 4 && v.every(n => typeof n === 'number' && Number.isFinite(n)) ? v as Rect4 : fallback;
+  const rects = { left: rect(r.left, CONSOLE_RECTS.left), centre: rect(r.centre, CONSOLE_RECTS.centre), right: rect(r.right, CONSOLE_RECTS.right) };
+  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects } : null;
 }
 
 function readBoard(json: unknown): BoardStyle {
@@ -192,7 +211,7 @@ function readBoard(json: unknown): BoardStyle {
     slotRadius: Math.min(20, Math.max(0, number(b.slotRadius, DEFAULT_BOARD.slotRadius))),
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
-    fx: b.fx === 'war' ? 'war' : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' ? b.fx : 'standard',
   };
 }
 

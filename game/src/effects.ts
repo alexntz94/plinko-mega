@@ -308,8 +308,15 @@ export function setBlastArt(art: { fire: Texture; dust: Texture; smoke: Texture 
 /** The kinds of explosion a theme can bring, smallest to biggest. */
 export type BlastKind = 'small' | 'fireball' | 'heavy' | 'napalm' | 'impact' | 'mushroom' | 'muzzle';
 let kindArt: Partial<Record<BlastKind, Texture>> = {};
-export function setBlastKinds(art: Partial<Record<BlastKind, Texture>>): void {
+let kindAnchors: Partial<Record<BlastKind, [number, number]>> = {};
+/** Stills drawn as light (added, flickering): energy, not fire. */
+let glowStills = false;
+/** The theme's still picture per kind, where each one's blast point is (else the kind's own), and whether it is light. */
+export function setBlastKinds(art: Partial<Record<BlastKind, Texture>>, anchors: Partial<Record<BlastKind, [number, number]>> = {},
+                              glow = false): void {
   kindArt = art;
+  kindAnchors = anchors;
+  glowStills = glow;
 }
 /**
  * Animated explosions: per kind, the frames of its sprite sheet (a square grid, read left to right, top to bottom),
@@ -352,10 +359,12 @@ export function kindBlast(layer: Container, kind: BlastKind, x: number, y: numbe
   if (liveBlasts >= MAX_BLASTS) return true;
   liveBlasts++;
   const k = KIND[kind];
-  const sprite = new Sprite({ texture, anchor: { x: k.anchor[0], y: k.anchor[1] } });
+  const [ax, ay] = kindAnchors[kind] ?? k.anchor;
+  const sprite = new Sprite({ texture, anchor: { x: ax, y: ay } });
   sprite.position.set(x, y);
+
   // a second copy over it, added light, that flares and dies first (the fire flickers)
-  const flare = new Sprite({ texture, anchor: { x: k.anchor[0], y: k.anchor[1] } });
+  const flare = new Sprite({ texture, anchor: { x: ax, y: ay } });
   flare.position.set(x, y);
   flare.blendMode = 'add';
   layer.addChild(sprite, flare);
@@ -374,9 +383,13 @@ export function kindBlast(layer: Container, kind: BlastKind, x: number, y: numbe
     .to(sprite.scale, { x: full * k.grow * mirror, y: full * k.grow, duration: k.life * 0.62, ease: 'sine.out' }, k.life * 0.38)
     .to(sprite, { y: y - width * k.rise, duration: k.life, ease: 'sine.out' }, 0)
     .to(sprite, { alpha: 0, duration: k.life * 0.5, ease: 'sine.inOut' }, k.life * 0.5)
-    .to(flare, { alpha: 0.7, duration: 0.04 }, 0)
+    .to(flare, { alpha: glowStills ? 0.35 : 0.7, duration: 0.04 }, 0)
     .to(flare.scale, { x: full * 0.9 * mirror, y: full * 0.9, duration: k.life * 0.3, ease: 'expo.out' }, 0)
     .to(flare, { alpha: 0, duration: k.life * 0.3, ease: 'sine.in' }, 0.08);
+  // electricity crackles: the flare flickers back on a few times while it fades (soft: two added copies burn white)
+  if (glowStills) {
+    gsap.to(flare, { alpha: 0.35, duration: 0.03, delay: k.life * 0.22, yoyo: true, repeat: 3 });
+  }
   return true;
 }
 let liveBlasts = 0;

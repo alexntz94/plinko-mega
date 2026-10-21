@@ -90,6 +90,8 @@ export class Game extends Container {
   private power: string | null = null;
   private readonly arsenal: ArsenalPanel | null = null;
   private readonly tank: TankAssault | null = null;
+  /** where the controls go on the board's console (the theme's frame picture) */
+  private readonly consoleRects: NonNullable<Theme['console']>['rects'] | null;
   private readonly ticker: WinTicker;
   /** The slot-machine feel: petals always drifting, the WIN banner, the screen's flash and slow motion. */
   private readonly ambient: Ambient;
@@ -151,9 +153,11 @@ export class Game extends Container {
     this.exitDialog = new ExitDialog({ exit: tex('item_exit.png'), exitPortrait: tex('item_exit_p.png'),
       ok: tex('button_confirm.png'), no: tex('button_cancel.png') }, theme.landscapeExitFromPortrait,
     () => { this.closeExit(); this.go('menu'); }, () => this.closeExit());
-    this.shower = theme.board.fx === 'war' ? new BlastShower() : new CoinShower();
+    this.consoleRects = theme.console?.rects ?? null;
+    const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
+    this.shower = blasts ? new BlastShower() : new CoinShower();
     this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text],
-      theme.board.fx === 'war');
+      blasts);
     this.board.onClack = () => sound('clack', { volume: 0.5 });
     const mega = config.mega;
     this.board.setMega(mega?.gates ?? {}, mega?.gateBoost ?? null, mega?.wheel ? mega.spinSlots ?? {} : {});
@@ -163,14 +167,14 @@ export class Game extends Container {
     this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
-        explode: theme.board.fx === 'war', photo: photoRevolver(theme, tex) });
+        explode: blasts, photo: photoRevolver(theme, tex) });
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
       // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
       const at = this.toLocal(this.wheel.winPoint());
       this.shower.burst(at.x, at.y, big ? 70 : 28, big ? 1100 : 800);
       if (big) this.shower.pour(12, 0, 0, 0, 1.6);
-      if (theme.board.fx !== 'war') return;
+      if (!blasts) return;
       sound(big ? 'huge' : 'big');
       if (big) this.screen.flash(0.5);
     };
@@ -292,7 +296,10 @@ export class Game extends Container {
     };
     if (view.landscape) {
       const w = Math.min(260, view.stageW * 0.2);
-      bar.layout(view, { left: rect(80, 418, 246, 498), centre: rect(276, 428, 492, 488), right: rect(522, 418, 694, 498),
+      const r = this.consoleRects;
+      if (!r) return;
+      const box = (q: [number, number, number, number]) => rect(q[0], q[1], q[2], q[3]);
+      bar.layout(view, { left: box(r.left), centre: box(r.centre), right: box(r.right),
         credits: new Rectangle(view.stageW - view.offsetX - w - 120, view.offsetY + 14, w, 116) });
     } else {
       bar.layout(view, null, at(384, 418).y + 6);

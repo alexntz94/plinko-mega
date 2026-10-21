@@ -242,6 +242,13 @@ interface Flight { sprite: Sprite; x: number; y: number; ox: number; oy: number;
   size: number;
   timeline?: gsap.core.Timeline }
 
+/** How a landing blows, per theme: its sparks, smoke, debris (none: nothing thrown out) and the words over big ones. */
+const WAR_BLAST = { sparks: ['#fff3b0', '#ffd76a', '#ff8a1a', '#c1121f'], smoke: ['#3a3d42', '#55595f', '#24272b'],
+  debris: ['#1a1d21', '#4b5320', '#2b3036'] as string[] | null, words: ['BOOM!', 'BLAM!', 'HIT!'], bigWords: ['DIRECT HIT!', 'KABOOM!', 'NUKED!'],
+  ink: '#e9e4d4', bigInk: '#f2b705' };
+const REACTOR_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#bff4ff', '#46d9f2', '#1a8fb0'], smoke: ['#c9d3d8', '#9aa6ad', '#e8eef0'],
+  debris: null, words: ['SURGE!', 'ZAP!', 'CHARGED!'], bigWords: ['OVERLOAD!', 'CRITICAL!', 'FULL POWER!'], ink: '#eee4d1', bigInk: '#46d9f2' };
+
 export class Board extends Container {
   readonly field = new Container();     // pegs, slots and balls, in board coordinates (x = 0 is the centre)
   private readonly frame: Sprite;
@@ -980,7 +987,7 @@ export class Board extends Container {
     const face = slotLooks[slotTier(this.rows, prizeIndex)].face;
     const x = this.slotX(slot);
     const y = this.slotY() - SLOT_H / 2;
-    if (this.fx === 'war') this.explode(x, y, multiplier);
+    if (this.fx !== 'standard') this.explode(x, y, multiplier);
     if (multiplier < 1) {
       this.particles.sparks(x, y, '#8a9097', 4, 12);
     } else if (multiplier < 2) {
@@ -1063,11 +1070,13 @@ export class Board extends Container {
    */
   private explode(x: number, y: number, multiplier: number): void {
     const size = multiplier >= 10 ? 3 : multiplier >= 2 ? 2 : multiplier >= 1 ? 1 : 0;
-    this.particles.burst(x, y, ['#fff3b0', '#ffd76a', '#ff8a1a', '#c1121f'], [6, 12, 22, 36][size], [150, 220, 320, 440][size]);
-    // smoke rising out of the hole
-    this.particles.burst(x, y - 6, ['#3a3d42', '#55595f', '#24272b'], [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
+    // a bomb: fire, smoke and debris; a reactor capsule: cyan-white sparks and a puff of vent steam, nothing thrown out
+    const look = this.fx === 'reactor' ? REACTOR_BLAST : WAR_BLAST;
+    this.particles.burst(x, y, look.sparks, [6, 12, 22, 36][size], [150, 220, 320, 440][size]);
+    // smoke (steam) rising out of the hole
+    this.particles.burst(x, y - 6, look.smoke, [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
     // debris: dark chunks thrown out and falling back
-    if (size >= 1) this.particles.burst(x, y, ['#1a1d21', '#4b5320', '#2b3036'], [0, 6, 10, 16][size], [0, 260, 360, 480][size], 1400);
+    if (size >= 1 && look.debris) this.particles.burst(x, y, look.debris, [0, 6, 10, 16][size], [0, 260, 360, 480][size], 1400);
     // the theme's explosions: under 1x sparks, 1x to 2x a dirt burst, 2x to 10x a heavy fireball, 10x and up a
     // mushroom cloud (the ground ones stand on the slot); else the photo blast; else a flash
     const kind = (['small', 'impact', 'heavy', 'mushroom'] as const)[size];
@@ -1075,7 +1084,7 @@ export class Board extends Container {
     const shown = kindBlast(this.textLayer, kind, x, ground ? y + 12 : y, [48, 64, 104, 150][size])
       || photoBlast(this.textLayer, x, y, [26, 38, 56, 84][size], size >= 1);
     if (!shown) {
-      const flash = new Graphics().circle(0, 0, [10, 16, 24, 36][size]).fill('#fff3b0');
+      const flash = new Graphics().circle(0, 0, [10, 16, 24, 36][size]).fill(look.sparks[0]);
       flash.blendMode = 'add';
       flash.position.set(x, y);
       this.textLayer.addChild(flash);
@@ -1085,9 +1094,9 @@ export class Board extends Container {
     }
     if (size < 2) return;
     shake(this, size === 3 ? 9 : 4);
-    const words = size === 3 ? ['DIRECT HIT!', 'KABOOM!', 'NUKED!'] : ['BOOM!', 'BLAM!', 'HIT!'];
+    const words = size === 3 ? look.bigWords : look.words;
     const word = label(words[Math.floor(Math.random() * words.length)], size === 3 ? 34 : 24, 'center',
-      { fill: size === 3 ? '#f2b705' : '#e9e4d4', stroke: { color: '#0b0d10', width: 6, join: 'miter' } });
+      { fill: size === 3 ? look.bigInk : look.ink, stroke: { color: '#0b0d10', width: 6, join: 'miter' } });
     word.anchor.set(0.5, 0.5);
     word.position.set(x, y - 40);
     word.rotation = (Math.random() - 0.5) * 0.3;
@@ -1113,10 +1122,12 @@ export class Board extends Container {
     const dot = new Graphics(context);
     dot.blendMode = 'add';
     dot.position.copyFrom(ball.position);
-    const size = radius * (0.7 + 0.25 * heat);
-    const life = 0.32 + 0.12 * heat;
+    // a reactor capsule leaves a thin cyan streak (the capsule itself must stay the brightest thing)
+    const thin = this.fx === 'reactor';
+    const size = radius * (thin ? 0.3 : 0.7 + 0.25 * heat);
+    const life = thin ? 0.22 : 0.32 + 0.12 * heat;
     dot.scale.set(size);
-    dot.alpha = 0.85;
+    dot.alpha = thin ? 0.55 : 0.85;
     this.trailLayer.addChild(dot);
     gsap.to(dot, { alpha: 0, duration: life, ease: 'power1.in', onComplete: () => dot.destroy() });
     gsap.to(dot.scale, { x: size * 0.15, y: size * 0.15, duration: life });
@@ -1142,7 +1153,7 @@ export class Board extends Container {
    * swaying a little, so its shine stays where the light is.
    */
   private spin(x: number, radius: number): number {
-    return this.fx === 'war' ? Math.sin(x / (radius * 3)) * 0.35 : x / radius;
+    return this.fx !== 'standard' ? Math.sin(x / (radius * 3)) * 0.35 : x / radius;
   }
 
   /** A power-up's look for the round: the night over the board, the target marks over boosted slots. */

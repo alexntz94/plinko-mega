@@ -25,7 +25,7 @@ class BonusValidationTest {
     }
 
     private static BonusSettings meter(int charges, String minMultiplier, String potShare) {
-        return new BonusSettings(new BonusSettings.Meter(true, charges, d(minMultiplier), d(potShare)), MEGA.gates(), MEGA.wheel(), MEGA.megaWheel());
+        return new BonusSettings(new BonusSettings.Meter(true, charges, d(minMultiplier), d(potShare)), new BonusSettings.Gates(true, MEGA.gates().boost()), MEGA.wheel(), MEGA.megaWheel());
     }
 
     private static BonusSettings gates(String boost) {
@@ -33,7 +33,7 @@ class BonusValidationTest {
     }
 
     private static BonusSettings wheel(BonusSettings.Segment... segments) {
-        return new BonusSettings(MEGA.meter(), MEGA.gates(), new BonusSettings.Wheel(true, segments == null ? null : List.of(segments)),
+        return new BonusSettings(MEGA.meter(), new BonusSettings.Gates(true, MEGA.gates().boost()), new BonusSettings.Wheel(true, segments == null ? null : List.of(segments)),
                 MEGA.megaWheel());
     }
 

@@ -21,9 +21,9 @@ class RoundDrawTest {
 
     /** Every feature on, and a meter that fills after 3 charges (so MEGA SPINs come often). */
     private static final BonusSettings ALL = new BonusSettings(new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")),
-            BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel(), BonusSettings.MEGA.megaBall());
+            new BonusSettings.Gates(true, BonusSettings.MEGA.gates().boost()), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel(), BonusSettings.MEGA.megaBall());
     /** Only the gates (no meter, no wheel). */
-    private static final BonusSettings GATES = new BonusSettings(BonusSettings.OFF.meter(), BonusSettings.MEGA.gates(), BonusSettings.OFF.wheel(),
+    private static final BonusSettings GATES = new BonusSettings(BonusSettings.OFF.meter(), new BonusSettings.Gates(true, BonusSettings.MEGA.gates().boost()), BonusSettings.OFF.wheel(),
             BonusSettings.OFF.megaWheel());
     private final OddsService odds = TestOdds.with(BonusSettings.MEGA, TestFixtures.properties());
 
@@ -178,7 +178,7 @@ class RoundDrawTest {
     @Test
     void gatesMultiplyThePrizeAndSpinSlotsSpinTheWheel() {
         OddsTable table = odds.get(8, 0);
-        BonusSettings mega = new BonusSettings(null, BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
+        BonusSettings mega = new BonusSettings(null, new BonusSettings.Gates(true, BonusSettings.MEGA.gates().boost()), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
         BigDecimal boost = mega.gates().boost();
         int spinSlot = PlinkoBoard.leftSlot(8, MegaBoard.spinPrizeIndex(8));
         // the fixed dice send a ball right first, then left: slot 2's path is 0b11, through the gates it crosses

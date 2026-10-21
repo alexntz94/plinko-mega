@@ -650,7 +650,9 @@ export class Board extends Container {
     ball.position.set(0, 0);
     this.ballLayer.addChild(ball);
     // a MEGA BALL: gold, bigger, on fire from the start, its multiplier riding with it
-    const size = mega > 1 ? 1.5 : 1;
+    // a theme with its own board: the ball sized to its pegs' gap (a ball fills about 62% of the gap between two pegs)
+    const fitted = this.fitNow ? 0.78 : 1;
+    const size = (mega > 1 ? 1.35 : 1) * fitted;
     const flight: Flight = { sprite: ball, x: 0, y: 0, ox: 0, oy: 0, vx: 0, vy: 0, free: true, cooldown: 0, heat: mega > 1 ? 2 : 0, size };
     this.flights.add(flight);
     const stopFollowing = mega > 1 ? this.megaBall(ball, mega) : () => undefined;

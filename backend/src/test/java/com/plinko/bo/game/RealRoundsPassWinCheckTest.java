@@ -42,7 +42,7 @@ import org.junit.jupiter.api.Test;
 class RealRoundsPassWinCheckTest {
 
     private static final BonusSettings BONUSES = new BonusSettings(new BonusSettings.Meter(true, 3, new BigDecimal("2"), new BigDecimal("30")),
-            BonusSettings.MEGA.gates(), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
+            new BonusSettings.Gates(true, BonusSettings.MEGA.gates().boost()), BonusSettings.MEGA.wheel(), BonusSettings.MEGA.megaWheel());
 
     private final PlinkoProperties base = TestFixtures.properties();
     /** A low win limit per round (40), so caps happen; maxRtp as given (the forced-cap run needs bonuses no real odds allow). */

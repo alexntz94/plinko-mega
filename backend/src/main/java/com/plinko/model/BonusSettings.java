@@ -69,10 +69,10 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
                     "1", "66", "2", "22", "3", "7.5", "5", "4", "MINI:50", "0.35", "MAJOR:100", "0.12", "MEGA:500", "0.03")),
             GOLD_WHEEL, MEGA_BALL);
 
-    /** The starting point before an admin has saved anything: gates, the wheel, MEGA BALLs and the meter's MEGA SPIN on. */
+    /** The starting point before an admin has saved anything: the wheel, MEGA BALLs and the meter's MEGA SPIN on (no gates). */
     public static final BonusSettings MEGA = new BonusSettings(
             new Meter(true, OFF.meter().charges(), OFF.meter().minMultiplier(), OFF.meter().potShare()),
-            new Gates(true, OFF.gates().boost()), new Wheel(true, OFF.wheel().segments()), new Wheel(true, OFF.megaWheel().segments()),
+            new Gates(false, OFF.gates().boost()), new Wheel(true, OFF.wheel().segments()), new Wheel(true, OFF.megaWheel().segments()),
             new MegaBall(true, MEGA_BALL.chance(), MEGA_BALL.multipliers()));
 
     /** Segments from pairs of ("[NAME:]multiplier", "weight"). */

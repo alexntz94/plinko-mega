@@ -22,7 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 class OddsSnapshotTest {
 
     /** A change approved elsewhere: the gates switched on. */
-    private static final BonusSettings GATES = new BonusSettings(BonusSettings.OFF.meter(), BonusSettings.MEGA.gates(),
+    private static final BonusSettings GATES = new BonusSettings(BonusSettings.OFF.meter(), new BonusSettings.Gates(true, BonusSettings.MEGA.gates().boost()),
             BonusSettings.OFF.wheel(), BonusSettings.OFF.megaWheel());
 
     /** What is in the database: the bonus text and the tables, changed together like an approval does. */

@@ -195,7 +195,9 @@ export class FortuneWheel extends Container {
     gsap.to(this.rainbow, { alpha: 0, duration: 0.6, onComplete: () => { this.rainbow.visible = false; } });
     const segment = segments[index];
     this.jackpotName.text = segment.name ? `${segment.name} JACKPOT` : options.title;
-    this.jackpotAmount.text = options.base !== undefined ? `${this.format(options.base)} × ${segment.multiplier}` : segmentText(segment);
+    // a jackpot is called by its name (MAJOR JACKPOT, then its win), a plain chamber shows its sum
+    this.jackpotAmount.text = segment.name ? `${segment.name}!`
+      : options.base !== undefined ? `${this.format(options.base)} × ${segment.multiplier}` : segmentText(segment);
     fit(this.jackpotAmount, this.radius * 0.9);
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
@@ -489,11 +491,11 @@ export class FortuneWheel extends Container {
       head.position.set(place.x, place.y);
       head.rotation = place.rotation;
       const words = new Text({ text: segmentText(segment), anchor: 0.5, resolution: textQuality(),
-        style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(r * (segment.name ? 0.085 : 0.12)),
-          fill: '#fff6dc', stroke: { color: '#000000', width: r * 0.025, join: 'round' } } });
+        style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(r * (segment.name ? 0.11 : 0.12)),
+          fill: segment.name ? '#ffd76a' : '#fff6dc', stroke: { color: '#000000', width: r * 0.03, join: 'round' } } });
       words.position.copyFrom(head.position);
       words.rotation = head.rotation;
-      if (words.width > place.size * 0.7) words.scale.set(place.size * 0.7 / words.width);
+      if (words.width > place.size * 0.86) words.scale.set(place.size * 0.86 / words.width);
       this.disc.addChild(head, words);
     });
     const dial = new Sprite({ texture: photo.dial, anchor: { x: spec.opening[0], y: spec.opening[1] } });

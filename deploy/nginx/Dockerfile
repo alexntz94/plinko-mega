@@ -41,7 +41,7 @@ RUN apk add --no-cache libavif-apps=1.4.1-r0 \
       [ "$(wc -c < "$avif")" -lt "$(wc -c < "$1")" ] || rm "$avif"' _
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:56b8272e43a0525f67aed68d1e0794a712d10e3e45a563e118e9a77c817e6f86
+FROM nginxinc/nginx-unprivileged:1.31.6-alpine@sha256:884e0b7f42f303641b0f4e78755aea647521dca0b89ca3be7992ad78b5c07434
 # Security updates for the Alpine packages (e.g. zlib) published after the base image was built.
 USER root
 RUN apk upgrade --no-cache

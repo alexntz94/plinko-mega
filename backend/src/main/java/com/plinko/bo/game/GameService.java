@@ -151,6 +151,11 @@ public class GameService {
         }
 
         @Override
+        public int slot(OddsTable table, double leftChance) {
+            return leftChance == 0.5 ? odds.pickSlot(table) : odds.pickSlot(table, leftChance);   // no magnet: the plain draw
+        }
+
+        @Override
         public int path(int rows, int slot) {
             return bonus.rollPath(rows, slot);
         }
@@ -181,8 +186,8 @@ public class GameService {
         }
 
         @Override
-        public int target() {
-            return bonus.rollTarget();
+        public int target(List<BonusSettings.Segment> table) {
+            return bonus.rollTarget(table);
         }
     };
 
@@ -243,7 +248,7 @@ public class GameService {
         String theme = themes.resolve(requestedTheme);
         repository.insertSession(new GameRepository.Session(sessionId, player.id(), token, sessionExpiry(), theme));
         return new SessionResponse(sessionId, new PlayerInfo(pamPlayer.username()), pamPlayer.currency(),
-                Currencies.symbol(pamPlayer.currency()), pamPlayer.balance(), config(), theme, meterView(player.id(), bonus.current()), demo);
+                Currencies.symbol(pamPlayer.currency()), pamPlayer.balance(), config(theme), theme, meterView(player.id(), bonus.current()), demo);
     }
 
     /**
@@ -272,7 +277,8 @@ public class GameService {
         repository.extendSession(session.id(), sessionExpiry());
         // keeps the session's theme unless it was switched off since
         return new SessionResponse(session.id(), new PlayerInfo(player.username()), player.currency(),
-                Currencies.symbol(player.currency()), balance, config(), themes.resolve(session.theme()), meterView(player.id(), bonus.current()), demo);
+                Currencies.symbol(player.currency()), balance, config(themes.resolve(session.theme())), themes.resolve(session.theme()),
+                meterView(player.id(), bonus.current()), demo);
     }
 
     public GameConfig config() {
@@ -293,14 +299,21 @@ public class GameService {
         SettingsService.GameFeatures features = now.features();
         return new GameConfig(limits.minBet(), limits.maxBet(), limits.defaultBet(), limits.maxBalls(), rows,
                 features.holdToDrop(), features.sessionClock(), features.realityCheckMinutes(), features.quietSmallWins(),
-                features.minRoundSeconds(), withPowers(megaConfig(bonus.current()), bonus.current()));
+                features.minRoundSeconds(), withPowers(megaConfig(bonus.current()), bonus.current(), null));
+    }
+
+    /** The same, with only the power-ups this theme sells. */
+    public GameConfig config(String theme) {
+        GameConfig all = config();
+        return new GameConfig(all.minBet(), all.maxBet(), all.defaultBet(), all.maxBalls(), all.rows(), all.holdToDrop(), all.sessionClock(),
+                all.realityCheckMinutes(), all.quietSmallWins(), all.minRoundSeconds(), withPowers(all.mega(), bonus.current(), theme));
     }
 
     /** The power-ups on sale and their prices (x the bet, per ball) for every board and risk ("rows:risk"). */
-    private MegaConfig withPowers(MegaConfig mega, BonusSettings settings) {
+    private MegaConfig withPowers(MegaConfig mega, BonusSettings settings, String theme) {
         Map<String, Map<String, BigDecimal>> powers = new java.util.TreeMap<>();
         for (String power : BonusService.POWERS) {
-            if (!settings.powerOn(power)) {
+            if (!settings.powerOn(power) || (theme != null && !BonusService.themeSells(theme, power))) {
                 continue;
             }
             Map<String, BigDecimal> prices = new java.util.TreeMap<>();
@@ -416,7 +429,7 @@ public class GameService {
      */
     private PlayResponse playRound(GameRepository.Session session, GameRepository.Player player, PlayRequest request, RoundClaim claim,
                                    SettingsService.Snapshot now) {
-        Setup setup = prepare(request, now);
+        Setup setup = prepare(request, now, themes.resolve(session.theme()));
         String roundId = UUID.randomUUID().toString();
         org.slf4j.MDC.put("roundId", roundId);      // on every log line of this round (review 7.10)
         String debitId = UUID.randomUUID().toString();
@@ -452,7 +465,7 @@ public class GameService {
     }
 
     /** The odds table and bonuses in force, the round's cost, and the hard win limit (a bet that could exceed it is refused). */
-    private Setup prepare(PlayRequest request, SettingsService.Snapshot now) {
+    private Setup prepare(PlayRequest request, SettingsService.Snapshot now, String theme) {
         OddsService.Snapshot current = odds.forRound(now.version(), bonus.stored(now));
         OddsTable table = current.get(request.rows(), request.risk());
         // the odds version this round is played on, recorded with it so its win can be checked against it later
@@ -465,7 +478,8 @@ public class GameService {
         // a power-up: on sale with these bonuses, priced on this table; the round costs bet x balls x its price
         RoundDraw.Power power = null;
         if (request.power() != null) {
-            if (!current.bonus().powerOn(request.power())) {
+            // on sale with these bonuses, and one this theme sells
+            if (!current.bonus().powerOn(request.power()) || !BonusService.themeSells(theme, request.power())) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "POWER_UNAVAILABLE", "This power-up is not on sale");
             }
             power = new RoundDraw.Power(request.power(), BonusService.powerPrice(current.bonus(), table, request.power()));
@@ -675,7 +689,7 @@ public class GameService {
 
     /** What a power-up by slot multiplies each slot's prize by this round (the game shows the boosted prizes), or empty. */
     private static List<BigDecimal> slotFactors(String power, int rows, int risk) {
-        if (power == null || !(power.startsWith("strike-") || "missile".equals(power) || "night".equals(power))) {
+        if (power == null || !(power.startsWith("strike-") || power.startsWith("magnet-") || "missile".equals(power) || "night".equals(power))) {
             return List.of();
         }
         List<BigDecimal> factors = new ArrayList<>();

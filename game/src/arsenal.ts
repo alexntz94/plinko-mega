@@ -10,8 +10,8 @@ import { label, fit } from './ui';
 /** zones: a card sold per zone (the airstrike): the ids of its zones and their names */
 export interface ArsenalCard { id: string; name: string; text: string; ready: boolean; zones?: [string, string][] }
 
-/** Every power-up of the arsenal, the ones on sale first. */
-export const ARSENAL: ArsenalCard[] = [
+/** Bombs Away's arsenal. */
+const WAR_CARDS: ArsenalCard[] = [
   { id: 'heavy', name: 'HEAVY SHELLS', text: 'Every ball is a MEGA BALL (x2 to x10)', ready: true },
   { id: 'cluster', name: 'CLUSTER SHELLS', text: 'Each ball splits in 3 - the best landing pays', ready: true },
   { id: 'airstrike', name: 'PRECISION AIRSTRIKE', text: 'Pick a zone: its slots pay x2', ready: true,
@@ -21,6 +21,21 @@ export const ARSENAL: ArsenalCard[] = [
   { id: 'night', name: 'NIGHT RAID', text: 'Big prizes x3, small ones less', ready: true },
   { id: 'tank', name: 'TANK ASSAULT', text: 'A tank fires at 5 targets: x0.1 to x10 each', ready: true },
 ];
+
+/** Reactor Drop's boosters (Overcharge is the server's heavy). */
+const REACTOR_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'OVERCHARGE', text: 'Every capsule is supercharged: x2 to x10', ready: true },
+  { id: 'chain', name: 'CHAIN LIGHTNING', text: 'A capsule also wins half of each neighbouring bay', ready: true },
+  { id: 'magnet', name: 'MAGNETIC FIELD', text: '70% of capsules pulled to your side: its bays pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'CORE MELTDOWN', text: 'The reactor overloads after the drop: x0.5 to x20', ready: true },
+];
+
+/** Each theme's power-ups and what the panel (and its console key) is called. */
+export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
+  'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
+  'reactor-drop': { title: 'BOOST', hint: 'Charge your next release', cards: REACTOR_CARDS },
+};
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite; lit: Graphics; price: Text;
   zones: { id: string; root: Container; back: Graphics; text: Text }[] }
@@ -34,14 +49,14 @@ export class ArsenalPanel extends Container {
 
   /** prices: what a ball costs with each power-up (x the bet) on the board in play, or null when not on sale. */
   constructor(panel: Texture, private readonly look: { gold: string; text: string },
-              private readonly onPick: (id: string | null) => void) {
+              private readonly onPick: (id: string | null) => void, set = ARSENALS['bombs-away']) {
     super();
-    this.title = label('ARSENAL', 34, 'center', { fill: look.gold, stroke: { color: '#000000', width: 5, join: 'round' } });
+    this.title = label(set.title, 34, 'center', { fill: look.gold, stroke: { color: '#000000', width: 5, join: 'round' } });
     this.title.anchor.set(0.5, 0.5);
-    this.hint = label('Pick a power-up for your next drop', 15, 'center', { fill: look.text });
+    this.hint = label(set.hint, 15, 'center', { fill: look.text });
     this.hint.anchor.set(0.5, 0.5);
     this.addChild(this.dim, this.title, this.hint);
-    for (const card of ARSENAL) {
+    for (const card of set.cards) {
       const root = new Container();
       const art = new Sprite({ texture: panel, anchor: 0.5 });
       const lit = new Graphics();

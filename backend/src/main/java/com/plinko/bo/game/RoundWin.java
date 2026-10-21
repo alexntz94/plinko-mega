@@ -22,6 +22,7 @@ import java.util.List;
  * <li>{@code decoys:<ball>@<slot>/<slot>,...}: for a cluster shell, the two landings each ball did not keep;</li>
  * <li>{@code crate:<ball>x<multiplier>,...}: chain reaction: balls that hit an ammo crate and what it multiplied by;</li>
  * <li>{@code tank:<multiplier>,...}: tank assault: what each target paid, x the round's plain bet (bet x balls);</li>
+ * <li>{@code meltdown:<multiplier>}: core meltdown: what it paid, x the round's plain bet;</li>
  * <li>{@code megaball:<ball>x<multiplier>,...}: balls that dropped as a MEGA BALL and what it multiplied their win by
  *     (already in the ball's multiplier);</li>
  * <li>{@code spin:<ball>@<segment>x<multiplier>,...}: balls in a SPIN slot and what their wheel spin multiplied that
@@ -114,8 +115,9 @@ public final class RoundWin {
             return this;
         }
 
-        public Text tank(List<BigDecimal> targets) {
-            tank = "tank:" + String.join(",", targets.stream().map(t -> t.stripTrailingZeros().toPlainString()).toList());
+        /** The payouts after the balls, under the power-up's name (tank:, meltdown:). */
+        public Text targets(String power, List<BigDecimal> targets) {
+            tank = power + ":" + String.join(",", targets.stream().map(t -> t.stripTrailingZeros().toPlainString()).toList());
             return this;
         }
 
@@ -298,7 +300,7 @@ public final class RoundWin {
                         power = value.substring(0, x);
                         powerPrice = new BigDecimal(value.substring(x + 1));
                     }
-                    case "tank" -> {
+                    case "tank", "meltdown" -> {
                         for (String entry : value.split(",", -1)) {
                             targets.add(new BigDecimal(entry));
                         }

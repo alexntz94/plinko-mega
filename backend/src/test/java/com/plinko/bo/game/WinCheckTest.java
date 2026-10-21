@@ -118,6 +118,17 @@ class WinCheckTest {
     }
 
     @Test
+    void aCoreMeltdownPaysOnceOnTheRoundsPlainBet() {
+        // 3 balls at 0.10 (plain 0.30), meltdown x3.21: costs 0.97; it pays x the plain bet: x20 = 6.00
+        bet = new BigDecimal("0.10");
+        totalBet = new BigDecimal("0.97");
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "power:meltdownx3.21;meltdown:20", "6.71"))).isNull();
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "power:meltdownx3.21;meltdown:7", "2.81"))).startsWith("C5: tank target x7");
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "power:meltdownx3.21;meltdown:1,1", "1.31"))).startsWith("C5: tank targets");
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "power:meltdownx3.21", "0.71"))).startsWith("C5: tank targets");
+    }
+
+    @Test
     void aTankAssaultPaysItsTargetsOnTheRoundsPlainBet() {
         // 3 balls at 0.10 (plain 0.30), tank x4.70: costs 1.41; the targets pay x the plain bet: 0.03+0.06+0.15+0.30+3.00
         bet = new BigDecimal("0.10");

@@ -31,6 +31,11 @@ final class RoundDraw {
     interface Dice {
         int slot(OddsTable table);
 
+        /** The landing slot, falling to the left with this chance (a magnetic field); plain dice ignore it. */
+        default int slot(OddsTable table, double leftChance) {
+            return slot(table);
+        }
+
         /** A path to this slot (every path to it equally likely). */
         int path(int rows, int slot);
 
@@ -44,8 +49,8 @@ final class RoundDraw {
             return -1;
         }
 
-        /** A tank target: the index of what it pays in BonusService.TANK. */
-        default int target() {
+        /** A payout after the balls (a tank target, the meltdown): the index of what it pays in its table. */
+        default int target(List<BonusSettings.Segment> table) {
             return 0;
         }
 
@@ -127,13 +132,14 @@ final class RoundDraw {
         List<Spin> spins = new ArrayList<>();
         List<MegaBall> megaBalls = new ArrayList<>();
         List<MegaBall> crates = new ArrayList<>();
+        List<BigDecimal> prizeList = table.prizes().stream().map(OddsTable.Prize::multiplier).toList();
         List<Integer> slots = new ArrayList<>();
         List<BigDecimal> multipliers = new ArrayList<>();
         BigDecimal totalWin = BigDecimal.ZERO;
         // what each ball paid, exactly as added up into the win (the game shows these, never its own sums)
         List<BigDecimal> wins = new ArrayList<>();
         for (int ball = 0; ball < balls; ball++) {
-            int slot = dice.slot(table);
+            int slot = dice.slot(table, BonusService.leftChance(power == null ? null : power.name()));
             if (cluster) {
                 // three landings; the best prize is the ball's, the others are decoys
                 int[] landed = {slot, dice.slot(table), dice.slot(table)};
@@ -153,7 +159,8 @@ final class RoundDraw {
                 decoys.add(List.copyOf(others));
                 text.decoys(ball, others);
             }
-            BigDecimal prize = table.prizes().get(PlinkoBoard.prizeIndexOfSlot(table.rows(), slot)).multiplier();
+            // chain lightning: the slot's prize and half of each neighbour's
+            BigDecimal prize = BonusService.landingPrize(power == null ? null : power.name(), table.rows(), prizeList, slot);
             int path = holes.isEmpty() ? dice.path(table.rows(), slot) : dice.path(table.rows(), slot, holes);
             int passed = gateBoost == null ? 0 : MegaBoard.gatesPassed(layouts.get(layout), path);
             BigDecimal multiplier = prize.multiply(gateBoost == null ? BigDecimal.ONE : gateBoost.pow(passed));
@@ -206,19 +213,21 @@ final class RoundDraw {
                 totalWin = totalWin.add(spinWin);
             }
         }
-        // tank assault: after the balls, the tank's targets, each paying x the round's plain bet
+        // tank assault, core meltdown: after the balls, payouts of x the round's plain bet (5 tank targets, 1 meltdown)
         List<BigDecimal> targets = new ArrayList<>();
         List<BigDecimal> targetWins = new ArrayList<>();
-        if (power != null && "tank".equals(power.name())) {
+        int afterBalls = BonusService.targetCount(power == null ? null : power.name());
+        if (afterBalls > 0) {
+            List<BonusSettings.Segment> payouts = BonusService.targetTable(power.name());
             BigDecimal stake = bet.multiply(BigDecimal.valueOf(balls));
-            for (int t = 0; t < BonusService.TANK_TARGETS; t++) {
-                BigDecimal pays = BonusService.TANK.get(dice.target()).multiplier().stripTrailingZeros();
+            for (int t = 0; t < afterBalls; t++) {
+                BigDecimal pays = payouts.get(dice.target(payouts)).multiplier().stripTrailingZeros();
                 BigDecimal win = RoundWin.ball(stake, pays);
                 targets.add(pays);
                 targetWins.add(win);
                 totalWin = totalWin.add(win);
             }
-            text.tank(targets);
+            text.targets(power.name(), targets);
         }
         // a full meter pays its pot as a MEGA SPIN of the gold wheel, after the balls (at most 3 a round; further
         // charges wait for the next round)

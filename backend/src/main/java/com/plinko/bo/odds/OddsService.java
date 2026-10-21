@@ -482,6 +482,11 @@ public class OddsService implements ApplicationRunner {
 
     /** Picks the landing slot of one ball. */
     public int pickSlot(OddsTable table) {
+        return pickSlot(table, 0.5);
+    }
+
+    /** The same, falling to the left side with this chance (a magnetic field pulls the balls to one half). */
+    public int pickSlot(OddsTable table, double leftChance) {
         double target = random.nextDouble() * table.totalProbability().doubleValue();
         // Fallback for floating-point rounding at the very end of the range: the centre, never the jackpot.
         int prizeIndex = 0;
@@ -493,7 +498,7 @@ public class OddsService implements ApplicationRunner {
                 break;
             }
         }
-        return random.nextBoolean()
+        return random.nextDouble() < leftChance
                 ? PlinkoBoard.leftSlot(table.rows(), prizeIndex)
                 : PlinkoBoard.rightSlot(table.rows(), prizeIndex);
     }

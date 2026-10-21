@@ -8,7 +8,8 @@ import { BigWin, BlastShower, CoinShower, winLevel, type Shower } from './effect
 import { FortuneWheel, type PhotoRevolver } from './fortuneWheel';
 import { MegaControls } from './megaControls';
 import { ConsoleControls } from './consoleControls';
-import { ArsenalPanel } from './arsenal';
+import { ArsenalPanel, ARSENALS } from './arsenal';
+import { CoreMeltdown } from './meltdown';
 import { TankAssault } from './tank';
 import { WinTicker } from './ticker';
 import { Ambient, Screen, WinBanner } from './juice';
@@ -47,12 +48,15 @@ function photoRevolver(theme: Theme, tex: (file: string) => Texture): PhotoRevol
 
 /** The power-ups' short names, for the status line and the ARSENAL key. */
 const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER', 'strike-left': 'STRIKE L', 'strike-centre': 'STRIKE C',
-  'strike-right': 'STRIKE R', crates: 'CRATES', missile: 'MISSILE', night: 'NIGHT', tank: 'TANK' };
+  'strike-right': 'STRIKE R', crates: 'CRATES', missile: 'MISSILE', night: 'NIGHT', tank: 'TANK',
+  chain: 'CHAIN', 'magnet-left': 'MAGNET L', 'magnet-right': 'MAGNET R', meltdown: 'MELTDOWN' };
 /** Every power-up the arsenal can sell. */
-const POWER_IDS = ['heavy', 'cluster', 'strike-left', 'strike-centre', 'strike-right', 'crates', 'missile', 'night', 'tank'];
+const POWER_IDS = ['heavy', 'cluster', 'strike-left', 'strike-centre', 'strike-right', 'crates', 'missile', 'night', 'tank',
+  'chain', 'magnet-left', 'magnet-right', 'meltdown'];
 /** What a bought round is announced as. */
 const POWER_STAMPS: Record<string, string> = { cluster: 'CLUSTER SHELLS', 'strike-left': 'AIRSTRIKE x2', 'strike-centre': 'AIRSTRIKE x2',
-  'strike-right': 'AIRSTRIKE x2', crates: 'CHAIN REACTION', missile: 'MISSILE STRIKE x3', night: 'NIGHT RAID', tank: 'TANK ASSAULT' };
+  'strike-right': 'AIRSTRIKE x2', crates: 'CHAIN REACTION', missile: 'MISSILE STRIKE x3', night: 'NIGHT RAID', tank: 'TANK ASSAULT',
+  chain: 'CHAIN LIGHTNING', 'magnet-left': 'MAGNETIC FIELD', 'magnet-right': 'MAGNETIC FIELD', meltdown: 'CORE MELTDOWN' };
 
 /** Four quick bets for the console: the bet ladder's steps nearest 1, 5, 10 and 25 times the default bet. */
 function quickBets(ladder: number[], base: number): number[] {
@@ -90,6 +94,10 @@ export class Game extends Container {
   private power: string | null = null;
   private readonly arsenal: ArsenalPanel | null = null;
   private readonly tank: TankAssault | null = null;
+  private readonly meltdown: CoreMeltdown | null = null;
+  /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
+  private readonly powerNames: Record<string, string>;
+  private readonly heavyName: string;
   /** where the controls go on the board's console (the theme's frame picture) */
   private readonly consoleRects: NonNullable<Theme['console']>['rects'] | null;
   private readonly ticker: WinTicker;
@@ -154,6 +162,9 @@ export class Game extends Container {
       ok: tex('button_confirm.png'), no: tex('button_cancel.png') }, theme.landscapeExitFromPortrait,
     () => { this.closeExit(); this.go('menu'); }, () => this.closeExit());
     this.consoleRects = theme.console?.rects ?? null;
+    const reactor = theme.board.fx === 'reactor';
+    this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : 'HEAVY SHELLS';
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
     this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text],
@@ -212,8 +223,14 @@ export class Game extends Container {
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
     this.table.addChild(this.ambient, this.board, this.ticker, this.wheel, this.banner, this.meter, this.bar);
     if (theme.console && config.mega?.powers && Object.keys(config.mega.powers).length) {
-      this.arsenal = new ArsenalPanel(tex(theme.console.panel), { gold: theme.wheel.title, text: theme.text }, id => this.arm(id));
+      const set = ARSENALS[theme.id] ?? ARSENALS['bombs-away'];
+      this.arsenal = new ArsenalPanel(tex(theme.console.panel), { gold: theme.wheel.title, text: theme.text }, id => this.arm(id), set);
+      if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
+    }
+    if (theme.board.fx === 'reactor') {
+      this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim });
+      this.table.addChild(this.meltdown);
     }
     if (theme.blast?.tank) {
       this.tank = new TankAssault({ tank: tex(theme.blast.tank.body), target: tex(theme.blast.tank.target) });
@@ -384,7 +401,7 @@ export class Game extends Container {
     this.power = id && this.powerPrice(id) ? id : null;
     if (id) sound('golden');
     this.arsenal?.setArmed(this.power);
-    if (this.bar instanceof ConsoleControls) this.bar.setArmed(this.power ? POWER_NAMES[this.power] : null);
+    if (this.bar instanceof ConsoleControls) this.bar.setArmed(this.power ? this.powerNames[this.power] : null);
     this.refreshPanel();
     this.idleStatus();
   }
@@ -479,7 +496,7 @@ export class Game extends Container {
 
   private idleStatus(): void {
     this.statusTimer?.kill();
-    if (!this.busy()) this.board.setStatus((this.power ? POWER_NAMES[this.power] + ' · ' : '') + 'PLAY ' + this.money(this.roundCost()));
+    if (!this.busy()) this.board.setStatus((this.power ? this.powerNames[this.power] + ' · ' : '') + 'PLAY ' + this.money(this.roundCost()));
   }
 
   /** A message for a few seconds, then back to the price of a play. */
@@ -639,7 +656,7 @@ export class Game extends Container {
     const holes = new Set<number>();
     // a round bought with a power-up is announced once; then its MEGA BALLs are quiet (one of many)
     const heavy = round.power === 'heavy';
-    if (heavy) { this.board.stamp(`HEAVY SHELLS x${count}`); sound('huge'); this.screen.flash(0.35); }
+    if (heavy) { this.board.stamp(`${this.heavyName} x${count}`); sound('huge'); this.screen.flash(0.35); }
     if (round.power && POWER_STAMPS[round.power]) { this.board.stamp(POWER_STAMPS[round.power]); sound('huge'); }
     // a power-up by slot: the boosted prizes and their targets (the night) for this round
     if (round.slotFactors?.length) this.board.setPower(round.power ?? null, round.slotFactors);
@@ -680,6 +697,8 @@ export class Game extends Container {
             if (!this.holding) this.board.setStatus(`PLAYING...${spinsText()}`);
           }
           landSound(multiplier, landing);
+          // chain lightning: arcs jump from the bay to its neighbours (whose prizes it shares)
+          if (round.power === 'chain') this.board.chainArcs(landing.slot);
           // winning balls in a row make a combo
           streak = multiplier > 1 ? streak + 1 : 0;
           this.board.combo(streak);
@@ -695,8 +714,14 @@ export class Game extends Container {
     await Promise.all(drops);
     this.board.combo(0);
 
-    // tank assault: the tank fires at its targets, each adding its win as it is hit
-    if (round.targets?.length && this.tank) {
+    // core meltdown: the reactor's pressure gauge climbs to what it pays
+    if (round.power === 'meltdown' && round.targets?.length && this.meltdown) {
+      if (this.view) this.meltdown.layout(this.view);
+      const win = round.targetWins?.[0] ?? 0;
+      await this.meltdown.play(round.targets[0], `x${round.targets[0]}  ${this.money(win)}`,
+        () => { land(win); sound(round.targets![0] >= 5 ? 'jackpot' : 'big'); this.screen.flash(0.6); }, () => sound('riser', { volume: 0.7 }));
+    } else if (round.targets?.length && this.tank) {
+      // tank assault: the tank fires at its targets, each adding its win as it is hit
       if (this.view) this.tank.layout(this.view);
       const wins = round.targetWins ?? [];
       await this.tank.play(round.targets, i => `x${round.targets![i]}  ${this.money(wins[i] ?? 0)}`,

@@ -171,6 +171,11 @@ export class Slot extends Container {
       .to(this.flash, { alpha: 1, duration: 0.2 })
       .to(this.flash, { alpha: 0, duration: 0.2 });
   }
+
+  /** Lights up without moving (a neighbour hit by chain lightning). */
+  glow(): void {
+    gsap.fromTo(this.flash, { alpha: 0.9 }, { alpha: 0, duration: 0.4 });
+  }
 }
 
 /**
@@ -1192,9 +1197,35 @@ export class Board extends Container {
         gsap.to(beam, { rotation: -side * 0.35, duration: 2.4, yoyo: true, repeat: -1, ease: 'sine.inOut' });
       }
     }
-    const colour = night ? '#ffd76a' : '#ff3b2a';
+    // targets: red for an airstrike or a missile, gold at night, cyan for a magnetic field
+    const magnet = power.startsWith('magnet-');
+    const colour = night ? '#ffd76a' : magnet ? '#46d9f2' : '#ff3b2a';
+    if (magnet) {
+      // the field: cyan lines bowing towards the pulled half, pulsing in from the far side
+      const { w, h } = this.contentSize();
+      const side = power === 'magnet-left' ? -1 : 1;
+      for (let k = 0; k < 4; k++) {
+        const field = new Graphics()
+          .moveTo(side * w * 0.1, h * (0.25 + 0.15 * k)).quadraticCurveTo(side * w * 0.32, h * (0.3 + 0.15 * k), side * w * 0.46, h * (0.42 + 0.14 * k))
+          .stroke({ color: '#46d9f2', width: 3, alpha: 0.5 });
+        field.blendMode = 'add';
+        this.nightLayer.addChild(field);
+        gsap.fromTo(field, { alpha: 0.15 }, { alpha: 0.8, duration: 0.6, delay: k * 0.15, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+      }
+    }
     this.slotFactors.forEach((factor, i) => {
       if (factor <= 1) return;
+      if (magnet) {
+        // a magnetic field's bays: a glowing frame round each, breathing (no gun sight in a reactor)
+        const glow = new Graphics()
+          .roundRect(-SLOT_W * 0.55, -SLOT_H * 0.5, SLOT_W * 1.1, SLOT_H * 0.95, 5).stroke({ color: colour, width: 6, alpha: 0.3 })
+          .roundRect(-SLOT_W * 0.55, -SLOT_H * 0.5, SLOT_W * 1.1, SLOT_H * 0.95, 5).stroke({ color: '#e8fbff', width: 1.5 });
+        glow.blendMode = 'add';
+        glow.position.set(this.slotX(i), this.slotY());
+        this.powerLayer.addChild(glow);
+        gsap.fromTo(glow, { alpha: 0.35 }, { alpha: 1, duration: 0.5, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+        return;
+      }
       const mark = new Graphics()
         .circle(0, 0, SLOT_W * 0.5).stroke({ color: colour, width: 2.5 })
         .moveTo(-SLOT_W * 0.65, 0).lineTo(-SLOT_W * 0.3, 0).moveTo(SLOT_W * 0.3, 0).lineTo(SLOT_W * 0.65, 0)
@@ -1204,6 +1235,39 @@ export class Board extends Container {
       this.powerLayer.addChild(mark);
       gsap.fromTo(mark.scale, { x: 0.8, y: 0.8 }, { x: 1.1, y: 1.1, duration: 0.5, yoyo: true, repeat: -1, ease: 'sine.inOut' });
     });
+  }
+
+  /**
+   * Chain lightning: arcs jump from a landing bay to its two neighbours (the ball shares their prizes), crackle twice
+   * and fade; the neighbours light up as they are hit.
+   */
+  chainArcs(slot: number): void {
+    const y = this.slotY() - SLOT_H * 0.35;
+    for (const n of [slot - 1, slot + 1]) {
+      if (n < 0 || n > this.rows) continue;
+      const x0 = this.slotX(slot), x1 = this.slotX(n);
+      const bolt = new Graphics();
+      const draw = () => {
+        bolt.clear();
+        for (const [width, colour, alpha] of [[14, '#46d9f2', 0.3], [6, '#46d9f2', 0.7], [3, '#ffffff', 1]] as const) {
+          bolt.moveTo(x0, y);
+          for (let k = 1; k < 8; k++) {
+            const t = k / 8;
+            bolt.lineTo(x0 + (x1 - x0) * t + (Math.random() - 0.5) * 8, y - Math.sin(t * Math.PI) * SLOT_H * 1.1 + (Math.random() - 0.5) * 12);
+          }
+          bolt.lineTo(x1, y).stroke({ color: colour, width, alpha, cap: 'round', join: 'round' });
+        }
+      };
+      draw();
+      bolt.blendMode = 'add';
+      this.textLayer.addChild(bolt);
+      // it crackles (redrawn twice) and fades
+      gsap.timeline({ onComplete: () => bolt.destroy() })
+        .call(draw, [], 0.07).call(draw, [], 0.14).call(draw, [], 0.21)
+        .to(bolt, { alpha: 0, duration: 0.3 }, 0.28);
+      this.slots[n]?.glow();
+      kindBlast(this.textLayer, 'small', x1, y, 56);
+    }
   }
 
   /** An ammo crate on a peg (chain reaction), drawn: an olive box with a frame, straps and a stencilled X. */

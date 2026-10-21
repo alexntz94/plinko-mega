@@ -187,6 +187,10 @@ class MegaRtpTest {
                 return odds.pickSlot(t);
             }
 
+            public int slot(OddsTable t, double leftChance) {
+                return odds.pickSlot(t, leftChance);
+            }
+
             public int path(int rows, int slot) {
                 return bonus.rollPath(rows, slot);
             }
@@ -207,8 +211,8 @@ class MegaRtpTest {
                 return bonus.rollCrate();
             }
 
-            public int target() {
-                return bonus.rollTarget();
+            public int target(java.util.List<BonusSettings.Segment> table) {
+                return bonus.rollTarget(table);
             }
         };
         int rounds = 20_000, batches = 100, perBatch = rounds / batches;

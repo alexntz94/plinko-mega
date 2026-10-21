@@ -266,9 +266,16 @@ export class ConsoleControls extends Container {
     this.bet.set(perBall);
     this.quick.forEach((k, i) => k.setLit(perBall.replace(/[^0-9.]/g, '') === String(this.quickValues[i].toFixed(2)), this.look));
   }
+  /** What the power-up key says when nothing is armed (the theme's name for its panel). */
+  private arsenalName = 'ARSENAL';
+  setArsenalName(name: string): void {
+    this.arsenalName = name;
+    this.arsenalKey.text.text = name;
+  }
+
   /** The armed power-up (its short name), lit on the ARSENAL key; null: none. */
   setArmed(name: string | null): void {
-    this.arsenalKey.text.text = name ?? 'ARSENAL';
+    this.arsenalKey.text.text = name ?? this.arsenalName;
     this.arsenalKey.setLit(name !== null, this.look);
     fit(this.arsenalKey.text, this.arsenalKey.art.width * 0.8);
   }

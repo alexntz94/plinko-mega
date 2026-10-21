@@ -406,7 +406,64 @@ public class BonusService {
 
     /** The power-ups a round can be bought with. */
     public static final java.util.List<String> POWERS = java.util.List.of("heavy", "cluster", "strike-left", "strike-centre", "strike-right",
-            "crates", "missile", "night", "tank");
+            "crates", "missile", "night", "tank", "chain", "magnet-left", "magnet-right", "meltdown");
+
+    /** The power-ups each theme sells (Reactor Drop's Overcharge is heavy under its own name). */
+    public static final java.util.Map<String, java.util.List<String>> THEME_POWERS = java.util.Map.of(
+            "bombs-away", java.util.List.of("heavy", "cluster", "strike-left", "strike-centre", "strike-right", "crates", "missile", "night", "tank"),
+            "reactor-drop", java.util.List.of("heavy", "chain", "magnet-left", "magnet-right", "meltdown"));
+
+    /** Whether a theme sells this power-up (a theme not listed sells none). */
+    public static boolean themeSells(String theme, String power) {
+        return THEME_POWERS.getOrDefault(theme, java.util.List.of()).contains(power);
+    }
+
+    /** Magnetic field: the share of balls pulled to the chosen half, and what that half's slots pay. */
+    public static final double MAGNET_PULL = 0.7;
+    public static final BigDecimal MAGNET_BOOST = new BigDecimal("1.5");
+
+    /** The chance a ball falls to the left (0.5, or the magnet's pull). */
+    public static double leftChance(String power) {
+        return "magnet-left".equals(power) ? MAGNET_PULL : "magnet-right".equals(power) ? 1 - MAGNET_PULL : 0.5;
+    }
+
+    /** Core meltdown: its one payout after the balls, x the round's plain bet (weights add up to 100). */
+    public static final java.util.List<BonusSettings.Segment> MELTDOWN = java.util.List.of(
+            new BonusSettings.Segment(null, new BigDecimal("0.5"), new BigDecimal("30")),
+            new BonusSettings.Segment(null, new BigDecimal("1"), new BigDecimal("25")),
+            new BonusSettings.Segment(null, new BigDecimal("2"), new BigDecimal("20")),
+            new BonusSettings.Segment(null, new BigDecimal("3"), new BigDecimal("12")),
+            new BonusSettings.Segment(null, new BigDecimal("5"), new BigDecimal("8")),
+            new BonusSettings.Segment(null, new BigDecimal("10"), new BigDecimal("4")),
+            new BonusSettings.Segment(null, new BigDecimal("20"), new BigDecimal("1")));
+
+    /** The payouts a power-up adds after the balls: how many, and from which table (none: 0). */
+    public static int targetCount(String power) {
+        return "tank".equals(power) ? TANK_TARGETS : "meltdown".equals(power) ? 1 : 0;
+    }
+
+    public static java.util.List<BonusSettings.Segment> targetTable(String power) {
+        return "meltdown".equals(power) ? MELTDOWN : TANK;
+    }
+
+    /**
+     * What a ball landing in this slot is paid before its boosts: the slot's prize; with chain lightning also half of
+     * each neighbouring slot's prize (an edge slot has one neighbour). prizes: by prize position.
+     */
+    public static BigDecimal landingPrize(String power, int rows, java.util.List<BigDecimal> prizes, int slot) {
+        BigDecimal prize = prizes.get(PlinkoBoard.prizeIndexOfSlot(rows, slot));
+        if (!"chain".equals(power)) {
+            return prize;
+        }
+        BigDecimal half = new BigDecimal("0.5");
+        if (slot > 0) {
+            prize = prize.add(prizes.get(PlinkoBoard.prizeIndexOfSlot(rows, slot - 1)).multiply(half));
+        }
+        if (slot < rows) {
+            prize = prize.add(prizes.get(PlinkoBoard.prizeIndexOfSlot(rows, slot + 1)).multiply(half));
+        }
+        return prize;
+    }
 
     /** Tank assault: how many targets the tank fires at, and what each pays (x the round's plain bet; weights add up to 100). */
     public static final int TANK_TARGETS = 5;
@@ -419,11 +476,11 @@ public class BonusService {
             new BonusSettings.Segment(null, new BigDecimal("5"), new BigDecimal("3")),
             new BonusSettings.Segment(null, new BigDecimal("10"), new BigDecimal("1")));
 
-    /** One tank target: the index of what it pays in TANK. */
-    public int rollTarget() {
+    /** One payout after the balls (a tank target, the meltdown): the index of what it pays in its table. */
+    public int rollTarget(java.util.List<BonusSettings.Segment> table) {
         double pick = random.nextDouble() * 100, cumulative = 0;
-        for (int i = 0; i < TANK.size(); i++) {
-            cumulative += TANK.get(i).weight().doubleValue();
+        for (int i = 0; i < table.size(); i++) {
+            cumulative += table.get(i).weight().doubleValue();
             if (pick < cumulative) {
                 return i;
             }
@@ -454,6 +511,8 @@ public class BonusService {
             case "strike-right" -> slot > rows - third ? BigDecimal.TWO : BigDecimal.ONE;
             case "strike-centre" -> slot >= third && slot <= rows - third ? BigDecimal.TWO : BigDecimal.ONE;
             case "missile" -> index >= PlinkoBoard.prizeCount(rows) - 2 ? BigDecimal.valueOf(3) : BigDecimal.ONE;
+            case "magnet-left" -> slot < rows / 2.0 ? MAGNET_BOOST : BigDecimal.ONE;
+            case "magnet-right" -> slot > rows / 2.0 ? MAGNET_BOOST : BigDecimal.ONE;
             case "night" -> {
                 double[][] shape = com.plinko.bo.odds.OddsDefaults.MULTIPLIERS.get(rows);
                 double standard = shape == null ? 1 : shape[index][risk];
@@ -472,7 +531,8 @@ public class BonusService {
             case "heavy" -> bonus.megaBall().multipliers().stream().map(BonusSettings.Segment::multiplier).max(BigDecimal::compareTo).orElse(BigDecimal.ONE);
             case "crates" -> BigDecimal.valueOf(5);
             case "missile", "night" -> BigDecimal.valueOf(3);
-            case "strike-left", "strike-centre", "strike-right" -> BigDecimal.TWO;
+            case "strike-left", "strike-centre", "strike-right", "chain" -> BigDecimal.TWO;
+            case "magnet-left", "magnet-right" -> MAGNET_BOOST;
             default -> BigDecimal.ONE;
         };
     }
@@ -546,21 +606,27 @@ public class BonusService {
                 powered += (Math.pow(upTo, 3) - Math.pow(below, 3)) * plain[i];
                 below = upTo;
             }
-        } else if ("tank".equals(power)) {
-            // the balls as usual, and on top the tank's targets: each pays x the round's plain bet, so per ball x1
+        } else if (targetCount(power) > 0) {
+            // the balls as usual, and on top the payouts after them (tank targets, the meltdown): each pays x the
+            // round's plain bet, so per ball x1
             double target = 0;
-            for (BonusSettings.Segment s : TANK) {
+            for (BonusSettings.Segment s : targetTable(power)) {
                 target += s.multiplier().doubleValue() * s.weight().doubleValue() / 100;
             }
-            powered = normal + TANK_TARGETS * target;
+            powered = normal + targetCount(power) * target;
         } else if (POWERS.contains(power)) {
-            // by slot (airstrike, missile, night): each position's two slots equally likely; crates: every ball alike
+            // by slot (airstrike, missile, night, magnet: each position's two slots by the chance of falling to that
+            // side); chain: the slot's prize and half its neighbours'; crates: every ball alike
             int rows = table.rows();
+            double left = leftChance(power);
+            java.util.List<BigDecimal> prizes = table.prizes().stream().map(OddsTable.Prize::multiplier).toList();
             double[] factor = new double[n];
             for (int i = 0; i < n; i++) {
+                int l = PlinkoBoard.leftSlot(rows, i), r = PlinkoBoard.rightSlot(rows, i);
+                double prize = prizes.get(i).doubleValue();
                 factor[i] = "crates".equals(power) ? 1 + CRATE_CHANCE.doubleValue() / 100 * (crateExpected() - 1)
-                        : (slotFactor(power, rows, table.risk(), PlinkoBoard.leftSlot(rows, i)).doubleValue()
-                        + slotFactor(power, rows, table.risk(), PlinkoBoard.rightSlot(rows, i)).doubleValue()) / 2;
+                        : "chain".equals(power) ? (landingPrize(power, rows, prizes, l).doubleValue() + landingPrize(power, rows, prizes, r).doubleValue()) / 2 / prize
+                        : left * slotFactor(power, rows, table.risk(), l).doubleValue() + (1 - left) * slotFactor(power, rows, table.risk(), r).doubleValue();
             }
             double[] boosted = positionValues(bonus, table, plainBall, factor);
             for (int i = 0; i < n; i++) {

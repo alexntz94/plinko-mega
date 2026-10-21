@@ -140,6 +140,10 @@
                 <label class="check-row"><input type="checkbox" name="missileOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().missile()}"> Missile strike: the outer slots pay x3</label>
                 <label class="check-row"><input type="checkbox" name="nightOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().night()}"> Night raid: big prizes x3, prizes under 1x pay 0.6 of themselves</label>
                 <label class="check-row"><input type="checkbox" name="tankOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().tank()}"> Tank assault: after the balls the tank fires at 5 targets, each pays x0.1 to x10 of the round's bet</label>
+                <p class="hint">Reactor Drop (its Overcharge is Heavy shells above):</p>
+                <label class="check-row"><input type="checkbox" name="chainOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().chain()}"> Chain lightning: a capsule also wins half of each neighbouring bay's prize</label>
+                <label class="check-row"><input type="checkbox" name="magnetOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().magnet()}"> Magnetic field: 70% of capsules pulled to the chosen half, whose bays pay x1.5</label>
+                <label class="check-row"><input type="checkbox" name="meltdownOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().meltdown()}"> Core meltdown: after the capsules one payout of x0.5 to x20 of the round's bet</label>
             </div>
         </div>
 

@@ -196,7 +196,7 @@ public class WinCheck {
             if (outcome.gateBoost() != null) {
                 gates = outcome.gateBoost().pow(MegaBoard.gatesPassed(MegaBoard.layouts(round.rows()).get(outcome.layout()), outcome.paths().get(ball)));
             }
-            String problem = ballProblem(round, "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball),
+            String problem = ballProblem(round, outcome.power(), "ball " + ball, outcome.slots().get(ball), outcome.multipliers().get(ball),
                     gates.multiply(outcome.megaBallTimes(ball)).multiply(outcome.crateTimes(ball))
                             .multiply(com.plinko.bo.bonus.BonusService.slotFactor(outcome.power(), round.rows(), round.risk(), outcome.slots().get(ball))),
                     prizes);
@@ -244,12 +244,11 @@ public class WinCheck {
                 }
             }
         }
-        if ("tank".equals(outcome.power()) != !outcome.targets().isEmpty()
-                || (!outcome.targets().isEmpty() && outcome.targets().size() != com.plinko.bo.bonus.BonusService.TANK_TARGETS)) {
+        if (outcome.targets().size() != com.plinko.bo.bonus.BonusService.targetCount(outcome.power())) {
             return "C5: tank targets do not match the power-up";
         }
         for (BigDecimal target : outcome.targets()) {
-            if (com.plinko.bo.bonus.BonusService.TANK.stream().noneMatch(t -> t.multiplier().compareTo(target) == 0)) {
+            if (com.plinko.bo.bonus.BonusService.targetTable(outcome.power()).stream().noneMatch(t -> t.multiplier().compareTo(target) == 0)) {
                 return "C5: tank target x" + target + " does not exist";
             }
         }
@@ -295,7 +294,7 @@ public class WinCheck {
         return null;
     }
 
-    private static String ballProblem(GameRepository.Round round, String name, int slot, BigDecimal multiplier, BigDecimal boost,
+    private static String ballProblem(GameRepository.Round round, String power, String name, int slot, BigDecimal multiplier, BigDecimal boost,
                                       Optional<List<BigDecimal>> prizes) {
         if (slot < 0 || slot > round.rows()) {
             return "C5: " + name + " landed in slot " + slot + ", outside a board of " + round.rows() + " rows";
@@ -304,7 +303,7 @@ public class WinCheck {
             return "C5: " + name + " has multiplier " + multiplier + " and boost " + boost;
         }
         if (prizes.isPresent()) {
-            BigDecimal expected = prizes.get().get(PlinkoBoard.prizeIndexOfSlot(round.rows(), slot)).multiply(boost);
+            BigDecimal expected = com.plinko.bo.bonus.BonusService.landingPrize(power, round.rows(), prizes.get(), slot).multiply(boost);
             if (expected.compareTo(multiplier) != 0) {
                 return "C5: " + name + " in slot " + slot + " paid " + multiplier + "x, the odds it was played on give " + expected.stripTrailingZeros() + "x";
             }

@@ -11,10 +11,6 @@
     "file": "black-ops-one.woff2",
     "weight": "400"
   },
-  "video": {
-    "wide": "background.mp4",
-    "tall": "background_p.mp4"
-  },
   "board": {
     "fx": "war",
     "peg": "item_peg.png",
@@ -24,26 +20,33 @@
     "slotArt": true,
     "slots": [
       {
-        "face": "#3e454d",
-        "text": "#e9e4d4"
+        "face": "#c1121f",
+        "text": "#ffd0c8"
       },
       {
-        "face": "#5c6629",
-        "text": "#f1f3d8"
+        "face": "#d4380f",
+        "text": "#ffe0c8"
       },
       {
-        "face": "#a8884f",
-        "text": "#1a1206"
+        "face": "#c87a10",
+        "text": "#fff0d0"
       },
       {
-        "face": "#d86a1e",
-        "text": "#fff3d6"
+        "face": "#d9a21a",
+        "text": "#fff6dc"
       },
       {
-        "face": "#e0262f",
-        "text": "#ffe28a"
+        "face": "#f2c230",
+        "text": "#fffbe8"
       }
-    ]
+    ],
+    "fit": {
+      "rows": 8,
+      "rowGap": 0.62,
+      "x": 384,
+      "y": 75.7,
+      "spacing": 51.3
+    }
   },
   "wheel": {
     "faces": [
@@ -82,9 +85,59 @@
     },
     "hub": "item_wheel_hub.png",
     "pointer": "item_wheel_pointer.png",
-    "bezel": "item_wheel_rim.png",
-    "glass": "item_wheel_glass.png",
-    "style": "revolver"
+    "style": "revolver",
+    "spinMark": "spin_mark.png",
+    "revolverArt": {
+      "cylinder": "wheel_cylinder.png",
+      "dial": "wheel_dial.png",
+      "flash": "muzzle_flash.png",
+      "cartridges": {
+        "plain": "cartridge_brass.png",
+        "MINI": "cartridge_nickel.png",
+        "MAJOR": "cartridge_copper.png",
+        "MEGA": "cartridge_red.png"
+      },
+      "centre": [
+        0.4992,
+        0.4992
+      ],
+      "radius": 0.4753,
+      "chambers": [
+        [
+          0.4984,
+          0.1627
+        ],
+        [
+          0.752,
+          0.2799
+        ],
+        [
+          0.811,
+          0.5455
+        ],
+        [
+          0.6555,
+          0.7488
+        ],
+        [
+          0.3469,
+          0.7536
+        ],
+        [
+          0.1842,
+          0.547
+        ],
+        [
+          0.2464,
+          0.2807
+        ]
+      ],
+      "opening": [
+        0.4992,
+        0.5327
+      ],
+      "openingRadius": 0.2951
+    }
   },
   "ambient": {
     "colours": [
@@ -123,5 +176,10 @@
     "result",
     "jackpot"
   ],
-  "music": "music.mp3"
+  "music": "music.mp3",
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png"
+  }
 }

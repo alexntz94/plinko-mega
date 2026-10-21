@@ -1,12 +1,13 @@
-import { Container, type Texture } from 'pixi.js';
+import { Container, Rectangle, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { errorText, formatAmount, playRound, resumeSession, type ApiError, type HistoryEntry, type MeterInfo, type Round, type Session } from './api';
 import { HistoryPanel } from './historyPanel';
 import { ResponsiblePlay } from './responsible';
 import { Board, smashedPegs, type Landing, type PegHit } from './board';
 import { BigWin, BlastShower, CoinShower, winLevel, type Shower } from './effects';
-import { FortuneWheel } from './fortuneWheel';
+import { FortuneWheel, type PhotoRevolver } from './fortuneWheel';
 import { MegaControls } from './megaControls';
+import { ConsoleControls } from './consoleControls';
 import { WinTicker } from './ticker';
 import { Ambient, Screen, WinBanner } from './juice';
 import { Meter } from './meter';
@@ -33,6 +34,25 @@ function cents(value: number): number {
   return Math.floor(value * 100 + 1e-9) / 100;
 }
 
+/** The theme's photo revolver's textures, or null. */
+function photoRevolver(theme: Theme, tex: (file: string) => Texture): PhotoRevolver | null {
+  const art = theme.wheel.revolverArt;
+  if (!art) return null;
+  const c = art.cartridges;
+  return { cylinder: tex(art.cylinder), dial: tex(art.dial), flash: tex(art.flash), spec: art,
+    cartridges: { plain: tex(c.plain), MINI: tex(c.MINI), MAJOR: tex(c.MAJOR), MEGA: tex(c.MEGA) } };
+}
+
+/** Four quick bets for the console: the bet ladder's steps nearest 1, 5, 10 and 25 times the default bet. */
+function quickBets(ladder: number[], base: number): number[] {
+  const picks: number[] = [];
+  for (const times of [1, 5, 10, 25]) {
+    const best = ladder.reduce((a, b) => (Math.abs(b - base * times) < Math.abs(a - base * times) ? b : a), ladder[0]);
+    if (!picks.includes(best)) picks.push(best);
+  }
+  return picks;
+}
+
 /** A pause that stops while the exit dialog is open (it runs on GSAP's clock). */
 const wait = (seconds: number) => new Promise<void>(resolve => { gsap.delayedCall(seconds, resolve); });
 
@@ -54,7 +74,7 @@ export class Game extends Container {
   private readonly shower: Shower;
   /** The fortune wheel under the board, and the control bar. */
   private readonly wheel: FortuneWheel;
-  private readonly bar: MegaControls;
+  private readonly bar: MegaControls | ConsoleControls;
   private readonly ticker: WinTicker;
   /** The slot-machine feel: petals always drifting, the WIN banner, the screen's flash and slow motion. */
   private readonly ambient: Ambient;
@@ -82,8 +102,8 @@ export class Game extends Container {
   private holding = false;        // autoplay is running
   private queuedTaps = 0;         // taps that came while a request was on its way: played right after it
   private pendingWins = 0;        // wins of balls still in the air: on screen only once they land
-  private sessionWin = 0;         // everything won since the game was opened (the bar's WIN), rounds that have ended
-  private landing = 0;            // what has landed so far in rounds still playing (shown in WIN as it lands)
+  private roundWin = 0;           // the bar's WIN: what the latest round has won so far (from 0 at every round)
+  private roundSeq = 0;           // which round is the latest (an earlier one still landing doesn't touch WIN)
   private statusTimer: gsap.core.Tween | null = null;
   private gameOverTimer: gsap.core.Tween | null = null;
 
@@ -92,7 +112,10 @@ export class Game extends Container {
               private readonly roundPlayed: () => void = () => undefined) {
     super();
     const config = session.config;
-    this.rowOptions = config.rows.map(r => r.rows).sort((a, b) => a - b);
+    // a frame drawn for one board (theme fit) allows only its number of rows
+    const only = theme.board.fit?.rows;
+    const offered = config.rows.map(r => r.rows).sort((a, b) => a - b);
+    this.rowOptions = only && offered.includes(only) ? [only] : offered;
     this.rows = this.rowOptions[0] ?? 8;
     const defaultBet = config.defaultBet || config.minBet;
     this.ladder = betLadder(config.minBet, config.maxBet, defaultBet);
@@ -122,7 +145,7 @@ export class Game extends Container {
     this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
-        explode: theme.board.fx === 'war' });
+        explode: theme.board.fx === 'war', photo: photoRevolver(theme, tex) });
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
       // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
@@ -135,20 +158,25 @@ export class Game extends Container {
     };
     this.wheel.visible = false;   // only at the end of a round with spins
     this.wheel.setWheel(mega?.wheel ?? []);
-    this.bar = new MegaControls({ gold: theme.wheel.title, ink: theme.wheel.ink, panel: theme.ui.panel, text: theme.text }, {
+    const actions = {
       play: () => this.play(),
       auto: () => { if (this.holding) this.stopHolding(); else if (this.page === 'game') void this.autoplay(); },
-      turbo: on => { this.turbo = on; this.board.speed = on ? 2 : 1; this.wheel.setHurry(on); },
+      turbo: (on: boolean) => { this.turbo = on; this.board.speed = on ? 2 : 1; this.wheel.setHurry(on); },
       bump: () => { sound('clack'); this.board.bump(); },
-      bet: up => this.changeBet(up),
-      risk: step => this.changeRisk(step),
-      balls: step => {
+      bet: (up: boolean) => this.changeBet(up),
+      risk: (step: number) => this.changeRisk(step),
+      balls: (step: number) => {
         const steps = ballSteps(config.maxBalls);
         const at = Math.max(0, steps.findIndex(balls => balls >= this.balls));
         this.changeBalls(steps[Math.min(steps.length - 1, Math.max(0, at + step))]);
       },
-      rows: step => this.changeRows(this.rowOptions.indexOf(this.rows) + step),
-    });
+      rows: (step: number) => this.changeRows(this.rowOptions.indexOf(this.rows) + step),
+      pickBet: (value: number) => this.pickBet(value),
+    };
+    this.bar = theme.console
+      ? new ConsoleControls({ drop: tex(theme.console.drop), panel: tex(theme.console.panel), key: tex(theme.console.key) },
+        { gold: theme.wheel.title, text: theme.text, ink: theme.wheel.ink }, actions, quickBets(this.ladder, defaultBet), value => this.money(value))
+      : new MegaControls({ gold: theme.wheel.title, ink: theme.wheel.ink, panel: theme.ui.panel, text: theme.text }, actions);
     this.ticker = new WinTicker(theme.wheel.title);
     this.ambient = new Ambient(theme.ambient.colours, theme.ambient.rise);
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
@@ -187,9 +215,12 @@ export class Game extends Container {
     this.shower.layout(view);
     // the board with the wheel right under it, as one column; portrait: the bar below them, landscape: beside them
     const visibleH = view.stageH - 2 * view.offsetY;
-    if (view.landscape) this.wheel.place(view.stageW * 0.4, view.offsetY + visibleH * 0.78, Math.min(150, visibleH * 0.26));
-    else this.wheel.place(view.stageW / 2, view.stageH * 0.66, Math.min(175, visibleH * 0.19));
-    if (view.landscape) {
+    const boardX = this.bar instanceof ConsoleControls ? view.stageW / 2 : view.stageW * 0.32;
+    if (view.landscape) this.wheel.place(boardX, view.offsetY + visibleH * 0.62, Math.min(170, visibleH * 0.28));
+    else this.wheel.place(view.stageW / 2, view.stageH * 0.36, Math.min(175, visibleH * 0.19));
+    if (this.bar instanceof ConsoleControls) {
+      this.layoutConsole(view, this.bar);
+    } else if (view.landscape) {
       // the column right of the board and wheel (they end at about 0.6 of the width)
       const left = view.stageW * 0.6, right = view.stageW - view.offsetX - 8;
       this.bar.layout(view, (left + right) / 2, right - left);
@@ -199,17 +230,47 @@ export class Game extends Container {
     this.ambient.layout(view);
     this.screen.layout(view);
     // the WIN banner over the top of the board
-    if (view.landscape) this.banner.position.set(view.stageW * 0.4, view.offsetY + (view.stageH - 2 * view.offsetY) * 0.2);
+    if (view.landscape) this.banner.position.set(boardX, view.offsetY + (view.stageH - 2 * view.offsetY) * 0.2);
     else this.banner.position.set(view.stageW / 2, view.stageH * 0.17);
     this.ticker.layout(view);
     this.meter.layout(view);
     this.options.layout(view);
   }
 
+  /**
+   * The console's parts: wide, in the board's own console (where the frame picture shows its panels, in its 1x
+   * pixels); tall, in rows under the board. Credits and the win: top right.
+   */
+  private layoutConsole(view: Viewport, bar: ConsoleControls): void {
+    const at = (x: number, y: number) => {
+      const p = this.board.framePoint(x, y, view.landscape);
+      return p ? this.table.toLocal(p) : { x: 0, y: 0 };
+    };
+    const rect = (x0: number, y0: number, x1: number, y1: number) => {
+      const a = at(x0, y0), b = at(x1, y1);
+      return new Rectangle(a.x, a.y, b.x - a.x, b.y - a.y);
+    };
+    if (view.landscape) {
+      const w = Math.min(260, view.stageW * 0.2);
+      bar.layout(view, { left: rect(80, 418, 246, 498), centre: rect(276, 428, 492, 488), right: rect(522, 418, 694, 498),
+        credits: new Rectangle(view.stageW - view.offsetX - w - 120, view.offsetY + 14, w, 116) });
+    } else {
+      bar.layout(view, null, at(384, 418).y + 6);
+    }
+  }
+
   /** The board's place: room for the wheel and the control bar. */
   private layoutBoard(view: Viewport): void {
     // the wheel only shows at the end of a round with spins (over the board), so the board has the room
-    this.board.layout(view, view.landscape ? { x: view.stageW * 0.4, y: view.offsetY + (view.stageH - 2 * view.offsetY) * 0.47, fit: 0.88 }
+    const visibleH = view.stageH - 2 * view.offsetY;
+    if (this.bar instanceof ConsoleControls) {
+      // the board and its console, centred and as big as the screen allows (wide); the board on top (tall)
+      this.board.layout(view, view.landscape
+        ? { x: view.stageW / 2, y: view.offsetY + visibleH * 0.52, fit: 1, room: { w: view.stageW * 0.78, h: visibleH * 0.94 } }
+        : { x: view.stageW / 2, y: view.offsetY + visibleH * 0.26, fit: 1, room: { w: view.stageW - 10, h: visibleH * 0.42 } });
+      return;
+    }
+    this.board.layout(view, view.landscape ? { x: view.stageW * 0.32, y: view.offsetY + visibleH * 0.5, fit: 1 }
       : { x: view.stageW / 2, y: view.stageH * 0.37, fit: 1 });
   }
 
@@ -233,8 +294,7 @@ export class Game extends Container {
     this.risk = 0;
     this.rows = this.rowOptions[0] ?? 8;
     this.bet = this.ladder.includes(this.session.config.defaultBet) ? this.session.config.defaultBet : this.ladder[0];
-    this.sessionWin = 0;
-    this.landing = 0;
+    this.roundWin = 0;
     this.pendingWins = 0;
     this.applyRows();
     this.refreshPanel();
@@ -245,6 +305,15 @@ export class Game extends Container {
       if (!this.busy()) { this.balance = fresh.balance; this.refreshPanel(); }
       if (fresh.meter && !this.busy()) this.applyMeter(fresh.meter);
     } catch { /* keep the balance we have */ }
+  }
+
+  /** A quick bet on the console: this bet per ball. */
+  private pickBet(value: number): void {
+    if (this.busy() || !this.ladder.includes(value) || value === this.bet) return;
+    sound('click');
+    this.bet = value;
+    this.refreshPanel();
+    this.idleStatus();
   }
 
   private changeBet(up: boolean): void {
@@ -316,7 +385,7 @@ export class Game extends Container {
   private refreshPanel(): void {
     this.bar.setBalance(this.money(Math.max(0, round2(this.balance - this.pendingWins))));
     this.bar.setTotalBet(this.money(round2(this.bet * this.balls)));
-    this.bar.setWin(this.money(round2(this.sessionWin + this.landing)));
+    this.bar.setWin(this.money(this.roundWin));
     this.bar.setRisk(RISKS[this.risk]);
     this.bar.setBalls(this.balls, this.money(this.bet));
     this.bar.setRows(this.rows);
@@ -460,11 +529,12 @@ export class Game extends Container {
 
   /** One round's balls, each adding its own win as it lands, then its wheel spins and MEGA SPINs. */
   private async animateRound(round: Round, bet: number, charging: number[]): Promise<void> {
-    let landed = 0;
+    // WIN starts from 0 for this round and counts up as its balls and spins land
+    const seq = ++this.roundSeq;
+    this.roundWin = 0;
     const land = (win: number) => {
       this.pendingWins = Math.max(0, round2(this.pendingWins - win));
-      landed = round2(landed + win);
-      this.landing = round2(this.landing + win);
+      if (seq === this.roundSeq) this.roundWin = round2(this.roundWin + win);
       this.refreshPanel();
     };
     const count = round.slots.length;
@@ -553,9 +623,8 @@ export class Game extends Container {
 
     // the server's meter count is the one that counts
     if (round.meter) this.applyMeter(round.meter);
-    // the session's WIN takes the round's total as the server paid it (a capped round pays less than its balls)
-    this.landing = Math.max(0, round2(this.landing - landed));
-    this.sessionWin = round2(this.sessionWin + round.totalWin);
+    // WIN ends on the round's total as the server paid it (a capped round pays less than its balls)
+    if (seq === this.roundSeq) this.roundWin = round.totalWin;
     this.refreshPanel();
     // every round that pays back its bet or more: the win counted up in gold over the board (10x and more: the big win)
     const lessThanBet = this.session.config.quietSmallWins && round.totalWin < round.totalBet;

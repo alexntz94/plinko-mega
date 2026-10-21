@@ -241,7 +241,7 @@ describe('the balance shown is the server\'s (review 5.7 #5)', () => {
     expect(credit()).toBe('€' + second.balance.toFixed(2));
   });
 
-  it('WIN adds up every round of the session, a capped round at what the server paid', async () => {
+  it('WIN shows each round\'s own win from 0, a capped round at what the server paid', async () => {
     const { actions } = await table(100);
     const first = round(100, 1, [0.5, 2]);
     const second = round(first.balance, 1, [3, 3], null, 4);   // capped: its balls add up to 6, the server paid 4
@@ -251,7 +251,7 @@ describe('the balance shown is the server\'s (review 5.7 #5)', () => {
     expect(controls().last('setWin')).toBe('€2.50');
     actions.play();
     await vi.runAllTimersAsync();
-    expect(controls().last('setWin')).toBe('€6.50');
+    expect(controls().last('setWin')).toBe('€4.00');
   });
 
   it('a refusal that carries the balance shows it', async () => {

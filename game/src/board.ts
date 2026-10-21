@@ -14,6 +14,12 @@ export const PEG_SPACING = 45;
 /** The status line's widest: the top of the board, between the frame's edges. */
 const STATUS_MAX_WIDTH = 250;
 const PEG_RADIUS = 5;
+/** How far apart the peg rows are (PEG_SPACING, or less for a theme whose frame is a wide, low triangle). */
+let ROW = 45;
+/** A theme's row spacing, as a share of the peg spacing across (1: rows as far apart as pegs in a row). */
+export function setRowGap(share: number): void {
+  ROW = 45 * share;
+}
 const BALL_REST = 14.5;            // how far above a peg's centre the ball sits when it touches it
 const BALL_RADIUS = BALL_REST - PEG_RADIUS;   // the ball's size for knocking into other balls
 /** The colours a grenade's fuse spits (Bombs Away). */
@@ -62,8 +68,21 @@ export function setMegaLook(accent: string, ink: string, gateArt: Texture | null
 }
 
 /** A tiny wheel over a SPIN slot: a ring with spokes and SPIN under it. */
+/** A theme's own mark for the SPIN slots (a small picture that turns), instead of the drawn wheel. */
+let spinMarkArt: Texture | null = null;
+export function setSpinMark(texture: Texture | null): void {
+  spinMarkArt = texture;
+}
+
 function spinBadge(): Container {
   const badge = new Container();
+  if (spinMarkArt) {
+    const mark = new Sprite({ texture: spinMarkArt, anchor: 0.5 });
+    mark.width = mark.height = 24;
+    badge.addChild(mark);
+    gsap.to(mark, { rotation: Math.PI * 2, duration: 5, repeat: -1, ease: 'none' });
+    return badge;
+  }
   const ring = new Graphics().circle(0, 0, 9).fill(megaLook.ink).stroke({ color: megaLook.accent, width: 2.5 });
   for (let i = 0; i < 4; i++) {
     const a = i * Math.PI / 4;
@@ -254,7 +273,7 @@ export class Board extends Container {
   private readonly gateLayer = new Container();
   private gates: { step: number; from: number; to: number; view: Container }[] = [];
 
-  constructor(frame: Texture, framePortrait: Texture, private readonly ballTexture: Texture, style: BoardStyle,
+  constructor(frame: Texture, framePortrait: Texture, private readonly ballTexture: Texture, private readonly style: BoardStyle,
               pegTexture: Texture | null) {
     super();
     this.trailDot = style.trail ? new GraphicsContext().circle(0, 0, 1).fill(style.trail) : null;
@@ -269,7 +288,7 @@ export class Board extends Container {
       const flashes: Graphics[] = [];
       for (let c = 0; c < count; c++) {
         const x = -PEG_SPACING * (count - 1) / 2 + PEG_SPACING * c;
-        const y = PEG_SPACING * (r + 1);
+        const y = ROW * (r + 1);
         const flash = new Graphics().circle(0, 0, PEG_RADIUS).fill(style.pegFlash);
         flash.position.set(x, y);
         flash.alpha = 0;
@@ -349,7 +368,7 @@ export class Board extends Container {
     this.gatesShown = JSON.stringify(bars);
     for (const [step, from, to] of bars) {
       const view = this.gateView(from, to, step);
-      view.position.set(PEG_SPACING / 2 * (from + to - step), PEG_SPACING * (step + 1) - BALL_REST);
+      view.position.set(PEG_SPACING / 2 * (from + to - step), ROW * (step + 1) - BALL_REST);
       this.gateLayer.addChild(view);
       this.gates.push({ step, from, to, view });
     }
@@ -361,6 +380,26 @@ export class Board extends Container {
    */
   private gateView(from: number, to: number, step: number): Container {
     const view = new Container();
+    // a theme with its own drawn board: no bar across it, the gate's pegs glow instead (the view sits where a ball
+    // rests on them, a ball's rest above the pegs)
+    if (this.style.fit) {
+      const halos = new Graphics();
+      for (let k = from; k <= to; k++) {
+        const x = (k - (from + to) / 2) * PEG_SPACING;
+        halos.circle(x, BALL_REST, 11).fill({ color: megaLook.accent, alpha: 0.28 })
+          .circle(x, BALL_REST, 7.5).stroke({ color: megaLook.accent, width: 2, alpha: 0.95 });
+      }
+      halos.blendMode = 'add';
+      view.addChild(halos);
+      gsap.fromTo(halos, { alpha: 1 }, { alpha: 0.45, duration: 0.6 + Math.random() * 0.3, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+      const outward = from + to < step ? -1 : 1;
+      const badge = new Text({ text: '×' + multiplierText(this.gateBoost), anchor: 0.5, resolution: textQuality(),
+        style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: 13, fill: megaLook.accent,
+          stroke: { color: megaLook.ink, width: 3 } } });
+      badge.position.set(outward * (PEG_SPACING / 2 * (to - from) + PEG_SPACING * 0.75), BALL_REST);
+      view.addChild(badge);
+      return view;
+    }
     const half = PEG_SPACING / 2 * (to - from) + PEG_SPACING * 0.42;
     const bar = new Graphics()
       .roundRect(-half - 3, -6, 2 * half + 6, 12, 6).fill({ color: megaLook.ink, alpha: 0.85 })
@@ -492,22 +531,45 @@ export class Board extends Container {
   }
 
   slotY(): number {
-    return PEG_SPACING * (this.rows + 1) + 12;
+    return ROW * (this.rows + 1) + 12 * ROW / PEG_SPACING;
   }
 
   /** Width and height of the board's content, used to scale it into the available space. */
   contentSize(): { w: number; h: number } {
-    return { w: PEG_SPACING * (this.rows + 2), h: PEG_SPACING * (this.rows + 1) };
+    return { w: PEG_SPACING * (this.rows + 2), h: ROW * (this.rows + 1) };
   }
 
   /** Places the frame and the board for the current orientation (same rules as the original game). */
-  layout(view: Viewport, place: { x: number; y: number; fit: number } | null = null): void {
+  layout(view: Viewport, place: { x: number; y: number; fit: number; room?: { w: number; h: number } } | null = null): void {
     const { w, h } = this.contentSize();
     // on wide phones the top and bottom of the stage are cut off: keep the pegs, the slots and the status line inside
     const visibleH = view.stageH - 2 * view.offsetY;
     const max = view.landscape ? { w: 1000, h: Math.min(510, visibleH - 110) } : { w: 570, h: 440 };
     // Plinko Mega places the board itself (room for the wheel and the control bar) and shrinks it, frame and all
     const fitTo = place?.fit ?? 1;
+    const fit = this.style.fit;
+    if (fit) {
+      // a frame drawn for this board: the whole frame fits the room, and the pegs sit where the frame shows them
+      const picture = view.landscape ? this.frame : this.framePortrait;
+      const unitsW = picture.texture.width / (fit.spacing / PEG_SPACING), unitsH = picture.texture.height / (fit.spacing / PEG_SPACING);
+      const room = place?.room ?? (view.landscape ? { w: view.stageW * 0.54, h: visibleH * 0.84 } : { w: view.stageW - 12, h: visibleH * 0.5 });
+      const fieldScale = Math.min(room.w / unitsW, room.h / unitsH) * fitTo;
+      const frameScale = fieldScale * PEG_SPACING / fit.spacing;
+      const fx = place?.x ?? view.stageW / 2;
+      const fy = place?.y ?? view.stageH / 2;
+      for (const frame of [this.frame, this.framePortrait]) {
+        frame.scale.set(frameScale);
+        frame.position.set(fx, fy);
+      }
+      this.frame.visible = view.landscape;
+      this.framePortrait.visible = !view.landscape;
+      // the picture's point (fit.x, fit.y) is the pegs' top centre
+      const ox = fx + (fit.x - picture.texture.width / 2) * frameScale;
+      const oy = fy + (fit.y - picture.texture.height / 2) * frameScale;
+      gsap.to(this.field, { x: ox, y: oy, duration: 0.2, overwrite: true });
+      this.field.scale.set(fieldScale);
+      return;
+    }
     const scale = Math.min(1, max.w / w, max.h / h) * fitTo;
     const x = place?.x ?? (view.landscape ? view.stageW * 0.57 : view.stageW / 2);
     const centreY = place?.y ?? (view.landscape ? view.stageH / 2 : view.stageH * 0.37);
@@ -544,11 +606,11 @@ export class Board extends Container {
     // rights after each number of steps: a peg is known by its row and that (see smashPeg)
     const rightsAt = [0];
     steps.forEach(step => rightsAt.push(rightsAt[rightsAt.length - 1] + (step > 0 ? 1 : 0)));
-    const points: { x: number; y: number }[] = [{ x: 0, y: PEG_SPACING - BALL_REST }];
+    const points: { x: number; y: number }[] = [{ x: 0, y: ROW - BALL_REST }];
     let x = 0;
     for (let r = 1; r < rows; r++) {
       x += steps[r - 1] * PEG_SPACING / 2;
-      points.push({ x, y: PEG_SPACING * (r + 1) - BALL_REST });
+      points.push({ x, y: ROW * (r + 1) - BALL_REST });
     }
     const landX = x + steps[rows - 1] * PEG_SPACING / 2;
 
@@ -578,7 +640,7 @@ export class Board extends Container {
           onUpdate: () => {
             flight.x = from.x + (to.x - from.x) * hop.t;
             flight.y = from.y + (to.y - from.y) * hop.t - height * 4 * hop.t * (1 - hop.t);
-            ball.rotation = flight.x / radius;
+            ball.rotation = this.spin(flight.x, radius);
             this.streak(ball, radius, flight.heat);
           },
         });
@@ -656,7 +718,7 @@ export class Board extends Container {
         onUpdate: () => {
           flight.x = last.x + (end.x - last.x) * fall.t;
           flight.y = last.y + (end.y - last.y) * fall.t - height * 4 * fall.t * (1 - fall.t);
-          ball.rotation = flight.x / radius;
+          ball.rotation = this.spin(flight.x, radius);
           if (!entered && flight.y > slotTop - radius * 0.3) {
             entered = true;
             this.slots[slot]?.hit();
@@ -722,6 +784,16 @@ export class Board extends Container {
       .fromTo(word.scale, { x: 3, y: 3 }, { x: 1, y: 1, duration: 0.25, ease: 'power3.in' })
       .to(word.scale, { x: 1.15, y: 1.15, duration: 0.15, yoyo: true, repeat: 3 })
       .to(word, { alpha: 0, y: word.y - 40, duration: 0.6 }, 1.4);
+  }
+
+  /**
+   * Where a point of the frame picture (its own pixels at 1x) is, on the screen: the console's parts are found this way.
+   * Null when the frame of this shape isn't on screen.
+   */
+  framePoint(x: number, y: number, landscape: boolean): { x: number; y: number } | null {
+    const picture = landscape ? this.frame : this.framePortrait;
+    if (!picture.visible) return null;
+    return picture.toGlobal({ x: x - picture.texture.width / 2, y: y - picture.texture.height / 2 });
   }
 
   /** Where a slot is, on the screen. */
@@ -974,6 +1046,14 @@ export class Board extends Container {
     const out = ball.rotation - Math.PI / 2;   // the way the fuse points
     // a very short fuse: a few sparks fizzing right on the fuse head, no smoke trail
     if (Math.random() < Math.min(0.5, 6 / balls)) this.particles.spit(x, y, FUSE[this.fuseTick % FUSE.length], out, radius * 0.15);
+  }
+
+  /**
+   * How a falling ball is turned: rolling with its sideways travel, or (a war theme's bomb, lit from above) only
+   * swaying a little, so its shine stays where the light is.
+   */
+  private spin(x: number, radius: number): number {
+    return this.fx === 'war' ? Math.sin(x / (radius * 3)) * 0.35 : x / radius;
   }
 
   /** Pegs blown away this round, as "row:column", to put back at the next round. */

@@ -14,6 +14,12 @@ export interface BoardStyle {
   slotRadius: number;
   slotArt: boolean;              // prize slots drawn from item_slot_0..4.png (centre -> edge) instead of flat colour
   fx: ThemeFx;                   // the theme's signature effects (visual only)
+  /**
+   * A frame drawn for one board (a picture with its own triangle and slot compartments): the only number of rows it
+   * fits, how close its peg rows are (a share of the spacing across), where on the frame picture the top centre of
+   * the pegs goes and how many of its pixels one peg spacing is (in the picture's own pixels, at 1x)
+   */
+  fit: { rows: number; rowGap: number; x: number; y: number; spacing: number } | null;
 }
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
@@ -31,7 +37,23 @@ export interface WheelStyle extends WheelLook { ink: string; title: string; gold
    *  across) and the glass over its face */
   bezel: string | null; glass: string | null;
   /** drawn as a revolver's cylinder (a cartridge per prize) that clicks into place, instead of a wheel of wedges */
-  revolver: boolean }
+  revolver: boolean;
+  /** pictures for the revolver (see RevolverArt), or null: drawn in code */
+  revolverArt: RevolverArt | null;
+  /** a small picture marking the SPIN slots, or null */
+  spinMark: string | null }
+/**
+ * A revolver from pictures: the cylinder that turns and the dial frame (with the hammer) that stays still, a cartridge
+ * head per kind of prize, the muzzle flash of a win. Geometry is in shares of each picture's width: the cylinder's
+ * centre and radius and its chambers' centres (one per prize, the first at the top), the dial's opening centre and
+ * radius.
+ */
+export interface RevolverArt {
+  cylinder: string; dial: string; flash: string;
+  cartridges: { plain: string; MINI: string; MAJOR: string; MEGA: string };
+  centre: [number, number]; radius: number; chambers: [number, number][];
+  opening: [number, number]; openingRadius: number;
+}
 export interface Theme {
   id: string;
   name: string;
@@ -44,6 +66,8 @@ export interface Theme {
   board: BoardStyle;
   retina: boolean;               // images come as name@2x.png, drawn at double density (backgrounds excepted)
   ui: ThemeUi;
+  /** a console under the board for the controls (its art: the DROP plate, a readout panel, a key), or null */
+  console: { drop: string; panel: string; key: string } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -61,7 +85,7 @@ export interface Theme {
 }
 
 const DEFAULT_FONT: ThemeFont = { family: 'Azonix', file: null, weight: 'normal' };
-const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard' };
+const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null };
 
 // theme.json is our own static file, but only well-formed values are used
 const colour = (value: unknown, fallback: string) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
@@ -73,6 +97,39 @@ function readFont(json: unknown): ThemeFont {
   const family = typeof f.family === 'string' && /^[A-Za-z0-9 ]{1,40}$/.test(f.family) ? f.family : null;
   if (!family) return DEFAULT_FONT;
   return { family, file: fileName(f.file, /\.(woff2|woff|ttf)$/), weight: typeof f.weight === 'string' && /^[1-9]00$/.test(f.weight) ? f.weight : 'normal' };
+}
+
+/** A frame fitted to one board (see BoardStyle.fit), or null. */
+function readFit(json: unknown): BoardStyle['fit'] {
+  const f = (json ?? null) as Record<string, unknown> | null;
+  if (!f) return null;
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
+  const [rows, rowGap, x, y, spacing] = [n(f.rows), n(f.rowGap), n(f.x), n(f.y), n(f.spacing)];
+  return rows && rowGap && x && y && spacing ? { rows: Math.round(rows), rowGap, x, y, spacing } : null;
+}
+
+function readRevolverArt(json: unknown): RevolverArt | null {
+  const r = (json ?? null) as Record<string, unknown> | null;
+  if (!r) return null;
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const c = (r.cartridges ?? {}) as Record<string, unknown>;
+  const share = (v: unknown) => (typeof v === 'number' && v > 0 && v < 1 ? v : null);
+  const pair = (v: unknown): [number, number] | null =>
+    Array.isArray(v) && v.length === 2 && share(v[0]) && share(v[1]) ? [v[0] as number, v[1] as number] : null;
+  const chambers = Array.isArray(r.chambers) ? r.chambers.map(pair) : [];
+  const parts = [png(r.cylinder), png(r.dial), png(r.flash), png(c.plain), png(c.MINI), png(c.MAJOR), png(c.MEGA)];
+  const centre = pair(r.centre), opening = pair(r.opening), radius = share(r.radius), openingRadius = share(r.openingRadius);
+  if (parts.some(p => !p) || !centre || !opening || !radius || !openingRadius || chambers.length < 3 || chambers.some(c => !c)) return null;
+  const [cylinder, dial, flash, plain, MINI, MAJOR, MEGA] = parts as string[];
+  return { cylinder, dial, flash, cartridges: { plain, MINI, MAJOR, MEGA }, centre, radius, chambers: chambers as [number, number][],
+    opening, openingRadius };
+}
+
+function readConsole(json: unknown): Theme['console'] {
+  const c = (json ?? null) as Record<string, unknown> | null;
+  if (!c) return null;
+  const [drop, panel, key] = [fileName(c.drop, /\.png$/), fileName(c.panel, /\.png$/), fileName(c.key, /\.png$/)];
+  return drop && panel && key ? { drop, panel, key } : null;
 }
 
 function readBoard(json: unknown): BoardStyle {
@@ -87,6 +144,7 @@ function readBoard(json: unknown): BoardStyle {
     slots,
     slotRadius: Math.min(20, Math.max(0, number(b.slotRadius, DEFAULT_BOARD.slotRadius))),
     slotArt: b.slotArt === true,
+    fit: readFit(b.fit),
     fx: b.fx === 'war' ? 'war' : 'standard',
   };
 }
@@ -113,6 +171,8 @@ function readWheel(json: unknown, board: BoardStyle, accent: string, text: strin
     hub: fileName(w.hub, /\.png$/), pointer: fileName(w.pointer, /\.png$/), gate: fileName(w.gate, /\.png$/),
     bezel: fileName(w.bezel, /\.png$/), glass: fileName(w.glass, /\.png$/),
     revolver: w.style === 'revolver',
+    revolverArt: readRevolverArt(w.revolverArt),
+    spinMark: fileName(w.spinMark, /\.png$/),
   };
 }
 
@@ -136,6 +196,7 @@ export async function loadTheme(id: string): Promise<Theme> {
     board: readBoard(json.board),
     retina: json.retina === true,
     ui: readUi(json.ui),
+    console: readConsole(json.console),
     landscapeExitFromPortrait: json.landscapeExitFromPortrait === true,
     video: {
       wide: fileName((json.video as Record<string, unknown> | undefined)?.wide, /\.(mp4|webm)$/),

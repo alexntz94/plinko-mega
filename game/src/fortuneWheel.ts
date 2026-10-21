@@ -8,7 +8,14 @@ import { label, textQuality, typeface, fit } from './ui';
 import { Particles, calm, shake } from './effects';
 import { counting, goldText, mix, shade } from './paint';
 import type { Segment } from './api';
-import type { WheelLook, WheelStyle } from './theme';
+import type { RevolverArt, WheelLook, WheelStyle } from './theme';
+
+/** A revolver from pictures (theme wheel.revolverArt): its textures and its measured geometry. */
+export interface PhotoRevolver {
+  cylinder: Texture; dial: Texture; flash: Texture;
+  cartridges: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
+  spec: RevolverArt;
+}
 
 const random = (min: number, max: number) => min + Math.random() * (max - min);
 const RAINBOW = ['#ff3b3b', '#ff9a1b', '#ffe14a', '#4ade5a', '#2ec4ff', '#8a5bff', '#ff4fd8'];
@@ -51,7 +58,7 @@ export class FortuneWheel extends Container {
 
   constructor(private readonly style: WheelStyle, private readonly hub: Texture | null, private readonly finger: Texture | null,
               private readonly format: (value: number) => string, private readonly panel = '#2a1747',
-              private readonly art: { bezel: Texture | null; glass: Texture | null; explode?: boolean } = { bezel: null, glass: null }) {
+              private readonly art: { bezel: Texture | null; glass: Texture | null; explode?: boolean; photo?: PhotoRevolver | null } = { bezel: null, glass: null }) {
     super();
     this.jackpotName = label('', 14, 'center', { fill: style.title });
     this.jackpotAmount = label('', 26, 'center', { fill: '#ffd76a', stroke: { color: '#000000', width: 4, join: 'round' } });
@@ -73,14 +80,29 @@ export class FortuneWheel extends Container {
   place(x: number, y: number, r: number): void {
     this.radius = r;
     this.position.set(x, y);
-    this.mask_.clear().rect(-r * 1.4, -r * 1.4, r * 2.8, r * 1.5).fill('#ffffff');
+    // the photo revolver shows whole (it pops up over the board); a wheel only above its base
+    if (this.photo()) this.mask_.clear().rect(-r * 3, -r * 3, r * 6, r * 6).fill('#ffffff');
+    else this.mask_.clear().rect(-r * 1.4, -r * 1.4, r * 2.8, r * 1.5).fill('#ffffff');
     // the base the wheel turns in: a dark plinth with a gold rim across the cut
     this.base.clear()
       .roundRect(-r * 1.32, r * 0.04, r * 2.64, r * 0.34, r * 0.08).fill({ color: '#000000', alpha: 0.5 })
       .roundRect(-r * 1.3, 0, r * 2.6, r * 0.32, r * 0.08).fill(shade(mix(this.panel, '#ffffff', 0.08), mix(this.panel, '#000000', 0.7))).stroke({ color: this.style.title, width: 3 })
       .moveTo(-r * 1.2, r * 0.07).lineTo(r * 1.2, r * 0.07).stroke({ color: '#ffffff', width: 1, alpha: 0.25 });
+    if (this.photo()) this.base.clear();
     this.drawHeader();
     this.draw();
+  }
+
+  /** The photo revolver, when the theme has one with a chamber per prize. */
+  private photo(segments = this.segments): PhotoRevolver | null {
+    const photo = this.art.photo;
+    return photo && !this.gold && photo.spec.chambers.length === segments.length ? photo : null;
+  }
+
+  /** The angle of each chamber of the photo revolver, round its centre (radians; the first near the top). */
+  private chamberAngles(photo: PhotoRevolver): number[] {
+    const [cx, cy] = photo.spec.centre;
+    return photo.spec.chambers.map(([x, y]) => Math.atan2(y - cy, x - cx));
   }
 
   /** Every frame: the marquee lights chase round the rim, and the glow breathes. */
@@ -143,7 +165,10 @@ export class FortuneWheel extends Container {
     this.disc.rotation = start;
     // a revolver stops dead on a chamber; a wheel anywhere within its segment
     const offset = this.style.revolver ? 0 : random(-0.3, 0.3) * step;
-    const target = -index * step + offset - turns * Math.PI * 2 + Math.min(0, start);
+    // the photo revolver: its chamber stops exactly under the hammer (the chambers are not quite evenly spaced)
+    const photo = this.photo(segments);
+    const stop = photo ? -(this.chamberAngles(photo)[index] + Math.PI / 2) : -index * step;
+    const target = stop + offset - turns * Math.PI * 2 + Math.min(0, start);
     let lastTick = Math.floor(this.disc.rotation / step);
     const tick = () => {
       const now = Math.floor(this.disc.rotation / step);
@@ -219,6 +244,17 @@ export class FortuneWheel extends Container {
     // a war theme blows up instead of the golden rays
     const explodes = this.art.explode && !calm;
     if (explodes) this.explode(big);
+    const photo = this.photo();
+    if (photo && !calm) {
+      // the shot: a muzzle flash out of the chamber under the hammer
+      const flash = new Sprite({ texture: photo.flash, anchor: 0.5 });
+      flash.blendMode = 'add';
+      flash.position.set(0, -r * 0.7);
+      this.burst.addChild(flash);
+      gsap.timeline()
+        .fromTo(flash, { width: r * 0.3, height: r * 0.3, alpha: 1 }, { width: r * (big ? 2.4 : 1.7), height: r * (big ? 2.4 : 1.7), duration: 0.12, ease: 'power3.out' })
+        .to(flash, { alpha: 0, duration: 0.3 }, 0.1);
+    }
     this.burst.addChild(...(explodes ? [] : [flash, rays]), amount);
     this.onWin?.(big);
     if (!calm) {
@@ -256,7 +292,8 @@ export class FortuneWheel extends Container {
       .circle(0, 0, radius).fill({ color: colour, alpha: 0.25 * alpha }).circle(0, 0, radius * 0.8).fill({ color: colour, alpha: 0.35 * alpha })
       .circle(0, 0, radius * 0.6).fill({ color: colour, alpha: 0.5 * alpha });
     // smoke first, so the fire is in front of it: grey enough to show on the dark wheel, rolling up and out
-    for (let i = 0; i < (big ? 12 : 7); i++) {
+    // smoke only round a drawn wheel (over the photo revolver, flat puffs look fake)
+    for (let i = 0; i < (this.art.photo ? 0 : big ? 12 : 7); i++) {
       const puff = soft(r * random(0.2, 0.32), ['#5c5f66', '#474a50', '#6e7178'][i % 3], 1.6);
       const a = random(0, Math.PI * 2);
       puff.position.set(Math.cos(a) * r * 0.25, y + Math.sin(a) * r * 0.15);
@@ -334,7 +371,7 @@ export class FortuneWheel extends Container {
     const r = this.radius;
     const texts: Container[] = [this.jackpotName, this.jackpotAmount, this.spinsText];
     this.header.removeChildren().forEach(child => { if (!texts.includes(child)) child.destroy(); });
-    const w = r * 2.3, h = r * 0.34, y = -r * 1.42;
+    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.05 : -r * 1.42;
     const bar = new Graphics()
       .roundRect(-w / 2, y + 3, w, h, h * 0.3).fill({ color: '#000000', alpha: 0.5 })
       .roundRect(-w / 2, y, w, h, h * 0.3).fill(shade(mix(this.panel, '#ffffff', 0.08), mix(this.panel, '#000000', 0.6))).stroke({ color: this.style.title, width: 3 })
@@ -370,7 +407,10 @@ export class FortuneWheel extends Container {
     const step = Math.PI * 2 / segments.length;
     // the bezel: the theme's drawing, or a plain ring
     const bulbRadius = this.art.bezel ? r * 178 / 160 : r * 1.165;
-    if (this.art.bezel) {
+    const photo = this.photo(segments);
+    if (photo) {
+      // the dial frame (with its hammer) is the bezel
+    } else if (this.art.bezel) {
       const bezel = new Sprite({ texture: this.art.bezel, anchor: 0.5 });
       bezel.width = bezel.height = r * 440 / 160;
       this.cover.addChild(bezel);
@@ -387,14 +427,16 @@ export class FortuneWheel extends Container {
       bulb.position.set(Math.cos(a) * bulbRadius, Math.sin(a) * bulbRadius);
       this.lights.addChild(bulb);
     }
-    if (this.style.revolver) this.drawRevolver(r, step, segments);
+    this.lights.visible = !photo;
+    if (photo) this.drawPhoto(r, segments, photo);
+    else if (this.style.revolver) this.drawRevolver(r, step, segments);
     else this.drawWedges(r, step, segments, look);
-    if (this.art.glass) {
+    if (this.art.glass && !photo) {
       const glass = new Sprite({ texture: this.art.glass, anchor: 0.5 });
       glass.width = glass.height = r * 440 / 160;
       this.cover.addChildAt(glass, 0);
     }
-    if (this.style.revolver) {
+    if (this.style.revolver || photo) {
       // the cylinder's own centre: the ejector star (drawn with it)
     } else if (this.hub) {
       const hub = new Sprite({ texture: this.hub, anchor: 0.5 });
@@ -403,7 +445,9 @@ export class FortuneWheel extends Container {
     } else {
       this.disc.addChild(new Graphics().circle(0, 0, r * 0.28).fill(look.rim).stroke({ color: this.style.ink, width: 4 }));
     }
-    if (this.finger) {
+    if (photo) {
+      // the hammer on the dial points at the chamber that wins
+    } else if (this.finger) {
       const finger = new Sprite({ texture: this.finger, anchor: { x: 0.5, y: 0.9 } });
       finger.scale.set(r * (this.art.bezel ? 0.42 : 0.3) / Math.max(finger.texture.height, 1));
       this.pointer.addChild(finger);
@@ -412,6 +456,39 @@ export class FortuneWheel extends Container {
         .stroke({ color: this.style.ink, width: 3, join: 'round' }));
     }
     this.pointer.y = this.art.bezel ? -r * 1.04 : -r * 1.02;
+  }
+
+  /**
+   * The photo revolver: the cylinder (turning, with the disc) with a cartridge in every chamber and its prize stamped
+   * on the cartridge, upright when its chamber is under the hammer; the dial frame over it, still.
+   */
+  private drawPhoto(r: number, segments: Segment[], photo: PhotoRevolver): void {
+    const { spec } = photo;
+    const w = photo.cylinder.width;
+    const s = r / (spec.radius * w);                   // cylinder picture to screen
+    const cylinder = new Sprite({ texture: photo.cylinder, anchor: { x: spec.centre[0], y: spec.centre[1] } });
+    cylinder.scale.set(s);
+    this.disc.addChild(cylinder);
+    const angles = this.chamberAngles(photo);
+    segments.forEach((segment, i) => {
+      const [x, y] = spec.chambers[i];
+      const at = { x: (x - spec.centre[0]) * w * s, y: (y - spec.centre[1]) * w * s };
+      const kind = segment.name === 'MINI' || segment.name === 'MAJOR' || segment.name === 'MEGA' ? segment.name : 'plain';
+      const head = new Sprite({ texture: photo.cartridges[kind], anchor: 0.5 });
+      head.width = head.height = r * 0.42;
+      head.position.set(at.x, at.y);
+      head.rotation = angles[i] + Math.PI / 2;
+      const words = new Text({ text: segmentText(segment), anchor: 0.5, resolution: textQuality(),
+        style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(r * (segment.name ? 0.085 : 0.12)),
+          fill: '#fff6dc', stroke: { color: '#000000', width: r * 0.025, join: 'round' } } });
+      words.position.copyFrom(head.position);
+      words.rotation = head.rotation;
+      if (words.width > r * 0.34) words.scale.set(r * 0.34 / words.width);
+      this.disc.addChild(head, words);
+    });
+    const dial = new Sprite({ texture: photo.dial, anchor: { x: spec.opening[0], y: spec.opening[1] } });
+    dial.scale.set(r * 1.03 / (spec.openingRadius * photo.dial.width));
+    this.cover.addChild(dial);
   }
 
   /** A wheel of coloured wedges, labels along the radius, brass spokes. */

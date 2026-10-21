@@ -13,7 +13,7 @@ import { atlasUrls, imageUrls, inAtlas, type Formats } from './images';
 import { computeViewport } from './viewport';
 import { initSounds, startMusic } from './sound';
 import { setTextQuality, setTypeface } from './ui';
-import { setMegaLook, setSlotArt, setSlotLooks } from './board';
+import { setMegaLook, setSlotArt, setSlotLooks, setRowGap, setSpinMark } from './board';
 import { Game } from './game';
 import { BackdropVideo } from './backdrop';
 
@@ -33,6 +33,10 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.board.slotArt ? SLOT_ART : []),
     ...neonLayers(theme).flat(),
     ...[theme.wheel.hub, theme.wheel.pointer, theme.wheel.gate, theme.wheel.bezel, theme.wheel.glass].filter((file): file is string => file !== null),
+    ...(theme.console ? [theme.console.drop, theme.console.panel, theme.console.key] : []),
+    ...(theme.wheel.revolverArt ? [theme.wheel.revolverArt.cylinder, theme.wheel.revolverArt.dial, theme.wheel.revolverArt.flash,
+      ...Object.values(theme.wheel.revolverArt.cartridges)] : []),
+    ...(theme.wheel.spinMark ? [theme.wheel.spinMark] : []),
   ];
 }
 
@@ -188,6 +192,8 @@ async function start(): Promise<void> {
   const tex = (file: string) => textures[file];
   if (theme.board.slotArt) setSlotArt(SLOT_ART.map(tex));
   setMegaLook(theme.wheel.title, theme.wheel.ink, theme.wheel.gate ? tex(theme.wheel.gate) : null);
+  if (theme.board.fit) setRowGap(theme.board.fit.rowGap);
+  setSpinMark(theme.wheel.spinMark ? tex(theme.wheel.spinMark) : null);
   initSounds(theme.path, theme.sounds);
 
   const app = new Application();

@@ -200,7 +200,7 @@ async function start(): Promise<void> {
   setBlastArt(theme.blast ? { fire: tex(theme.blast.fire), dust: tex(theme.blast.dust), smoke: tex(theme.blast.smoke) } : null);
   setBlastKinds(Object.fromEntries(Object.entries(theme.blast?.kinds ?? {}).map(([kind, file]) => [kind, tex(file)])));
   setBlastSheets(Object.fromEntries(Object.entries(theme.blast?.sheets ?? {}).map(([kind, file]) =>
-    [kind, { sheet: tex(file), grid: theme.blast?.grids[kind as keyof typeof theme.blast.grids] ?? 4 }])));
+    [kind, { sheet: tex(file), grid: theme.blast?.grids[kind as keyof typeof theme.blast.grids] ?? [4, 4] }])));
   initSounds(theme.path, theme.sounds);
 
   const app = new Application();

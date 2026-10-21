@@ -73,7 +73,7 @@ export interface Theme {
   /** a photo explosion (fireball, ground dust ring, smoke plume) for every blast, or null: drawn in code */
   blast: { fire: string; dust: string; smoke: string; kinds: Partial<Record<BlastName, string>>;
     /** animated explosions: per kind, a sprite sheet (a square grid of frames, `grids` per kind, 4 when not given) */
-    sheets: Partial<Record<BlastName, string>>; grids: Partial<Record<BlastName, number>> } | null;
+    sheets: Partial<Record<BlastName, string>>; grids: Partial<Record<BlastName, [number, number]>> } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -156,10 +156,13 @@ function readBlast(json: unknown): Theme['blast'] {
     return out;
   };
   const g = (b.grids ?? {}) as Record<string, unknown>;
-  const grids: Partial<Record<BlastName, number>> = {};
+  // [columns, rows], or one number for a square grid
+  const grids: Partial<Record<BlastName, [number, number]>> = {};
+  const ok = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 8;
   for (const name of BLAST_NAMES) {
     const n = g[name];
-    if (typeof n === 'number' && Number.isInteger(n) && n >= 2 && n <= 8) grids[name] = n;
+    if (ok(n)) grids[name] = [n, n];
+    else if (Array.isArray(n) && n.length === 2 && ok(n[0]) && ok(n[1])) grids[name] = [n[0], n[1]];
   }
   return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets), grids } : null;
 }

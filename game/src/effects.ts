@@ -315,14 +315,15 @@ export function setBlastKinds(art: Partial<Record<BlastKind, Texture>>): void {
  * and how much of a frame its fire fills (a 6x6 sheet draws its fire smaller in each frame).
  */
 let kindFrames: Partial<Record<BlastKind, { frames: Texture[]; fill: number }>> = {};
-export function setBlastSheets(sheets: Partial<Record<BlastKind, { sheet: Texture; grid: number }>>): void {
+/** grid: [columns, rows] of the sheet (frames read left to right, top to bottom). */
+export function setBlastSheets(sheets: Partial<Record<BlastKind, { sheet: Texture; grid: [number, number] }>>): void {
   kindFrames = {};
-  for (const [kind, { sheet, grid }] of Object.entries(sheets) as [BlastKind, { sheet: Texture; grid: number }][]) {
-    const w = sheet.frame.width / grid, h = sheet.frame.height / grid;
+  for (const [kind, { sheet, grid: [cols, rows] }] of Object.entries(sheets) as [BlastKind, { sheet: Texture; grid: [number, number] }][]) {
+    const w = sheet.frame.width / cols, h = sheet.frame.height / rows;
     kindFrames[kind] = {
-      fill: grid >= 6 ? 0.78 : 0.9,
-      frames: Array.from({ length: grid * grid }, (_, i) => new Texture({
-        source: sheet.source, frame: new Rectangle(sheet.frame.x + (i % grid) * w, sheet.frame.y + Math.floor(i / grid) * h, w, h) })),
+      fill: cols >= 6 ? 0.78 : 0.9,
+      frames: Array.from({ length: cols * rows }, (_, i) => new Texture({
+        source: sheet.source, frame: new Rectangle(sheet.frame.x + (i % cols) * w, sheet.frame.y + Math.floor(i / cols) * h, w, h) })),
     };
   }
 }

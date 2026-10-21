@@ -313,7 +313,7 @@ export function setBlastKinds(art: Partial<Record<BlastKind, Texture>>): void {
 }
 /**
  * Animated explosions: per kind, the frames of its sprite sheet (a square grid, read left to right, top to bottom),
- * and how much of a frame its fire fills (a 6x6 sheet draws its fire smaller in each frame).
+ * and how much of a frame its fire fills (the 6x6 and 8x8 sheets draw their fire smaller in each frame).
  */
 let kindFrames: Partial<Record<BlastKind, { frames: Texture[]; fill: number }>> = {};
 /** grid: [columns, rows] of the sheet (frames read left to right, top to bottom). */
@@ -322,7 +322,7 @@ export function setBlastSheets(sheets: Partial<Record<BlastKind, { sheet: Textur
   for (const [kind, { sheet, grid: [cols, rows] }] of Object.entries(sheets) as [BlastKind, { sheet: Texture; grid: [number, number] }][]) {
     const w = sheet.frame.width / cols, h = sheet.frame.height / rows;
     kindFrames[kind] = {
-      fill: cols >= 6 ? 0.78 : 0.9,
+      fill: cols >= 8 ? 0.55 : cols >= 6 ? 0.78 : 0.9,
       frames: Array.from({ length: cols * rows }, (_, i) => new Texture({
         source: sheet.source, frame: new Rectangle(sheet.frame.x + (i % cols) * w, sheet.frame.y + Math.floor(i / cols) * h, w, h) })),
     };
@@ -330,12 +330,13 @@ export function setBlastSheets(sheets: Partial<Record<BlastKind, { sheet: Textur
 }
 /** How each kind stands and moves: where it touches the point (anchor), how much it grows, how long it lasts. */
 const KIND: Record<BlastKind, { anchor: [number, number]; from: number; grow: number; life: number; rise: number }> = {
-  small: { anchor: [0.5, 0.5], from: 0.3, grow: 1.15, life: 0.55, rise: 0 },
+  // small, heavy, napalm, impact, mushroom: the Explosion VFX pack, its fixed pivots (256,275) and (256,385) of 512
+  small: { anchor: [0.5, 0.537], from: 0.3, grow: 1.15, life: 0.8, rise: 0 },
   fireball: { anchor: [0.5, 0.55], from: 0.25, grow: 1.2, life: 0.9, rise: 0.1 },
-  heavy: { anchor: [0.5, 0.55], from: 0.25, grow: 1.2, life: 1.0, rise: 0.1 },
-  napalm: { anchor: [0.5, 0.85], from: 0.15, grow: 1.1, life: 1.1, rise: 0 },
-  impact: { anchor: [0.5, 0.95], from: 0.2, grow: 1.12, life: 0.95, rise: 0 },
-  mushroom: { anchor: [0.5, 0.92], from: 0.1, grow: 1.08, life: 1.7, rise: 0.12 },
+  heavy: { anchor: [0.5, 0.537], from: 0.25, grow: 1.2, life: 1.2, rise: 0.1 },
+  napalm: { anchor: [0.5, 0.752], from: 0.15, grow: 1.1, life: 1.2, rise: 0 },
+  impact: { anchor: [0.5, 0.752], from: 0.2, grow: 1.12, life: 1.1, rise: 0 },
+  mushroom: { anchor: [0.5, 0.752], from: 0.1, grow: 1.08, life: 1.7, rise: 0.12 },
   // a cannon's flash: it starts at the barrel and blows forward (to the right), never mirrored
   muzzle: { anchor: [0.15, 0.5], from: 0.3, grow: 1.1, life: 0.7, rise: 0 },
 };

@@ -253,6 +253,14 @@
       "napalm": "anim_napalm.png",
       "impact": "anim_impact.png",
       "mushroom": "anim_mushroom.png"
+    },
+    "grids": {
+      "small": 6,
+      "fireball": 4,
+      "heavy": 6,
+      "napalm": 6,
+      "impact": 6,
+      "mushroom": 6
     }
   }
 }

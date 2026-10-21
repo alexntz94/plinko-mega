@@ -72,8 +72,8 @@ export interface Theme {
   console: { drop: string; panel: string; key: string; back: string | null } | null;
   /** a photo explosion (fireball, ground dust ring, smoke plume) for every blast, or null: drawn in code */
   blast: { fire: string; dust: string; smoke: string; kinds: Partial<Record<BlastName, string>>;
-    /** animated explosions: per kind, a sprite sheet of 16 frames (4x4) */
-    sheets: Partial<Record<BlastName, string>> } | null;
+    /** animated explosions: per kind, a sprite sheet (a square grid of frames, `grids` per kind, 4 when not given) */
+    sheets: Partial<Record<BlastName, string>>; grids: Partial<Record<BlastName, number>> } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -155,7 +155,13 @@ function readBlast(json: unknown): Theme['blast'] {
     }
     return out;
   };
-  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets) } : null;
+  const g = (b.grids ?? {}) as Record<string, unknown>;
+  const grids: Partial<Record<BlastName, number>> = {};
+  for (const name of BLAST_NAMES) {
+    const n = g[name];
+    if (typeof n === 'number' && Number.isInteger(n) && n >= 2 && n <= 8) grids[name] = n;
+  }
+  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets), grids } : null;
 }
 
 function readConsole(json: unknown): Theme['console'] {

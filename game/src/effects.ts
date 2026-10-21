@@ -280,11 +280,11 @@ export class CoinShower extends Container implements Shower {
 function animatedBlast(layer: Container, kind: BlastKind, x: number, y: number, width: number): boolean {
   if (liveBlasts >= MAX_BLASTS) return true;
   liveBlasts++;
-  const frames = kindFrames[kind]!;
+  const { frames, fill } = kindFrames[kind]!;
   const k = KIND[kind];
   const blast = new AnimatedSprite({ textures: frames, anchor: { x: k.anchor[0], y: k.anchor[1] }, autoUpdate: true });
   blast.position.set(x, y);
-  const scale = width / frames[0].width;
+  const scale = width / (frames[0].width * fill);
   blast.scale.set(Math.random() < 0.5 ? -scale : scale, scale);
   blast.loop = false;
   blast.animationSpeed = frames.length / (k.life * 1.3 * 60);   // the frames over the kind's life (a little slower: they are real fire)
@@ -310,14 +310,20 @@ let kindArt: Partial<Record<BlastKind, Texture>> = {};
 export function setBlastKinds(art: Partial<Record<BlastKind, Texture>>): void {
   kindArt = art;
 }
-/** Animated explosions: per kind, the frames of its sprite sheet (16, a 4x4 grid, read left to right, top to bottom). */
-let kindFrames: Partial<Record<BlastKind, Texture[]>> = {};
-export function setBlastSheets(sheets: Partial<Record<BlastKind, Texture>>): void {
+/**
+ * Animated explosions: per kind, the frames of its sprite sheet (a square grid, read left to right, top to bottom),
+ * and how much of a frame its fire fills (a 6x6 sheet draws its fire smaller in each frame).
+ */
+let kindFrames: Partial<Record<BlastKind, { frames: Texture[]; fill: number }>> = {};
+export function setBlastSheets(sheets: Partial<Record<BlastKind, { sheet: Texture; grid: number }>>): void {
   kindFrames = {};
-  for (const [kind, sheet] of Object.entries(sheets) as [BlastKind, Texture][]) {
-    const w = sheet.frame.width / 4, h = sheet.frame.height / 4;
-    kindFrames[kind] = Array.from({ length: 16 }, (_, i) => new Texture({
-      source: sheet.source, frame: new Rectangle(sheet.frame.x + (i % 4) * w, sheet.frame.y + Math.floor(i / 4) * h, w, h) }));
+  for (const [kind, { sheet, grid }] of Object.entries(sheets) as [BlastKind, { sheet: Texture; grid: number }][]) {
+    const w = sheet.frame.width / grid, h = sheet.frame.height / grid;
+    kindFrames[kind] = {
+      fill: grid >= 6 ? 0.78 : 0.9,
+      frames: Array.from({ length: grid * grid }, (_, i) => new Texture({
+        source: sheet.source, frame: new Rectangle(sheet.frame.x + (i % grid) * w, sheet.frame.y + Math.floor(i / grid) * h, w, h) })),
+    };
   }
 }
 /** How each kind stands and moves: where it touches the point (anchor), how much it grows, how long it lasts. */

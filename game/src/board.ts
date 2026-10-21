@@ -4,7 +4,7 @@ import type { Viewport } from './viewport';
 import { label, textQuality, typeface } from './ui';
 import { Particles, shake } from './effects';
 import { goldText } from './paint';
-import type { BoardStyle, ThemeFx } from './theme';
+import type { BoardStyle, FitFrame, ThemeFx } from './theme';
 import { prizeIndexOfSlot, slotTier } from './rules';
 
 export { prizeIndexOfSlot, slotTier };
@@ -273,8 +273,12 @@ export class Board extends Container {
   private readonly gateLayer = new Container();
   private gates: { step: number; from: number; to: number; view: Container }[] = [];
 
+  /** The fitted frame of the board on show (see BoardStyle.fit), and the textures of every fitted frame. */
+  private fitNow: FitFrame | null = null;
+  private lastPlace: { view: Viewport; place: Parameters<Board['layout']>[1] } | null = null;
+
   constructor(frame: Texture, framePortrait: Texture, private readonly ballTexture: Texture, private readonly style: BoardStyle,
-              pegTexture: Texture | null) {
+              pegTexture: Texture | null, private readonly fitFrames: Record<number, { wide: Texture; tall: Texture }> = {}) {
     super();
     this.trailDot = style.trail ? new GraphicsContext().circle(0, 0, 1).fill(style.trail) : null;
     this.pegFlashColour = style.pegFlash;
@@ -310,6 +314,17 @@ export class Board extends Container {
   /** Rows (8..14) and the multipliers per prize position ([low, mid, high] each), from the server's config. */
   setRows(rows: number, prizes: number[][]): void {
     this.rows = rows;
+    // a fitted frame for this board: its picture, and its row spacing (the pegs move to it)
+    const fit = this.style.fit?.[rows];
+    if (fit && this.fitFrames[rows]) {
+      this.fitNow = fit;
+      setRowGap(fit.rowGap);
+      this.frame.texture = this.fitFrames[rows].wide;
+      this.framePortrait.texture = this.fitFrames[rows].tall;
+      this.pegs.forEach((row, r) => row.forEach(peg => { peg.y = ROW * (r + 1); }));
+      this.pegFlashes.forEach((row, r) => row.forEach(flash => { flash.y = ROW * (r + 1); }));
+      if (this.lastPlace) this.layout(this.lastPlace.view, this.lastPlace.place);
+    }
     this.prizes = prizes;
     this.pegs.forEach((row, r) => row.forEach(peg => { peg.visible = r < rows; }));
     this.slotLayer.removeChildren().forEach(child => child.destroy({ children: true }));
@@ -547,7 +562,8 @@ export class Board extends Container {
     const max = view.landscape ? { w: 1000, h: Math.min(510, visibleH - 110) } : { w: 570, h: 440 };
     // Plinko Mega places the board itself (room for the wheel and the control bar) and shrinks it, frame and all
     const fitTo = place?.fit ?? 1;
-    const fit = this.style.fit;
+    this.lastPlace = { view, place };
+    const fit = this.fitNow;
     if (fit) {
       // a frame drawn for this board: the whole frame fits the room, and the pegs sit where the frame shows them
       const picture = view.landscape ? this.frame : this.framePortrait;

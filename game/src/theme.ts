@@ -6,6 +6,7 @@ import { SOUND_NAMES, type SoundName } from './sound';
 
 export interface ThemeFont { family: string; file: string | null; weight: string }
 export interface SlotStyle { face: string; text: string }
+export interface FitFrame { rowGap: number; x: number; y: number; spacing: number; frame: string; framePortrait: string }
 export interface BoardStyle {
   peg: string | null;            // image for the pegs (else plain dots)
   pegFlash: string;              // glow when a ball touches a peg
@@ -15,11 +16,12 @@ export interface BoardStyle {
   slotArt: boolean;              // prize slots drawn from item_slot_0..4.png (centre -> edge) instead of flat colour
   fx: ThemeFx;                   // the theme's signature effects (visual only)
   /**
-   * A frame drawn for one board (a picture with its own triangle and slot compartments): the only number of rows it
-   * fits, how close its peg rows are (a share of the spacing across), where on the frame picture the top centre of
-   * the pegs goes and how many of its pixels one peg spacing is (in the picture's own pixels, at 1x)
+   * Frames drawn for each board (a picture with its own triangle and slot compartments), by number of rows: the
+   * pictures (wide, tall), how close the peg rows are (a share of the spacing across), where on the picture the top
+   * centre of the pegs goes and how many of its pixels one peg spacing is (the picture's own pixels, at 1x). Only
+   * these numbers of rows are offered.
    */
-  fit: { rows: number; rowGap: number; x: number; y: number; spacing: number } | null;
+  fit: Record<number, FitFrame> | null;
 }
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
@@ -99,13 +101,20 @@ function readFont(json: unknown): ThemeFont {
   return { family, file: fileName(f.file, /\.(woff2|woff|ttf)$/), weight: typeof f.weight === 'string' && /^[1-9]00$/.test(f.weight) ? f.weight : 'normal' };
 }
 
-/** A frame fitted to one board (see BoardStyle.fit), or null. */
+/** Frames fitted to boards (see BoardStyle.fit), by rows, or null. */
 function readFit(json: unknown): BoardStyle['fit'] {
-  const f = (json ?? null) as Record<string, unknown> | null;
-  if (!f) return null;
+  const all = (json ?? null) as Record<string, unknown> | null;
+  if (!all) return null;
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
-  const [rows, rowGap, x, y, spacing] = [n(f.rows), n(f.rowGap), n(f.x), n(f.y), n(f.spacing)];
-  return rows && rowGap && x && y && spacing ? { rows: Math.round(rows), rowGap, x, y, spacing } : null;
+  const out: Record<number, FitFrame> = {};
+  for (const [key, value] of Object.entries(all)) {
+    const f = (value ?? {}) as Record<string, unknown>;
+    const rows = Number(key);
+    const [rowGap, x, y, spacing] = [n(f.rowGap), n(f.x), n(f.y), n(f.spacing)];
+    const frame = fileName(f.frame, /\.png$/), framePortrait = fileName(f.framePortrait, /\.png$/);
+    if (Number.isInteger(rows) && rowGap && x && y && spacing && frame && framePortrait) out[rows] = { rowGap, x, y, spacing, frame, framePortrait };
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 function readRevolverArt(json: unknown): RevolverArt | null {

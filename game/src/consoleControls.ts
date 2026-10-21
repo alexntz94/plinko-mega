@@ -24,9 +24,10 @@ class Key extends Container {
   readonly text: Text;
   enabled = true;
 
-  constructor(texture: Texture, text: string, size: number, colour: string, private readonly onTap: () => void) {
+  constructor(private readonly square: Texture, text: string, size: number, colour: string, private readonly onTap: () => void,
+              private readonly wide: Texture | null = null) {
     super();
-    this.art = new Sprite({ texture, anchor: 0.5 });
+    this.art = new Sprite({ texture: square, anchor: 0.5 });
     this.text = label(text, size, 'center', { fill: colour, stroke: { color: '#000000', width: Math.max(2, size * 0.14), join: 'round' } });
     this.text.anchor.set(0.5, 0.5);
     this.addChild(this.art, this.text);
@@ -43,9 +44,12 @@ class Key extends Container {
 
   /** Sized to w by h (the art stretches), its label kept inside. */
   size(w: number, h: number): void {
+    // a wide key is a panel; a square art stretched wide looks wrong
+    this.art.texture = this.wide && w > h * 1.5 ? this.wide : this.square;
     this.art.width = w;
     this.art.height = h;
     this.hitArea = new Rectangle(-w / 2, -h / 2, w, h);
+    this.text.style.fontSize = Math.round(Math.min(h * 0.42, 26));
     fit(this.text, w * 0.8);
   }
 
@@ -106,6 +110,7 @@ export class ConsoleControls extends Container {
   private readonly auto: Key;
   private readonly turboKey: Key;
   private readonly bumpKey: Key;
+  private readonly rowsKey: Key;
   private readonly credits: Readout;
   private readonly win: Readout;
   private turbo = false;
@@ -115,7 +120,7 @@ export class ConsoleControls extends Container {
   constructor(art: ConsoleArt, private readonly look: ConsoleLook, actions: ConsoleActions, quickBets: number[],
               format: (value: number) => string) {
     super();
-    const key = (text: string, onTap: () => void) => new Key(art.key, text, 18, look.text, onTap);
+    const key = (text: string, onTap: () => void) => new Key(art.key, text, 18, look.text, onTap, art.panel);
     this.drop = new Key(art.drop, 'DROP', 44, '#f3ecd6', () => actions.play());
     this.betMinus = key('−', () => actions.bet(false));
     this.betPlus = key('+', () => actions.bet(true));
@@ -129,10 +134,12 @@ export class ConsoleControls extends Container {
     this.auto = key('AUTO', () => actions.auto());
     this.turboKey = key('TURBO', () => { this.turbo = !this.turbo; this.turboKey.setLit(this.turbo, look); actions.turbo(this.turbo); });
     this.bumpKey = key('⚡', () => actions.bump());
+    // the board's rows: a tap goes to the next size (the game wraps from the largest back to the smallest)
+    this.rowsKey = key('ROWS 8', () => actions.rows(1));
     this.credits = new Readout(art.panel, 'CREDITS', look);
     this.win = new Readout(art.panel, 'WIN', look);
     this.addChild(this.credits, this.win, this.betMinus, this.bet, this.betPlus, ...this.quick, this.ballsMinus, this.balls, this.ballsPlus,
-      ...this.risks, this.auto, this.turboKey, this.bumpKey, this.drop);
+      ...this.risks, this.auto, this.turboKey, this.rowsKey, this.bumpKey, this.drop);
     this.bumpKey.setEnabled(false);
   }
 
@@ -147,26 +154,27 @@ export class ConsoleControls extends Container {
       this.place(rects);
       return;
     }
-    // tall: credits and win side by side, then BET, then the quick bets, then balls and risk, then DROP and the keys
-    const w = Math.min(view.stageW - 24, 520);
+    // tall, top to bottom, filling the screen: credits | win; bet | balls; quick bets; risk; the keys; DROP
+    const w = Math.min(view.stageW - 20, 560);
     const x0 = (view.stageW - w) / 2;
-    const bottom = view.stageH - view.offsetY - 10;
-    const rowH = Math.min(76, (bottom - top) / 6.4);
-    let y = top + rowH * 0.55;
+    const bottom = view.stageH - view.offsetY - 12;
+    const unit = (bottom - top) / 7.9;
+    const rowH = Math.min(84, unit * 0.92);
+    let y = top + unit * 0.55;
     this.credits.position.set(x0 + w * 0.25, y); this.credits.size(w * 0.48, rowH);
     this.win.position.set(x0 + w * 0.75, y); this.win.size(w * 0.48, rowH);
-    y += rowH * 1.05;
-    this.row(this.betMinus, this.bet, this.betPlus, x0, w * 0.5, y, rowH);
-    this.row(this.ballsMinus, this.balls, this.ballsPlus, x0 + w * 0.5, w * 0.5, y, rowH);
-    y += rowH * 1.05;
-    this.spread(this.quick, x0, w, y, rowH * 0.9);
-    y += rowH;
-    this.spread(this.risks, x0, w, y, rowH * 0.9);
-    y += rowH * 1.25;
-    this.drop.position.set(view.stageW / 2, y); this.drop.size(w * 0.56, rowH * 1.5);
-    this.drop.text.style.fontSize = Math.round(rowH * 0.62);
-    this.spreadKeys([this.auto, this.turboKey], x0, w * 0.2, y, rowH);
-    this.spreadKeys([this.bumpKey], x0 + w * 0.8, w * 0.2, y, rowH);
+    y += unit * 1.1;
+    this.row(this.betMinus, this.bet, this.betPlus, x0, w * 0.49, y, rowH);
+    this.row(this.ballsMinus, this.balls, this.ballsPlus, x0 + w * 0.51, w * 0.49, y, rowH);
+    y += unit * 1.1;
+    this.spread(this.quick, x0, w, y, rowH * 0.85);
+    y += unit;
+    this.spread(this.risks, x0, w, y, rowH * 0.85);
+    y += unit;
+    this.spread([this.auto, this.turboKey, this.rowsKey, this.bumpKey], x0, w, y, rowH * 0.8);
+    y += unit * 1.55;
+    this.drop.position.set(view.stageW / 2, y); this.drop.size(w * 0.8, Math.min(unit * 1.9, w * 0.3));
+    this.drop.text.style.fontSize = Math.round(Math.min(unit * 0.8, 52));
     this.drop.base = 1;
   }
 
@@ -178,7 +186,8 @@ export class ConsoleControls extends Container {
     this.spread(this.quick, left.x, left.width, left.y + left.height * 0.76, rowH * 0.85);
     this.row(this.ballsMinus, this.balls, this.ballsPlus, right.x, right.width * 0.62, right.y + right.height * 0.27, rowH);
     this.spread(this.risks, right.x, right.width * 0.62, right.y + right.height * 0.76, rowH * 0.85);
-    this.spreadKeys([this.auto, this.turboKey, this.bumpKey], right.x + right.width * 0.64, right.width * 0.36, right.y + right.height * 0.5, rowH * 0.62, true);
+    this.spreadKeys([this.auto, this.turboKey, this.rowsKey, this.bumpKey], right.x + right.width * 0.64, right.width * 0.36,
+      right.y + right.height * 0.5, rowH * 0.5, true);
     this.drop.position.set(centre.x + centre.width / 2, centre.y + centre.height / 2);
     this.drop.size(centre.width * 1.04, centre.height * 1.1);
     this.drop.text.style.fontSize = Math.round(centre.height * 0.5);
@@ -223,7 +232,10 @@ export class ConsoleControls extends Container {
     this.bet.set(perBall);
     this.quick.forEach((k, i) => k.setLit(perBall.replace(/[^0-9.]/g, '') === String(this.quickValues[i].toFixed(2)), this.look));
   }
-  setRows(_rows: number): void { /* one board for this console */ }
+  setRows(rows: number): void {
+    this.rowsKey.text.text = `ROWS ${rows}`;
+    fit(this.rowsKey.text, this.rowsKey.art.width * 0.8);
+  }
 
   /** busy: balls falling (settings lock); auto: autoplay; left: balls still to land. */
   setPlaying(busy: boolean, auto: boolean, left: number): void {
@@ -238,6 +250,6 @@ export class ConsoleControls extends Container {
     fit(this.drop.text, this.drop.art.width * 0.7);
     this.auto.setLit(auto, this.look);
     this.bumpKey.setEnabled(left > 0);
-    for (const k of [this.betMinus, this.betPlus, this.ballsMinus, this.ballsPlus, ...this.quick, ...this.risks]) k.setEnabled(!busy);
+    for (const k of [this.betMinus, this.betPlus, this.ballsMinus, this.ballsPlus, this.rowsKey, ...this.quick, ...this.risks]) k.setEnabled(!busy);
   }
 }

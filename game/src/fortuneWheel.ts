@@ -160,7 +160,8 @@ export class FortuneWheel extends Container {
     const step = Math.PI * 2 / segments.length;
     // never the same stop twice: how many turns, how fast, and how many chambers click in one by one at the end
     const turns = calm ? 1 : this.hurried ? 2 : 2 + Math.floor(Math.random() * 3);
-    const clicks = calm || this.hurried ? 0 : 1 + Math.floor(Math.random() * 3);
+    // a drawn revolver clicks its last chambers in; the photo revolver turns smoothly and stops dead
+    const clicks = calm || this.hurried || this.photo(segments) ? 0 : 1 + Math.floor(Math.random() * 3);
     const start = this.disc.rotation % (Math.PI * 2);
     this.disc.rotation = start;
     // a revolver stops dead on a chamber; a wheel anywhere within its segment
@@ -338,7 +339,7 @@ export class FortuneWheel extends Container {
     // debris and embers
     this.sparks.burst(0, y, ['#1a1d21', '#4b5320', '#2b3036', '#6e5216'], big ? 34 : 20, big ? 950 : 700, 1500);
     this.sparks.burst(0, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 46 : 26, big ? 850 : 600, 500);
-    shake(this, big ? 18 : 9);
+    if (!this.art.photo) shake(this, big ? 18 : 9);   // the photo revolver stays still under its blast
   }
 
   /** The jackpot display shows MINI, MAJOR and MEGA in turn, each as what it multiplies a ball's win by. */

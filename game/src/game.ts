@@ -113,9 +113,10 @@ export class Game extends Container {
     super();
     const config = session.config;
     // a frame drawn for one board (theme fit) allows only its number of rows
-    const only = theme.board.fit?.rows;
+    const fitted = theme.board.fit;
     const offered = config.rows.map(r => r.rows).sort((a, b) => a - b);
-    this.rowOptions = only && offered.includes(only) ? [only] : offered;
+    this.rowOptions = fitted ? offered.filter(rows => fitted[rows]) : offered;
+    if (this.rowOptions.length === 0) this.rowOptions = offered;
     this.rows = this.rowOptions[0] ?? 8;
     const defaultBet = config.defaultBet || config.minBet;
     this.ladder = betLadder(config.minBet, config.maxBet, defaultBet);
@@ -126,7 +127,8 @@ export class Game extends Container {
     this.menu = new Menu(tex('logo.png'), tex('logo_p.png'), tex('button_start.png'), () => this.start(),
       neonLayers(theme).map(([wide, tall]) => [tex(wide), tex(tall)]), motion);
     this.board = new Board(tex('item_plinko.png'), tex('item_plinko_p.png'), tex('item_ball.png'), theme.board,
-      theme.board.peg ? tex(theme.board.peg) : null);
+      theme.board.peg ? tex(theme.board.peg) : null,
+      Object.fromEntries(Object.entries(theme.board.fit ?? {}).map(([rows, f]) => [rows, { wide: tex(f.frame), tall: tex(f.framePortrait) }])));
     const inkLook = theme.ui.style === 'ink' ? { ink: theme.ui.ink, panel: theme.ui.panel } : null;
     this.meter = new Meter(theme.accent, theme.ui.style === 'glass' ? theme.background : null, inkLook);
     this.meter.set(session.meter?.enabled ?? false, session.meter?.charges ?? 0, session.meter?.of ?? 0);
@@ -170,7 +172,12 @@ export class Game extends Container {
         const at = Math.max(0, steps.findIndex(balls => balls >= this.balls));
         this.changeBalls(steps[Math.min(steps.length - 1, Math.max(0, at + step))]);
       },
-      rows: (step: number) => this.changeRows(this.rowOptions.indexOf(this.rows) + step),
+      // the console's ROWS key only goes forward: past the largest board it comes back to the smallest
+      rows: (step: number) => {
+        const n = this.rowOptions.length;
+        const at = this.rowOptions.indexOf(this.rows) + step;
+        this.changeRows(this.bar instanceof ConsoleControls ? ((at % n) + n) % n : at);
+      },
       pickBet: (value: number) => this.pickBet(value),
     };
     this.bar = theme.console
@@ -267,7 +274,7 @@ export class Game extends Container {
       // the board and its console, centred and as big as the screen allows (wide); the board on top (tall)
       this.board.layout(view, view.landscape
         ? { x: view.stageW / 2, y: view.offsetY + visibleH * 0.52, fit: 1, room: { w: view.stageW * 0.78, h: visibleH * 0.94 } }
-        : { x: view.stageW / 2, y: view.offsetY + visibleH * 0.26, fit: 1, room: { w: view.stageW - 10, h: visibleH * 0.42 } });
+        : { x: view.stageW / 2, y: view.offsetY + 92 + visibleH * 0.21, fit: 1, room: { w: view.stageW * 1.16, h: visibleH * 0.42 } });
       return;
     }
     this.board.layout(view, view.landscape ? { x: view.stageW * 0.32, y: view.offsetY + visibleH * 0.5, fit: 1 }

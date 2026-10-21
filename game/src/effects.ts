@@ -278,6 +278,59 @@ let blastArt: { fire: Texture; dust: Texture; smoke: Texture } | null = null;
 export function setBlastArt(art: { fire: Texture; dust: Texture; smoke: Texture } | null): void {
   blastArt = art;
 }
+
+/** The kinds of explosion a theme can bring, smallest to biggest. */
+export type BlastKind = 'small' | 'fireball' | 'napalm' | 'impact' | 'mushroom';
+let kindArt: Partial<Record<BlastKind, Texture>> = {};
+export function setBlastKinds(art: Partial<Record<BlastKind, Texture>>): void {
+  kindArt = art;
+}
+/** How each kind stands and moves: where it touches the point (anchor), how much it grows, how long it lasts. */
+const KIND: Record<BlastKind, { anchor: [number, number]; from: number; grow: number; life: number; rise: number }> = {
+  small: { anchor: [0.5, 0.5], from: 0.3, grow: 1.15, life: 0.55, rise: 0 },
+  fireball: { anchor: [0.5, 0.55], from: 0.25, grow: 1.2, life: 0.9, rise: 0.1 },
+  napalm: { anchor: [0.5, 0.85], from: 0.15, grow: 1.1, life: 1.1, rise: 0 },
+  impact: { anchor: [0.5, 0.95], from: 0.2, grow: 1.12, life: 0.95, rise: 0 },
+  mushroom: { anchor: [0.5, 0.92], from: 0.1, grow: 1.08, life: 1.7, rise: 0.12 },
+};
+
+/**
+ * One explosion of a given kind at (x, y), `width` across: it bursts out (scaled up fast, eased), keeps growing a
+ * little and drifts up, then fades. False when the theme has no picture of that kind (the caller falls back).
+ */
+export function kindBlast(layer: Container, kind: BlastKind, x: number, y: number, width: number): boolean {
+  const texture = kindArt[kind];
+  if (!texture || calm) return false;
+  if (liveBlasts >= MAX_BLASTS) return true;
+  liveBlasts++;
+  const k = KIND[kind];
+  const sprite = new Sprite({ texture, anchor: { x: k.anchor[0], y: k.anchor[1] } });
+  sprite.position.set(x, y);
+  // a second copy over it, added light, that flares and dies first (the fire flickers)
+  const flare = new Sprite({ texture, anchor: { x: k.anchor[0], y: k.anchor[1] } });
+  flare.position.set(x, y);
+  flare.blendMode = 'add';
+  layer.addChild(sprite, flare);
+  const full = width / texture.width;
+  sprite.scale.set(full * k.from);
+  flare.scale.set(full * k.from);
+  sprite.alpha = 0;
+  flare.alpha = 0;
+  const mirror = Math.random() < 0.5 ? -1 : 1;
+  gsap.timeline({ onComplete: () => {
+    for (const s of [sprite, flare]) { gsap.killTweensOf([s, s.scale]); if (!s.destroyed) s.destroy(); }
+    liveBlasts = Math.max(0, liveBlasts - 1);
+  } })
+    .to(sprite, { alpha: 1, duration: 0.05 }, 0)
+    .to(sprite.scale, { x: full * mirror, y: full, duration: k.life * 0.38, ease: 'expo.out' }, 0)
+    .to(sprite.scale, { x: full * k.grow * mirror, y: full * k.grow, duration: k.life * 0.62, ease: 'sine.out' }, k.life * 0.38)
+    .to(sprite, { y: y - width * k.rise, duration: k.life, ease: 'sine.out' }, 0)
+    .to(sprite, { alpha: 0, duration: k.life * 0.5, ease: 'sine.inOut' }, k.life * 0.5)
+    .to(flare, { alpha: 0.7, duration: 0.04 }, 0)
+    .to(flare.scale, { x: full * 0.9 * mirror, y: full * 0.9, duration: k.life * 0.3, ease: 'expo.out' }, 0)
+    .to(flare, { alpha: 0, duration: k.life * 0.3, ease: 'sine.in' }, 0.08);
+  return true;
+}
 let liveBlasts = 0;
 const MAX_BLASTS = 24;   // photo blasts on screen at once (100 balls landing must stay smooth on a phone)
 
@@ -427,6 +480,10 @@ export class BlastShower extends Container implements Shower {
 
   /** One explosion at (x, y), size about 1 (a wheel win) to 2 (a big win). */
   private blast(x: number, y: number, size: number): void {
+    if (kindBlast(this, size >= 1.9 ? 'mushroom' : size >= 1.2 ? 'fireball' : 'small', x, y, 150 * size)) {
+      this.particles.burst(x, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], Math.round(8 * size), 380 * size, 600);
+      return;
+    }
     if (photoBlast(this, x, y, 70 * size)) {
       this.particles.burst(x, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], Math.round(8 * size), 380 * size, 600);
       return;

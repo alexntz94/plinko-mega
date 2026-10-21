@@ -2,7 +2,7 @@ import { Container, Graphics, GraphicsContext, Sprite, Text, Texture } from 'pix
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { label, textQuality, typeface } from './ui';
-import { Particles, photoBlast, shake } from './effects';
+import { Particles, kindBlast, photoBlast, shake } from './effects';
 import { goldText } from './paint';
 import type { BoardStyle, FitFrame, ThemeFx } from './theme';
 import { prizeIndexOfSlot, slotTier } from './rules';
@@ -809,6 +809,7 @@ export class Board extends Container {
   /** A MEGA BALL in its slot: a gold shockwave, a fountain of gold and xN MEGA! stamped over the slot. */
   private megaLanding(x: number, y: number, times: number): void {
     shake(this, 10);
+    kindBlast(this.textLayer, 'napalm', x, y + 18, 210);
     this.particles.burst(x, y, ['#ffd76a', '#fff3b0', '#e9a91a', '#ffffff'], 48, 520);
     this.particles.ring(x, y, '#ffd76a', 90);
     const word = goldText('x' + times + ' MEGA!', 44);
@@ -1021,8 +1022,12 @@ export class Board extends Container {
     this.particles.burst(x, y - 6, ['#3a3d42', '#55595f', '#24272b'], [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
     // debris: dark chunks thrown out and falling back
     if (size >= 1) this.particles.burst(x, y, ['#1a1d21', '#4b5320', '#2b3036'], [0, 6, 10, 16][size], [0, 260, 360, 480][size], 1400);
-    // the theme's photo explosion when it has one (smoke only from 1x up), else a flash
-    if (!photoBlast(this.textLayer, x, y, [26, 38, 56, 84][size], size >= 1)) {
+    // the theme's explosions: a small hit for small wins, a fireball for good ones, a shell impact for big ones; else
+    // the photo blast; else a flash
+    const kind = (['small', 'small', 'fireball', 'impact'] as const)[size];
+    const shown = kindBlast(this.textLayer, kind, x, size === 3 ? y + 14 : y, [40, 58, 92, 130][size])
+      || photoBlast(this.textLayer, x, y, [26, 38, 56, 84][size], size >= 1);
+    if (!shown) {
       const flash = new Graphics().circle(0, 0, [10, 16, 24, 36][size]).fill('#fff3b0');
       flash.blendMode = 'add';
       flash.position.set(x, y);

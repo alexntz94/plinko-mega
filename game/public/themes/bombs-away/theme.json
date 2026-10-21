@@ -238,6 +238,13 @@
   "blast": {
     "fire": "blast_fire.png",
     "dust": "blast_dust.png",
-    "smoke": "blast_smoke.png"
+    "smoke": "blast_smoke.png",
+    "kinds": {
+      "small": "blast_small.png",
+      "fireball": "blast_fireball.png",
+      "napalm": "blast_napalm.png",
+      "impact": "blast_impact.png",
+      "mushroom": "blast_mushroom.png"
+    }
   }
 }

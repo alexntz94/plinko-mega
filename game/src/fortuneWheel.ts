@@ -5,7 +5,7 @@
 import { BlurFilter, Container, FillGradient, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { label, textQuality, typeface, fit } from './ui';
-import { Particles, calm, photoBlast, shake } from './effects';
+import { Particles, calm, kindBlast, photoBlast, shake } from './effects';
 import { counting, goldText, mix, shade } from './paint';
 import type { Segment } from './api';
 import type { RevolverArt, WheelLook, WheelStyle } from './theme';
@@ -287,8 +287,9 @@ export class FortuneWheel extends Container {
     const r = this.radius;
     const y = -r * 0.42;
     // soft edges drawn in (rings of falling opacity), not blurred: cheap on a phone
-    // the theme's photo explosion over the wheel, when it has one
-    if (photoBlast(this.burst, 0, y, r * (big ? 2.2 : 1.6))) {
+    // the theme's explosion over the wheel: a mushroom cloud for a jackpot, a fireball for a win; else the photo blast
+    if (kindBlast(this.burst, big ? 'mushroom' : 'fireball', 0, big ? r * 0.55 : y, r * (big ? 3.2 : 2.4))
+        || photoBlast(this.burst, 0, y, r * (big ? 2.2 : 1.6))) {
       this.sparks.burst(0, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 40 : 22, big ? 850 : 600, 500);
       const word = goldText(big ? 'KABOOM!' : 'BOOM!', r * (big ? 0.34 : 0.26));
       word.position.set(0, y - r * 0.55);

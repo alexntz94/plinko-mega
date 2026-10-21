@@ -176,7 +176,8 @@ export class Game extends Container {
       rows: (step: number) => {
         const n = this.rowOptions.length;
         const at = this.rowOptions.indexOf(this.rows) + step;
-        this.changeRows(this.bar instanceof ConsoleControls ? ((at % n) + n) % n : at);
+        // the phone's single ROWS key wraps round; the arrows stop at the ends
+        this.changeRows(this.bar instanceof ConsoleControls && step > 0 && at >= n && this.view && !this.view.landscape ? 0 : at);
       },
       pickBet: (value: number) => this.pickBet(value),
     };
@@ -224,7 +225,11 @@ export class Game extends Container {
     // the board with the wheel right under it, as one column; portrait: the bar below them, landscape: beside them
     const visibleH = view.stageH - 2 * view.offsetY;
     const boardX = this.bar instanceof ConsoleControls ? view.stageW / 2 : view.stageW * 0.32;
-    if (view.landscape) this.wheel.place(boardX, view.offsetY + visibleH * 0.62, Math.min(170, visibleH * 0.28));
+    if (view.landscape) {
+      // over the middle of the board, clear of the console (a photo revolver's dial is about 3.5 radii tall)
+      const photo = this.bar instanceof ConsoleControls;
+      this.wheel.place(boardX, view.offsetY + visibleH * (photo ? 0.42 : 0.62), Math.min(photo ? 112 : 170, visibleH * (photo ? 0.17 : 0.28)));
+    }
     else if (this.bar instanceof ConsoleControls) this.wheel.place(view.stageW / 2, view.offsetY + 150 + visibleH * 0.19, Math.min(108, view.stageW * 0.25));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.36, Math.min(175, visibleH * 0.19));
     if (this.bar instanceof ConsoleControls) {
@@ -384,7 +389,11 @@ export class Game extends Container {
     this.board.setRows(this.rows, this.session.config.rows.find(r => r.rows === this.rows)?.prizes ?? []);
     this.board.setRisk(this.risk);
     this.markMeterSlots();
-    if (this.view) this.layoutBoard(this.view);
+    if (this.view) {
+      this.layoutBoard(this.view);
+      // the console's controls sit where the board's frame is: placed again with it
+      if (this.bar instanceof ConsoleControls) this.layoutConsole(this.view, this.bar);
+    }
   }
 
   private money(value: number): string {

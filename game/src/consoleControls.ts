@@ -111,6 +111,9 @@ export class ConsoleControls extends Container {
   private readonly turboKey: Key;
   private readonly bumpKey: Key;
   private readonly rowsKey: Key;
+  private readonly rowsDown: Key;
+  private readonly rowsUp: Key;
+  private readonly rowsShown: Readout;
   private readonly credits: Readout;
   private readonly win: Readout;
   private turbo = false;
@@ -140,10 +143,14 @@ export class ConsoleControls extends Container {
     this.bumpKey = key('⚡', () => actions.bump());
     // the board's rows: a tap goes to the next size (the game wraps from the largest back to the smallest)
     this.rowsKey = key('ROWS 8', () => actions.rows(1));
+    // wide screens: ROWS ◀ 8 ▶ under the bet
+    this.rowsDown = key('◀', () => actions.rows(-1));
+    this.rowsUp = key('▶', () => actions.rows(1));
+    this.rowsShown = new Readout(art.panel, 'ROWS', look);
     this.credits = new Readout(art.panel, 'CREDITS', look);
     this.win = new Readout(art.panel, 'WIN', look);
     this.addChild(this.credits, this.win, this.betMinus, this.bet, this.betPlus, ...this.quick, this.ballsMinus, this.balls, this.ballsPlus,
-      ...this.risks, this.auto, this.turboKey, this.rowsKey, this.bumpKey, this.drop);
+      ...this.risks, this.auto, this.turboKey, this.rowsKey, this.bumpKey, this.rowsDown, this.rowsShown, this.rowsUp, this.drop);
     this.bumpKey.setEnabled(false);
   }
 
@@ -166,6 +173,8 @@ export class ConsoleControls extends Container {
     const bottom = view.stageH - view.offsetY - 12;
     const unit = (bottom - top) / 6.9;
     for (const k of this.quick) k.visible = false;
+    for (const k of [this.rowsDown, this.rowsShown, this.rowsUp]) k.visible = false;
+    this.rowsKey.visible = true;
     const rowH = Math.min(84, unit * 0.8);
     if (this.back) {
       // one steel console behind everything, as on the board
@@ -192,14 +201,16 @@ export class ConsoleControls extends Container {
   /** Wide: BET and quick bets on the left panel, DROP on the centre plate, balls, risk and keys on the right panel. */
   private place(r: ConsoleRects): void {
     const { left, centre, right, credits } = r;
-    for (const k of this.quick) k.visible = true;
+    for (const k of this.quick) k.visible = false;
+    for (const k of [this.rowsDown, this.rowsShown, this.rowsUp]) k.visible = true;
+    this.rowsKey.visible = false;
     const rowH = left.height * 0.42;
     this.row(this.betMinus, this.bet, this.betPlus, left.x, left.width, left.y + left.height * 0.27, rowH);
-    this.spread(this.quick, left.x, left.width, left.y + left.height * 0.76, rowH * 0.85);
+    this.row(this.rowsDown, this.rowsShown, this.rowsUp, left.x, left.width, left.y + left.height * 0.76, rowH * 0.85);
     this.row(this.ballsMinus, this.balls, this.ballsPlus, right.x, right.width * 0.62, right.y + right.height * 0.27, rowH);
     this.spread(this.risks, right.x, right.width * 0.62, right.y + right.height * 0.76, rowH * 0.85);
-    this.spreadKeys([this.auto, this.turboKey, this.rowsKey, this.bumpKey], right.x + right.width * 0.64, right.width * 0.36,
-      right.y + right.height * 0.5, rowH * 0.5, true);
+    this.spreadKeys([this.auto, this.turboKey, this.bumpKey], right.x + right.width * 0.64, right.width * 0.36,
+      right.y + right.height * 0.5, rowH * 0.62, true);
     this.drop.position.set(centre.x + centre.width / 2, centre.y + centre.height / 2);
     this.drop.size(centre.width * 1.04, centre.height * 1.1);
     this.drop.text.style.fontSize = Math.round(centre.height * 0.5);
@@ -245,6 +256,7 @@ export class ConsoleControls extends Container {
     this.quick.forEach((k, i) => k.setLit(perBall.replace(/[^0-9.]/g, '') === String(this.quickValues[i].toFixed(2)), this.look));
   }
   setRows(rows: number): void {
+    this.rowsShown.set(String(rows));
     this.rowsKey.text.text = `ROWS ${rows}`;
     fit(this.rowsKey.text, this.rowsKey.art.width * 0.8);
   }
@@ -262,6 +274,6 @@ export class ConsoleControls extends Container {
     fit(this.drop.text, this.drop.art.width * 0.7);
     this.auto.setLit(auto, this.look);
     this.bumpKey.setEnabled(left > 0);
-    for (const k of [this.betMinus, this.betPlus, this.ballsMinus, this.ballsPlus, this.rowsKey, ...this.quick, ...this.risks]) k.setEnabled(!busy);
+    for (const k of [this.betMinus, this.betPlus, this.ballsMinus, this.ballsPlus, this.rowsKey, this.rowsDown, this.rowsUp, ...this.quick, ...this.risks]) k.setEnabled(!busy);
   }
 }

@@ -252,7 +252,8 @@
       "heavy": "anim_heavy.png",
       "napalm": "anim_napalm.png",
       "impact": "anim_impact.png",
-      "mushroom": "anim_mushroom.png"
+      "mushroom": "anim_mushroom.png",
+      "muzzle": "anim_muzzle.png"
     },
     "grids": {
       "small": [
@@ -278,7 +279,15 @@
       "mushroom": [
         6,
         5
+      ],
+      "muzzle": [
+        4,
+        4
       ]
+    },
+    "tank": {
+      "body": "tank.png",
+      "target": "target.png"
     }
   }
 }

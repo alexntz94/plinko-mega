@@ -118,6 +118,16 @@ class WinCheckTest {
     }
 
     @Test
+    void aTankAssaultPaysItsTargetsOnTheRoundsPlainBet() {
+        // 3 balls at 0.10 (plain 0.30), tank x4.70: costs 1.41; the targets pay x the plain bet: 0.03+0.06+0.15+0.30+3.00
+        bet = new BigDecimal("0.10");
+        totalBet = new BigDecimal("1.41");
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "power:tankx4.70;tank:0.1,0.2,0.5,1,10", "4.25"))).isNull();
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "power:tankx4.70;tank:0.1,0.2,0.5,1,7", "3.35"))).startsWith("C5: tank target x7");
+        assertThat(problem(round("4,3,0", "0.5,1,5.6", "power:tankx4.70;tank:0.1,0.2", "0.80"))).startsWith("C5: tank targets");
+    }
+
+    @Test
     void aGateLayoutThatDoesNotExistIsCaught() {
         assertThat(problem(round("4,3,0", "0.5,1,5.6", "layout:999", "7.10"))).startsWith("C5: gate layout 999");
     }

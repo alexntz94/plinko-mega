@@ -9,6 +9,7 @@ import { FortuneWheel, type PhotoRevolver } from './fortuneWheel';
 import { MegaControls } from './megaControls';
 import { ConsoleControls } from './consoleControls';
 import { ArsenalPanel } from './arsenal';
+import { TankAssault } from './tank';
 import { WinTicker } from './ticker';
 import { Ambient, Screen, WinBanner } from './juice';
 import { Meter } from './meter';
@@ -46,12 +47,12 @@ function photoRevolver(theme: Theme, tex: (file: string) => Texture): PhotoRevol
 
 /** The power-ups' short names, for the status line and the ARSENAL key. */
 const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER', 'strike-left': 'STRIKE L', 'strike-centre': 'STRIKE C',
-  'strike-right': 'STRIKE R', crates: 'CRATES', missile: 'MISSILE', night: 'NIGHT' };
+  'strike-right': 'STRIKE R', crates: 'CRATES', missile: 'MISSILE', night: 'NIGHT', tank: 'TANK' };
 /** Every power-up the arsenal can sell. */
-const POWER_IDS = ['heavy', 'cluster', 'strike-left', 'strike-centre', 'strike-right', 'crates', 'missile', 'night'];
+const POWER_IDS = ['heavy', 'cluster', 'strike-left', 'strike-centre', 'strike-right', 'crates', 'missile', 'night', 'tank'];
 /** What a bought round is announced as. */
 const POWER_STAMPS: Record<string, string> = { cluster: 'CLUSTER SHELLS', 'strike-left': 'AIRSTRIKE x2', 'strike-centre': 'AIRSTRIKE x2',
-  'strike-right': 'AIRSTRIKE x2', crates: 'CHAIN REACTION', missile: 'MISSILE STRIKE x3', night: 'NIGHT RAID' };
+  'strike-right': 'AIRSTRIKE x2', crates: 'CHAIN REACTION', missile: 'MISSILE STRIKE x3', night: 'NIGHT RAID', tank: 'TANK ASSAULT' };
 
 /** Four quick bets for the console: the bet ladder's steps nearest 1, 5, 10 and 25 times the default bet. */
 function quickBets(ladder: number[], base: number): number[] {
@@ -88,6 +89,7 @@ export class Game extends Container {
   /** the power-up armed for the next round (heavy, cluster), and the ARSENAL panel it is picked on */
   private power: string | null = null;
   private readonly arsenal: ArsenalPanel | null = null;
+  private readonly tank: TankAssault | null = null;
   private readonly ticker: WinTicker;
   /** The slot-machine feel: petals always drifting, the WIN banner, the screen's flash and slow motion. */
   private readonly ambient: Ambient;
@@ -208,6 +210,10 @@ export class Game extends Container {
     if (theme.console && config.mega?.powers && Object.keys(config.mega.powers).length) {
       this.arsenal = new ArsenalPanel(tex(theme.console.panel), { gold: theme.wheel.title, text: theme.text }, id => this.arm(id));
       this.table.addChild(this.arsenal);
+    }
+    if (theme.blast?.tank) {
+      this.tank = new TankAssault({ tank: tex(theme.blast.tank.body), target: tex(theme.blast.tank.target) });
+      this.table.addChild(this.tank);
     }
 
     this.result = new ResultScreen(tex('item_result.png'), tex('item_result_p.png'), tex('button_continue.png'), () => this.go('menu'));
@@ -681,6 +687,16 @@ export class Game extends Container {
     }
     await Promise.all(drops);
     this.board.combo(0);
+
+    // tank assault: the tank fires at its targets, each adding its win as it is hit
+    if (round.targets?.length && this.tank) {
+      if (this.view) this.tank.layout(this.view);
+      const wins = round.targetWins ?? [];
+      await this.tank.play(round.targets, i => `x${round.targets![i]}  ${this.money(wins[i] ?? 0)}`,
+        i => { land(wins[i] ?? 0); sound(round.targets![i] >= 2 ? 'big' : 'score'); }, () => sound('huge', { volume: 0.7 }));
+    } else if (round.targetWins?.length) {
+      for (const win of round.targetWins) land(win);
+    }
 
     // every ball in a SPIN slot turns the wheel under the board, then a full meter's MEGA SPINs turn it gold
     const config = this.session.config.mega;

@@ -51,7 +51,9 @@ export interface Round { roundId: string; slots: number[]; multipliers: number[]
   /** the power-up the round was bought with, and for cluster shells each ball's two decoy landings */
   power?: string | null; decoys?: number[][];
   /** chain reaction: balls that hit an ammo crate and what it multiplied by; a power-up by slot: each slot's factor */
-  crates?: MegaBall[]; slotFactors?: number[] }
+  crates?: MegaBall[]; slotFactors?: number[];
+  /** tank assault: what each target paid (x the round's bet) and its win */
+  targets?: number[]; targetWins?: number[] }
 /** Paid ball `ball` was a MEGA BALL that multiplied its win by `multiplier`. */
 export interface MegaBall { ball: number; multiplier: number }
 export interface ApiError { status: number; code: string; message?: string; balance?: number }

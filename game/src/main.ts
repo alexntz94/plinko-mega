@@ -39,7 +39,7 @@ function themeExtras(theme: Theme): string[] {
       ...Object.values(theme.wheel.revolverArt.cartridges)] : []),
     ...(theme.wheel.spinMark ? [theme.wheel.spinMark] : []),
     ...(theme.blast ? [theme.blast.fire, theme.blast.dust, theme.blast.smoke, ...Object.values(theme.blast.kinds),
-      ...Object.values(theme.blast.sheets)] : []),
+      ...Object.values(theme.blast.sheets), ...(theme.blast.tank ? [theme.blast.tank.body, theme.blast.tank.target] : [])] : []),
     ...Object.values(theme.board.fit ?? {}).flatMap(f => [f.frame, f.framePortrait]),
   ];
 }

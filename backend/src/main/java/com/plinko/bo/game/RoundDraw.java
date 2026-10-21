@@ -44,6 +44,11 @@ final class RoundDraw {
             return -1;
         }
 
+        /** A tank target: the index of what it pays in BonusService.TANK. */
+        default int target() {
+            return 0;
+        }
+
         /** Which of the board's gate layouts this round uses (0..count-1, every one equally likely). */
         default int layout(int count) {
             return 0;
@@ -78,7 +83,7 @@ final class RoundDraw {
     record Result(List<Integer> slots, List<BigDecimal> multipliers, List<BigDecimal> wins, int chargesAfter, BigDecimal potAfter, String meterPrev, BigDecimal totalWin,
                   String slotText, String multiplierText, String bonusText,
                   List<Integer> paths, List<Integer> gates, List<Spin> spins, List<MegaSpin> megaSpins, List<MegaBall> megaBalls,
-                  int layout, List<List<Integer>> decoys, List<MegaBall> crates) {
+                  int layout, List<List<Integer>> decoys, List<MegaBall> crates, List<BigDecimal> targets, List<BigDecimal> targetWins) {
     }
 
     /** A power-up bought for the round (heavy or cluster) and what a ball cost with it (x the bet), or none. */
@@ -201,6 +206,20 @@ final class RoundDraw {
                 totalWin = totalWin.add(spinWin);
             }
         }
+        // tank assault: after the balls, the tank's targets, each paying x the round's plain bet
+        List<BigDecimal> targets = new ArrayList<>();
+        List<BigDecimal> targetWins = new ArrayList<>();
+        if (power != null && "tank".equals(power.name())) {
+            BigDecimal stake = bet.multiply(BigDecimal.valueOf(balls));
+            for (int t = 0; t < BonusService.TANK_TARGETS; t++) {
+                BigDecimal pays = BonusService.TANK.get(dice.target()).multiplier().stripTrailingZeros();
+                BigDecimal win = RoundWin.ball(stake, pays);
+                targets.add(pays);
+                targetWins.add(win);
+                totalWin = totalWin.add(win);
+            }
+            text.tank(targets);
+        }
         // a full meter pays its pot as a MEGA SPIN of the gold wheel, after the balls (at most 3 a round; further
         // charges wait for the next round)
         List<MegaSpin> megaSpins = new ArrayList<>();
@@ -229,7 +248,8 @@ final class RoundDraw {
         return new Result(slots, multipliers, wins, charges, pot, meterPrev, totalWin,
                 slots.stream().map(String::valueOf).collect(Collectors.joining(",")),
                 multipliers.stream().map(BigDecimal::toPlainString).collect(Collectors.joining(",")), text.text(),
-                paths, gates, spins, megaSpins, megaBalls, layout, List.copyOf(decoys), List.copyOf(crates));
+                paths, gates, spins, megaSpins, megaBalls, layout, List.copyOf(decoys), List.copyOf(crates), List.copyOf(targets),
+                List.copyOf(targetWins));
     }
 
     /** Each prize position's rank for a cluster shell (higher is better): by prize, then by position. */

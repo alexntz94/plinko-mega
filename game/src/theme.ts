@@ -73,7 +73,9 @@ export interface Theme {
   /** a photo explosion (fireball, ground dust ring, smoke plume) for every blast, or null: drawn in code */
   blast: { fire: string; dust: string; smoke: string; kinds: Partial<Record<BlastName, string>>;
     /** animated explosions: per kind, a sprite sheet (a square grid of frames, `grids` per kind, 4 when not given) */
-    sheets: Partial<Record<BlastName, string>>; grids: Partial<Record<BlastName, [number, number]>> } | null;
+    sheets: Partial<Record<BlastName, string>>; grids: Partial<Record<BlastName, [number, number]>>;
+    /** tank assault: the tank (facing right) and a target; null: the power-up isn't shown */
+    tank: { body: string; target: string } | null } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -139,7 +141,7 @@ function readRevolverArt(json: unknown): RevolverArt | null {
     chamberRadius, opening, openingRadius };
 }
 
-const BLAST_NAMES = ['small', 'fireball', 'heavy', 'napalm', 'impact', 'mushroom'] as const;
+const BLAST_NAMES = ['small', 'fireball', 'heavy', 'napalm', 'impact', 'mushroom', 'muzzle'] as const;
 type BlastName = typeof BLAST_NAMES[number];
 
 function readBlast(json: unknown): Theme['blast'] {
@@ -164,7 +166,10 @@ function readBlast(json: unknown): Theme['blast'] {
     if (ok(n)) grids[name] = [n, n];
     else if (Array.isArray(n) && n.length === 2 && ok(n[0]) && ok(n[1])) grids[name] = [n[0], n[1]];
   }
-  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets), grids } : null;
+  const t = (b.tank ?? {}) as Record<string, unknown>;
+  const body = fileName(t.body, /\.png$/), target = fileName(t.target, /\.png$/);
+  const tank = body && target ? { body, target } : null;
+  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets), grids, tank } : null;
 }
 
 function readConsole(json: unknown): Theme['console'] {

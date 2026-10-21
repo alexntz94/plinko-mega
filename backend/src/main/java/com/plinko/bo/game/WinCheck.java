@@ -244,6 +244,15 @@ public class WinCheck {
                 }
             }
         }
+        if ("tank".equals(outcome.power()) != !outcome.targets().isEmpty()
+                || (!outcome.targets().isEmpty() && outcome.targets().size() != com.plinko.bo.bonus.BonusService.TANK_TARGETS)) {
+            return "C5: tank targets do not match the power-up";
+        }
+        for (BigDecimal target : outcome.targets()) {
+            if (com.plinko.bo.bonus.BonusService.TANK.stream().noneMatch(t -> t.multiplier().compareTo(target) == 0)) {
+                return "C5: tank target x" + target + " does not exist";
+            }
+        }
         if (!outcome.crates().isEmpty() && !"crates".equals(outcome.power())) {
             return "C5: ammo crates in a round not bought with chain reaction";
         }

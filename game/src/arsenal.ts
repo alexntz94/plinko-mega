@@ -1,6 +1,6 @@
 // The ARSENAL: the power-ups a player can buy for the next round, as cards on a steel panel over the game. Each card
 // says what it does and what the round will cost with it (the server's price for this board and risk); a tap arms it
-// for the next drop (another tap disarms it). Power-ups still to come are shown, locked.
+// for the next drop (another tap disarms it).
 
 import { Container, Graphics, Rectangle, Sprite, Text, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
@@ -19,7 +19,7 @@ export const ARSENAL: ArsenalCard[] = [
   { id: 'crates', name: 'CHAIN REACTION', text: '1 ball in 5 hits a crate: x2, x3 or x5', ready: true },
   { id: 'missile', name: 'MISSILE STRIKE', text: 'The outer slots pay x3', ready: true },
   { id: 'night', name: 'NIGHT RAID', text: 'Big prizes x3, small ones less', ready: true },
-  { id: 'tank', name: 'TANK ASSAULT', text: 'Buy the bonus game', ready: false },
+  { id: 'tank', name: 'TANK ASSAULT', text: 'A tank fires at 5 targets: x0.1 to x10 each', ready: true },
 ];
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite; lit: Graphics; price: Text;

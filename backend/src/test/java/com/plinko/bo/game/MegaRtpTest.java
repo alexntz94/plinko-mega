@@ -206,6 +206,10 @@ class MegaRtpTest {
             public int crate() {
                 return bonus.rollCrate();
             }
+
+            public int target() {
+                return bonus.rollTarget();
+            }
         };
         int rounds = 20_000, batches = 100, perBatch = rounds / batches;
         for (String power : BonusService.POWERS) {

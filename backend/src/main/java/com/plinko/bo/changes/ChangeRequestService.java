@@ -297,7 +297,8 @@ public class ChangeRequestService {
         String arsenal = settings.arsenal() == null ? "arsenal off"
                 : "arsenal: heavy " + onOff(settings.arsenal().heavy()) + ", cluster " + onOff(settings.arsenal().cluster())
                 + ", airstrike " + onOff(settings.arsenal().airstrike()) + ", crates " + onOff(settings.arsenal().crates())
-                + ", missile " + onOff(settings.arsenal().missile()) + ", night " + onOff(settings.arsenal().night());
+                + ", missile " + onOff(settings.arsenal().missile()) + ", night " + onOff(settings.arsenal().night())
+                + ", tank " + onOff(settings.arsenal().tank());
         return meter + "; " + gates + "; " + wheel + "; " + megaBall + "; " + arsenal;
     }
 

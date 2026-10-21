@@ -277,7 +277,7 @@ export class CoinShower extends Container implements Shower {
  * An explosion played from its frames (the theme's sprite sheet): the whole animation once, `width` across, mirrored at
  * random so repeats don't look alike; gone when it ends.
  */
-function animatedBlast(layer: Container, kind: BlastKind, x: number, y: number, width: number): boolean {
+function animatedBlast(layer: Container, kind: BlastKind, x: number, y: number, width: number, rotation: number): boolean {
   if (liveBlasts >= MAX_BLASTS) return true;
   liveBlasts++;
   const { frames, fill } = kindFrames[kind]!;
@@ -285,7 +285,8 @@ function animatedBlast(layer: Container, kind: BlastKind, x: number, y: number, 
   const blast = new AnimatedSprite({ textures: frames, anchor: { x: k.anchor[0], y: k.anchor[1] }, autoUpdate: true });
   blast.position.set(x, y);
   const scale = width / (frames[0].width * fill);
-  blast.scale.set(Math.random() < 0.5 ? -scale : scale, scale);
+  blast.scale.set(kind !== 'muzzle' && Math.random() < 0.5 ? -scale : scale, scale);
+  blast.rotation = rotation;
   blast.loop = false;
   blast.animationSpeed = frames.length / (k.life * 1.3 * 60);   // the frames over the kind's life (a little slower: they are real fire)
   const done = () => {
@@ -305,7 +306,7 @@ export function setBlastArt(art: { fire: Texture; dust: Texture; smoke: Texture 
 }
 
 /** The kinds of explosion a theme can bring, smallest to biggest. */
-export type BlastKind = 'small' | 'fireball' | 'heavy' | 'napalm' | 'impact' | 'mushroom';
+export type BlastKind = 'small' | 'fireball' | 'heavy' | 'napalm' | 'impact' | 'mushroom' | 'muzzle';
 let kindArt: Partial<Record<BlastKind, Texture>> = {};
 export function setBlastKinds(art: Partial<Record<BlastKind, Texture>>): void {
   kindArt = art;
@@ -335,14 +336,16 @@ const KIND: Record<BlastKind, { anchor: [number, number]; from: number; grow: nu
   napalm: { anchor: [0.5, 0.85], from: 0.15, grow: 1.1, life: 1.1, rise: 0 },
   impact: { anchor: [0.5, 0.95], from: 0.2, grow: 1.12, life: 0.95, rise: 0 },
   mushroom: { anchor: [0.5, 0.92], from: 0.1, grow: 1.08, life: 1.7, rise: 0.12 },
+  // a cannon's flash: it starts at the barrel and blows forward (to the right), never mirrored
+  muzzle: { anchor: [0.15, 0.5], from: 0.3, grow: 1.1, life: 0.7, rise: 0 },
 };
 
 /**
  * One explosion of a given kind at (x, y), `width` across: it bursts out (scaled up fast, eased), keeps growing a
  * little and drifts up, then fades. False when the theme has no picture of that kind (the caller falls back).
  */
-export function kindBlast(layer: Container, kind: BlastKind, x: number, y: number, width: number): boolean {
-  if (kindFrames[kind] && !calm) return animatedBlast(layer, kind, x, y, width);
+export function kindBlast(layer: Container, kind: BlastKind, x: number, y: number, width: number, rotation = 0): boolean {
+  if (kindFrames[kind] && !calm) return animatedBlast(layer, kind, x, y, width, rotation);
   const texture = kindArt[kind] ?? (kind === 'heavy' ? kindArt.fireball : undefined);
   if (!texture || calm) return false;
   if (liveBlasts >= MAX_BLASTS) return true;

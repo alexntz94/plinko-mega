@@ -406,7 +406,30 @@ public class BonusService {
 
     /** The power-ups a round can be bought with. */
     public static final java.util.List<String> POWERS = java.util.List.of("heavy", "cluster", "strike-left", "strike-centre", "strike-right",
-            "crates", "missile", "night");
+            "crates", "missile", "night", "tank");
+
+    /** Tank assault: how many targets the tank fires at, and what each pays (x the round's plain bet; weights add up to 100). */
+    public static final int TANK_TARGETS = 5;
+    public static final java.util.List<BonusSettings.Segment> TANK = java.util.List.of(
+            new BonusSettings.Segment(null, new BigDecimal("0.1"), new BigDecimal("30")),
+            new BonusSettings.Segment(null, new BigDecimal("0.2"), new BigDecimal("25")),
+            new BonusSettings.Segment(null, new BigDecimal("0.5"), new BigDecimal("20")),
+            new BonusSettings.Segment(null, new BigDecimal("1"), new BigDecimal("14")),
+            new BonusSettings.Segment(null, new BigDecimal("2"), new BigDecimal("7")),
+            new BonusSettings.Segment(null, new BigDecimal("5"), new BigDecimal("3")),
+            new BonusSettings.Segment(null, new BigDecimal("10"), new BigDecimal("1")));
+
+    /** One tank target: the index of what it pays in TANK. */
+    public int rollTarget() {
+        double pick = random.nextDouble() * 100, cumulative = 0;
+        for (int i = 0; i < TANK.size(); i++) {
+            cumulative += TANK.get(i).weight().doubleValue();
+            if (pick < cumulative) {
+                return i;
+            }
+        }
+        return 0;
+    }
 
     /** Chain reaction: the share of balls that hit an ammo crate, and what a crate multiplies by (weights add up to 100). */
     public static final BigDecimal CRATE_CHANCE = new BigDecimal("20");
@@ -523,6 +546,13 @@ public class BonusService {
                 powered += (Math.pow(upTo, 3) - Math.pow(below, 3)) * plain[i];
                 below = upTo;
             }
+        } else if ("tank".equals(power)) {
+            // the balls as usual, and on top the tank's targets: each pays x the round's plain bet, so per ball x1
+            double target = 0;
+            for (BonusSettings.Segment s : TANK) {
+                target += s.multiplier().doubleValue() * s.weight().doubleValue() / 100;
+            }
+            powered = normal + TANK_TARGETS * target;
         } else if (POWERS.contains(power)) {
             // by slot (airstrike, missile, night): each position's two slots equally likely; crates: every ball alike
             int rows = table.rows();

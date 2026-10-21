@@ -127,7 +127,7 @@ public class GameService {
                                MeterView meter, List<BigDecimal> wins,
                                List<Integer> paths, List<Integer> gates, List<SpinView> spins, List<MegaSpinView> megaSpins,
                                List<MegaBallView> megaBalls, List<List<Integer>> gateLayout, String power, List<List<Integer>> decoys,
-                               List<MegaBallView> crates, List<BigDecimal> slotFactors) {
+                               List<MegaBallView> crates, List<BigDecimal> slotFactors, List<BigDecimal> targets, List<BigDecimal> targetWins) {
     }
 
     private final GameRepository repository;
@@ -178,6 +178,11 @@ public class GameService {
         @Override
         public int crate() {
             return bonus.rollCrate();
+        }
+
+        @Override
+        public int target() {
+            return bonus.rollTarget();
         }
     };
 
@@ -442,7 +447,8 @@ public class GameService {
                 drawn.megaBalls().stream().map(x -> new MegaBallView(x.ball(), x.multiplier())).toList(),
                 layoutView(setup.table().rows(), drawn.layout()), setup.power() == null ? null : setup.power().name(), drawn.decoys(),
                 drawn.crates().stream().map(x -> new MegaBallView(x.ball(), x.multiplier())).toList(),
-                slotFactors(setup.power() == null ? null : setup.power().name(), setup.table().rows(), setup.table().risk()));
+                slotFactors(setup.power() == null ? null : setup.power().name(), setup.table().rows(), setup.table().risk()),
+                drawn.targets(), drawn.targetWins());
     }
 
     /** The odds table and bonuses in force, the round's cost, and the hard win limit (a bet that could exceed it is refused). */
@@ -703,7 +709,8 @@ public class GameService {
                 outcome.megaBalls().stream().map(x -> new MegaBallView(x.ball(), x.multiplier().stripTrailingZeros())).toList(),
                 layoutView(round.rows(), outcome.layout()), outcome.power(), outcome.decoys(),
                 outcome.crates().stream().map(x -> new MegaBallView(x.ball(), x.multiplier().stripTrailingZeros())).toList(),
-                slotFactors(outcome.power(), round.rows(), round.risk()));
+                slotFactors(outcome.power(), round.rows(), round.risk()), outcome.targets(),
+                outcome.targets().stream().map(t -> RoundWin.ball(round.bet().multiply(BigDecimal.valueOf(round.balls())), t)).toList());
     }
 
     /** (c) the credit's answer, the round's status, the player's balance and the round lock released: one transaction. */

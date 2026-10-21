@@ -133,7 +133,9 @@
         "#fff2dc"
       ],
       "rim": "#ffb43c"
-    }
+    },
+    "bezel": "wheel_bezel.png",
+    "hub": "wheel_hub.png"
   },
   "ambient": {
     "colours": [
@@ -148,7 +150,30 @@
     "ink": "#0b0d10",
     "panel": "#171b20"
   },
-  "sounds": [],
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
   "console": {
     "drop": "console_drop.png",
     "panel": "console_panel.png",
@@ -213,5 +238,6 @@
         0.5
       ]
     }
-  }
+  },
+  "music": "music.mp3"
 }

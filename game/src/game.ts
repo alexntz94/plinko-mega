@@ -1,4 +1,4 @@
-import { Container, Rectangle, type Texture } from 'pixi.js';
+import { Container, Rectangle, Sprite, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { errorText, formatAmount, playRound, resumeSession, type ApiError, type HistoryEntry, type MeterInfo, type Round, type Session } from './api';
 import { HistoryPanel } from './historyPanel';
@@ -95,6 +95,8 @@ export class Game extends Container {
   private readonly arsenal: ArsenalPanel | null = null;
   private readonly tank: TankAssault | null = null;
   private readonly meltdown: CoreMeltdown | null = null;
+  /** Steam from the station's vents, behind the board (Reactor Drop). */
+  private readonly vents = new Container();
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
@@ -178,7 +180,8 @@ export class Game extends Container {
     this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
-        explode: blasts, photo: photoRevolver(theme, tex) });
+        explode: blasts, photo: photoRevolver(theme, tex),
+        words: theme.board.fx === 'reactor' ? ['SURGE!', 'OVERLOAD!'] : ['BOOM!', 'KABOOM!'] });
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
       // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
@@ -221,7 +224,9 @@ export class Game extends Container {
     this.ticker = new WinTicker(theme.wheel.title);
     this.ambient = new Ambient(theme.ambient.colours, theme.ambient.rise);
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
-    this.table.addChild(this.ambient, this.board, this.ticker, this.wheel, this.banner, this.meter, this.bar);
+    this.table.addChild(this.ambient, this.vents, this.board, this.ticker, this.wheel, this.banner, this.meter, this.bar);
+    // Reactor Drop: the station breathes: vent steam drifts up at the sides now and then
+    if (theme.board.fx === 'reactor' && theme.blast) this.ventSteam(tex(theme.blast.smoke));
     if (theme.console && config.mega?.powers && Object.keys(config.mega.powers).length) {
       const set = ARSENALS[theme.id] ?? ARSENALS['bombs-away'];
       this.arsenal = new ArsenalPanel(tex(theme.console.panel), { gold: theme.wheel.title, text: theme.text }, id => this.arm(id), set);
@@ -321,6 +326,28 @@ export class Game extends Container {
     } else {
       bar.layout(view, null, at(384, 418).y + 6);
     }
+  }
+
+  /** A puff of vent steam every few seconds at one side of the screen, rising and fading (only while it is seen). */
+  private ventSteam(steam: Texture): void {
+    const puff = () => {
+      gsap.delayedCall(random(2.5, 5), puff);
+      const view = this.view;
+      if (!view || this.page !== 'game' || this.vents.children.length >= 4) return;
+      const visibleW = view.stageW - 2 * view.offsetX, visibleH = view.stageH - 2 * view.offsetY;
+      const left = Math.random() < 0.5;
+      const cloud = new Sprite({ texture: steam, anchor: { x: 0.5, y: 1 } });
+      cloud.position.set(view.offsetX + visibleW * (left ? random(0.04, 0.16) : random(0.84, 0.96)), view.offsetY + visibleH * random(0.7, 0.9));
+      cloud.scale.set(random(0.35, 0.55));
+      cloud.alpha = 0;
+      this.vents.addChild(cloud);
+      gsap.timeline({ onComplete: () => cloud.destroy() })
+        .to(cloud, { alpha: random(0.35, 0.55), duration: 0.6, ease: 'sine.out' })
+        .to(cloud, { y: cloud.y - visibleH * 0.18, duration: 3.2, ease: 'sine.out' }, 0)
+        .to(cloud.scale, { x: cloud.scale.x * 1.5, y: cloud.scale.y * 1.5, duration: 3.2 }, 0)
+        .to(cloud, { alpha: 0, duration: 1.8, ease: 'sine.in' }, 1.4);
+    };
+    gsap.delayedCall(1.5, puff);
   }
 
   /** The board's place: room for the wheel and the control bar. */

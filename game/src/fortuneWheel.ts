@@ -52,6 +52,10 @@ export class FortuneWheel extends Container {
   private jackpotIndex = 0;
   private hurried = false;
   private spin: gsap.core.Timeline | null = null;
+  private get words(): [string, string] {
+    return this.art.words ?? ['BOOM!', 'KABOOM!'];
+  }
+
   /** Each segment edge that passes the pointer (for the ticking sound). */
   onTick: (() => void) | null = null;
   /** A win landing on the wheel (big: a jackpot or a MEGA SPIN), for its sound. */
@@ -59,7 +63,9 @@ export class FortuneWheel extends Container {
 
   constructor(private readonly style: WheelStyle, private readonly hub: Texture | null, private readonly finger: Texture | null,
               private readonly format: (value: number) => string, private readonly panel = '#2a1747',
-              private readonly art: { bezel: Texture | null; glass: Texture | null; explode?: boolean; photo?: PhotoRevolver | null } = { bezel: null, glass: null }) {
+              private readonly art: { bezel: Texture | null; glass: Texture | null; explode?: boolean; photo?: PhotoRevolver | null;
+                /** what a win shouts: [a win, a jackpot] */
+                words?: [string, string] } = { bezel: null, glass: null }) {
     super();
     this.jackpotName = label('', 14, 'center', { fill: style.title });
     this.jackpotAmount = label('', 26, 'center', { fill: '#ffd76a', stroke: { color: '#000000', width: 4, join: 'round' } });
@@ -291,7 +297,7 @@ export class FortuneWheel extends Container {
     if (kindBlast(this.burst, big ? 'mushroom' : 'heavy', 0, big ? r * 0.55 : y, r * (big ? 3.2 : 2.4))
         || photoBlast(this.burst, 0, y, r * (big ? 2.2 : 1.6))) {
       this.sparks.burst(0, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 40 : 22, big ? 850 : 600, 500);
-      const word = goldText(big ? 'KABOOM!' : 'BOOM!', r * (big ? 0.34 : 0.26));
+      const word = goldText(big ? this.words[1] : this.words[0], r * (big ? 0.34 : 0.26));
       word.position.set(0, y - r * 0.55);
       this.burst.addChild(word);
       gsap.timeline()
@@ -339,7 +345,7 @@ export class FortuneWheel extends Container {
         .fromTo(ring.scale, { x: 0.1, y: 0.1 }, { x: big ? 4.5 : 3, y: big ? 4.5 : 3, duration: 0.6, ease: 'power2.out' }, 0)
         .to(ring, { alpha: 0, duration: 0.6, ease: 'power1.in' }, 0);
     }
-    const word = goldText(big ? 'KABOOM!' : 'BOOM!', r * (big ? 0.34 : 0.26));
+    const word = goldText(big ? this.words[1] : this.words[0], r * (big ? 0.34 : 0.26));
     word.position.set(0, y - r * 0.55);
     word.rotation = random(-0.12, 0.12);
     this.burst.addChild(word);

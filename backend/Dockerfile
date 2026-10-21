@@ -10,7 +10,7 @@ COPY healthcheck/HealthCheck.java /build/health/
 RUN javac -d /build/health /build/health/HealthCheck.java
 
 # Distroless: no shell, no package manager, runs as uid 65532.
-FROM gcr.io/distroless/java21-debian13:nonroot@sha256:f3ac871fb5802c2739bb23b67212e67f341cbe754131528d2e9849072f9efb9a
+FROM gcr.io/distroless/java21-debian13:nonroot@sha256:27ea9d33a1329dfa96a787e447f5caaf62ff2e21e496ca501fcb56ba3cedd5af
 WORKDIR /app
 COPY --from=build --chown=65532:65532 /build/app.jar /app/app.jar
 COPY --from=build /build/health/HealthCheck.class /app/health/

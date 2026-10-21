@@ -181,7 +181,8 @@ export class Game extends Container {
       pickBet: (value: number) => this.pickBet(value),
     };
     this.bar = theme.console
-      ? new ConsoleControls({ drop: tex(theme.console.drop), panel: tex(theme.console.panel), key: tex(theme.console.key) },
+      ? new ConsoleControls({ drop: tex(theme.console.drop), panel: tex(theme.console.panel), key: tex(theme.console.key),
+        back: theme.console.back ? tex(theme.console.back) : null },
         { gold: theme.wheel.title, text: theme.text, ink: theme.wheel.ink }, actions, quickBets(this.ladder, defaultBet), value => this.money(value))
       : new MegaControls({ gold: theme.wheel.title, ink: theme.wheel.ink, panel: theme.ui.panel, text: theme.text }, actions);
     this.ticker = new WinTicker(theme.wheel.title);
@@ -224,6 +225,7 @@ export class Game extends Container {
     const visibleH = view.stageH - 2 * view.offsetY;
     const boardX = this.bar instanceof ConsoleControls ? view.stageW / 2 : view.stageW * 0.32;
     if (view.landscape) this.wheel.place(boardX, view.offsetY + visibleH * 0.62, Math.min(170, visibleH * 0.28));
+    else if (this.bar instanceof ConsoleControls) this.wheel.place(view.stageW / 2, view.offsetY + 150 + visibleH * 0.19, Math.min(108, view.stageW * 0.25));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.36, Math.min(175, visibleH * 0.19));
     if (this.bar instanceof ConsoleControls) {
       this.layoutConsole(view, this.bar);
@@ -274,7 +276,7 @@ export class Game extends Container {
       // the board and its console, centred and as big as the screen allows (wide); the board on top (tall)
       this.board.layout(view, view.landscape
         ? { x: view.stageW / 2, y: view.offsetY + visibleH * 0.52, fit: 1, room: { w: view.stageW * 0.78, h: visibleH * 0.94 } }
-        : { x: view.stageW / 2, y: view.offsetY + 92 + visibleH * 0.21, fit: 1, room: { w: view.stageW * 1.16, h: visibleH * 0.42 } });
+        : { x: view.stageW / 2, y: view.offsetY + 112 + visibleH * 0.21, fit: 1, room: { w: view.stageW * 1.16, h: visibleH * 0.42 } });
       return;
     }
     this.board.layout(view, view.landscape ? { x: view.stageW * 0.32, y: view.offsetY + visibleH * 0.5, fit: 1 }
@@ -765,13 +767,14 @@ export class Game extends Container {
     this.wheel.visible = true;
     sound('spin', { volume: 0.6 });
     gsap.to(this.board, { alpha: 0.35, duration: 0.25 });
+    gsap.to([this.meter, this.ticker], { alpha: 0, duration: 0.2 });
     gsap.fromTo(this.wheel, { alpha: 0 }, { alpha: 1, duration: 0.2 });
     await new Promise<void>(resolve => gsap.fromTo(this.wheel.scale, { x: 0.4, y: 0.4 }, { x: 1, y: 1, duration: 0.35, ease: 'back.out(1.8)', onComplete: resolve }));
   }
 
   /** ...and goes away again when they are done. */
   private async hideWheel(): Promise<void> {
-    gsap.to(this.board, { alpha: 1, duration: 0.25 });
+    gsap.to([this.board, this.meter, this.ticker], { alpha: 1, duration: 0.25 });
     await new Promise<void>(resolve => gsap.to(this.wheel, { alpha: 0, duration: 0.25, onComplete: resolve }));
     this.wheel.visible = false;
     this.wheel.alpha = 1;

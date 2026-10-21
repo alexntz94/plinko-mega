@@ -62,7 +62,7 @@ export class Meter extends Container {
     } else {
       // above the last results, centred
       this.width_ = 300;
-      this.position.set((view.stageW - 300) / 2, view.offsetY + 30);
+      this.position.set((view.stageW - 300) / 2, view.offsetY + 54);   // under the demo label
     }
     this.title.position.set(0, 0);
     this.count.position.set(this.width_, 0);

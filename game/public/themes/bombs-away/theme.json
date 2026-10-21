@@ -231,6 +231,7 @@
   "console": {
     "drop": "console_drop.png",
     "panel": "console_panel.png",
-    "key": "console_key.png"
+    "key": "console_key.png",
+    "back": "console_back.png"
   }
 }

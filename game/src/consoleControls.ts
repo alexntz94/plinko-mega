@@ -9,7 +9,7 @@ import type { Viewport } from './viewport';
 import { label, fit } from './ui';
 import type { MegaActions } from './megaControls';
 
-export interface ConsoleArt { drop: Texture; panel: Texture; key: Texture }
+export interface ConsoleArt { drop: Texture; panel: Texture; key: Texture; back?: Texture | null }
 export interface ConsoleLook { gold: string; text: string; ink: string }
 export interface ConsoleActions extends MegaActions {
   /** a quick bet: this bet per ball */
@@ -116,10 +116,14 @@ export class ConsoleControls extends Container {
   private turbo = false;
   private riskIndex = 0;
   private pulse: gsap.core.Tween | null = null;
+  /** the phone's console plate, behind all the controls */
+  private readonly back: Sprite | null;
 
   constructor(art: ConsoleArt, private readonly look: ConsoleLook, actions: ConsoleActions, quickBets: number[],
               format: (value: number) => string) {
     super();
+    this.back = art.back ? new Sprite({ texture: art.back, anchor: 0.5 }) : null;
+    if (this.back) this.addChild(this.back);
     const key = (text: string, onTap: () => void) => new Key(art.key, text, 18, look.text, onTap, art.panel);
     this.drop = new Key(art.drop, 'DROP', 44, '#f3ecd6', () => actions.play());
     this.betMinus = key('−', () => actions.bet(false));
@@ -150,6 +154,7 @@ export class ConsoleControls extends Container {
    * from y down to the bottom of the screen.
    */
   layout(view: Viewport, rects: ConsoleRects | null, top = 0): void {
+    if (this.back) this.back.visible = !rects;
     if (rects) {
       this.place(rects);
       return;
@@ -159,7 +164,13 @@ export class ConsoleControls extends Container {
     const x0 = (view.stageW - w) / 2;
     const bottom = view.stageH - view.offsetY - 12;
     const unit = (bottom - top) / 7.9;
-    const rowH = Math.min(84, unit * 0.92);
+    const rowH = Math.min(84, unit * 0.8);
+    if (this.back) {
+      // one steel console behind everything, as on the board
+      this.back.position.set(view.stageW / 2, (top + bottom) / 2);
+      this.back.width = view.stageW + 8;
+      this.back.height = bottom - top + 20;
+    }
     let y = top + unit * 0.55;
     this.credits.position.set(x0 + w * 0.25, y); this.credits.size(w * 0.48, rowH);
     this.win.position.set(x0 + w * 0.75, y); this.win.size(w * 0.48, rowH);

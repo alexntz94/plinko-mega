@@ -179,7 +179,7 @@ export class FortuneWheel extends Container {
       gsap.fromTo(this.pointer, { rotation: 0.25 }, { rotation: 0, duration: 0.12, overwrite: true });
     };
     // the rainbow ring lights up behind the wheel while it turns
-    this.rainbow.visible = true;   // blurred: only drawn while the wheel turns
+    this.rainbow.visible = !this.photo(segments);   // blurred: only drawn while the wheel turns (not round the photo revolver)
     gsap.to(this.rainbow, { alpha: 0.9, duration: 0.3 });
     this.chaseSpeed = 22;
     const glowSpin = gsap.to(this.rainbow, { rotation: '+=' + Math.PI * 2, duration: 1.2, repeat: -1, ease: 'none' });
@@ -372,7 +372,8 @@ export class FortuneWheel extends Container {
     const r = this.radius;
     const texts: Container[] = [this.jackpotName, this.jackpotAmount, this.spinsText];
     this.header.removeChildren().forEach(child => { if (!texts.includes(child)) child.destroy(); });
-    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.05 : -r * 1.42;
+    // the photo revolver's header goes over its hammer (the bonus meter steps aside while it shows)
+    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.28 : -r * 1.42;
     const bar = new Graphics()
       .roundRect(-w / 2, y + 3, w, h, h * 0.3).fill({ color: '#000000', alpha: 0.5 })
       .roundRect(-w / 2, y, w, h, h * 0.3).fill(shade(mix(this.panel, '#ffffff', 0.08), mix(this.panel, '#000000', 0.6))).stroke({ color: this.style.title, width: 3 })

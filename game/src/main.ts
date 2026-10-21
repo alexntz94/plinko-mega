@@ -33,7 +33,7 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.board.slotArt ? SLOT_ART : []),
     ...neonLayers(theme).flat(),
     ...[theme.wheel.hub, theme.wheel.pointer, theme.wheel.gate, theme.wheel.bezel, theme.wheel.glass].filter((file): file is string => file !== null),
-    ...(theme.console ? [theme.console.drop, theme.console.panel, theme.console.key] : []),
+    ...(theme.console ? [theme.console.drop, theme.console.panel, theme.console.key, ...(theme.console.back ? [theme.console.back] : [])] : []),
     ...(theme.wheel.revolverArt ? [theme.wheel.revolverArt.cylinder, theme.wheel.revolverArt.dial, theme.wheel.revolverArt.flash,
       ...Object.values(theme.wheel.revolverArt.cartridges)] : []),
     ...(theme.wheel.spinMark ? [theme.wheel.spinMark] : []),

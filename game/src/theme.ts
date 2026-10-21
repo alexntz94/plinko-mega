@@ -69,7 +69,7 @@ export interface Theme {
   retina: boolean;               // images come as name@2x.png, drawn at double density (backgrounds excepted)
   ui: ThemeUi;
   /** a console under the board for the controls (its art: the DROP plate, a readout panel, a key), or null */
-  console: { drop: string; panel: string; key: string } | null;
+  console: { drop: string; panel: string; key: string; back: string | null } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -138,7 +138,7 @@ function readConsole(json: unknown): Theme['console'] {
   const c = (json ?? null) as Record<string, unknown> | null;
   if (!c) return null;
   const [drop, panel, key] = [fileName(c.drop, /\.png$/), fileName(c.panel, /\.png$/), fileName(c.key, /\.png$/)];
-  return drop && panel && key ? { drop, panel, key } : null;
+  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/) } : null;
 }
 
 function readBoard(json: unknown): BoardStyle {

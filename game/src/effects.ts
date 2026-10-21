@@ -307,25 +307,42 @@ export function photoBlast(layer: Container, x: number, y: number, radius: numbe
   }
   const dust = part(blastArt.dust, 0.5, 0.6);
   size(dust, radius * 1.2);
+  dust.alpha = 0;
+  // the fireball, and a second one over it (turned, added light) that flickers out first: the fire never looks still
   const fire = part(blastArt.fire, 0.5, 0.5);
+  const flare = part(blastArt.fire, 0.5, 0.5);
+  flare.blendMode = 'add';
   fire.rotation = random(-0.6, 0.6);
-  size(fire, radius * 0.3);
-  const end = fire.scale.x * (2 * radius / (radius * 0.3)) * random(0.9, 1.1);
+  flare.rotation = fire.rotation + random(1.2, 2.2);
+  const full = 2 * radius / fire.texture.width * random(0.92, 1.08);
+  fire.scale.set(full * 0.35);
+  flare.scale.set(full * 0.25);
+  fire.alpha = 0;
+  flare.alpha = 0;
+  const spin = random(-0.25, 0.25);
   const tl = gsap.timeline({ onComplete: () => {
     parts.forEach(p => { gsap.killTweensOf([p, p.scale]); if (!p.destroyed) p.destroy(); });
     liveBlasts = Math.max(0, liveBlasts - 1);
   } });
-  tl.to(fire.scale, { x: end, y: end, duration: 0.2, ease: 'power3.out' }, 0)
-    .to(fire.scale, { x: end * 1.12, y: end * 1.12, duration: 0.45, ease: 'none' }, 0.2)
-    .to(fire, { alpha: 0, duration: 0.4, ease: 'power1.in' }, 0.25)
-    .to(dust.scale, { x: dust.scale.x * 2.6, y: dust.scale.y * 2, duration: 0.55, ease: 'power2.out' }, 0)
-    .to(dust, { alpha: 0, duration: 0.45, ease: 'power1.in' }, 0.25);
+  tl.to(fire, { alpha: 1, duration: 0.06, ease: 'none' }, 0)
+    .to(fire.scale, { x: full, y: full, duration: 0.42, ease: 'expo.out' }, 0)
+    .to(fire.scale, { x: full * 1.18, y: full * 1.18, duration: 0.7, ease: 'sine.out' }, 0.42)
+    .to(fire, { rotation: fire.rotation + spin, duration: 1.1, ease: 'sine.out' }, 0)
+    .to(fire, { alpha: 0, duration: 0.6, ease: 'sine.inOut' }, 0.42)
+    .to(flare, { alpha: 0.85, duration: 0.05, ease: 'none' }, 0)
+    .to(flare.scale, { x: full * 0.8, y: full * 0.8, duration: 0.3, ease: 'expo.out' }, 0)
+    .to(flare, { rotation: flare.rotation - spin * 2, duration: 0.6, ease: 'sine.out' }, 0)
+    .to(flare, { alpha: 0, duration: 0.35, ease: 'sine.in' }, 0.12)
+    .to(dust, { alpha: 0.95, duration: 0.08 }, 0.02)
+    .to(dust.scale, { x: dust.scale.x * 2.8, y: dust.scale.y * 2.1, duration: 0.9, ease: 'expo.out' }, 0.02)
+    .to(dust, { alpha: 0, duration: 0.6, ease: 'sine.inOut' }, 0.35);
   if (smokeOut) {
     const s0 = smokeOut.scale.x;
-    tl.to(smokeOut, { alpha: 0.85, duration: 0.25 }, 0.18)
-      .fromTo(smokeOut.scale, { x: s0 * 0.5, y: s0 * 0.5 }, { x: s0 * 1.25, y: s0 * 1.25, duration: 1.4, ease: 'power1.out' }, 0.18)
-      .to(smokeOut, { y: y - radius * 0.7, duration: 1.4, ease: 'power1.out' }, 0.18)
-      .to(smokeOut, { alpha: 0, duration: 0.7, ease: 'power1.in' }, 0.9);
+    // the smoke grows out of the fire while it still burns, rises and drifts, and thins away slowly
+    tl.to(smokeOut, { alpha: 0.82, duration: 0.5, ease: 'sine.out' }, 0.14)
+      .fromTo(smokeOut.scale, { x: s0 * 0.45, y: s0 * 0.45 }, { x: s0 * 1.3, y: s0 * 1.3, duration: 2.0, ease: 'sine.out' }, 0.14)
+      .to(smokeOut, { y: y - radius * 0.9, x: x + random(-0.2, 0.2) * radius, rotation: random(-0.12, 0.12), duration: 2.0, ease: 'sine.out' }, 0.14)
+      .to(smokeOut, { alpha: 0, duration: 1.0, ease: 'sine.inOut' }, 1.1);
   }
   return true;
 }

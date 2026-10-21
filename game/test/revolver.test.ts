@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { chamberLayout } from '../src/revolver';
+import { chamberLayout, spinTarget } from '../src/revolver';
 import type { RevolverArt } from '../src/theme';
 
 // The Bombs Away revolver as the theme describes it (its chambers were measured on the picture, design/.../chambers.py)
@@ -62,5 +62,33 @@ describe('photo revolver: every cartridge centred in its chamber', () => {
       // and its label reads upright there
       expect(Math.abs(Math.atan2(Math.sin(p.rotation + p.stop), Math.cos(p.rotation + p.stop)))).toBeLessThan(1e-9);
     });
+  });
+});
+
+describe('the revolver stops on the server\'s chamber, spin after spin', () => {
+  const places = chamberLayout(spec, R);
+  const underHammer = (rotation: number) => {
+    // which chamber is straight up after the cylinder is turned by `rotation`
+    let best = 0, bestOff = Infinity;
+    places.forEach((p, i) => {
+      const a = Math.atan2(p.y, p.x) + rotation + Math.PI / 2;
+      const off = Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
+      if (off < bestOff) { bestOff = off; best = i; }
+    });
+    return { chamber: best, off: bestOff };
+  };
+
+  it('lands on the drawn segment every time, whatever the last spin left', () => {
+    let rotation = 0;
+    const random = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+    for (let spin = 0; spin < 500; spin++) {
+      const index = Math.floor(random() * places.length);
+      const target = spinTarget(rotation % (Math.PI * 2), places[index].stop, 2 + Math.floor(random() * 3));
+      expect(target).toBeLessThan(rotation % (Math.PI * 2));   // it always turns the same way
+      rotation = target;
+      const at = underHammer(rotation);
+      expect(at.chamber).toBe(index);
+      expect(at.off).toBeLessThan(1e-9);
+    }
   });
 });

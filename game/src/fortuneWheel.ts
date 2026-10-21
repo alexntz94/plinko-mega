@@ -9,7 +9,7 @@ import { Particles, calm, kindBlast, photoBlast, shake } from './effects';
 import { counting, goldText, mix, shade } from './paint';
 import type { Segment } from './api';
 import type { RevolverArt, WheelLook, WheelStyle } from './theme';
-import { chamberLayout } from './revolver';
+import { chamberLayout, spinTarget } from './revolver';
 
 /** A revolver from pictures (theme wheel.revolverArt): its textures and its measured geometry. */
 export interface PhotoRevolver {
@@ -159,13 +159,13 @@ export class FortuneWheel extends Container {
     // a drawn revolver clicks its last chambers in; the photo revolver turns smoothly and stops dead
     const clicks = calm || this.hurried || this.photo(segments) ? 0 : 1 + Math.floor(Math.random() * 3);
     const start = this.disc.rotation % (Math.PI * 2);
-    this.disc.rotation = start;
+    this.disc.rotation = start;   // where the last spin left it (any angle)
     // a revolver stops dead on a chamber; a wheel anywhere within its segment
     const offset = this.style.revolver ? 0 : random(-0.3, 0.3) * step;
     // the photo revolver: its chamber stops exactly under the hammer (the chambers are not quite evenly spaced)
     const photo = this.photo(segments);
     const stop = photo ? chamberLayout(photo.spec, this.radius)[index].stop : -index * step;
-    const target = stop + offset - turns * Math.PI * 2 + Math.min(0, start);
+    const target = spinTarget(start, stop + offset, turns);
     let lastTick = Math.floor(this.disc.rotation / step);
     const tick = () => {
       const now = Math.floor(this.disc.rotation / step);

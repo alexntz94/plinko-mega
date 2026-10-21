@@ -16,3 +16,14 @@ export function chamberLayout(spec: RevolverArt, r: number): { x: number; y: num
   });
 }
 
+
+/**
+ * Where a spin that starts at `start` (wherever the last one left the cylinder) must end so that it rests at `stop`
+ * (the angle that puts the winning chamber under the hammer, any multiple of a full turn away): always backwards
+ * (the way it turns), `turns` full turns plus whatever is left to reach the stop.
+ */
+export function spinTarget(start: number, stop: number, turns: number): number {
+  const full = Math.PI * 2;
+  const rest = (((start - stop) % full) + full) % full;   // 0 .. one turn
+  return start - turns * full - rest;
+}

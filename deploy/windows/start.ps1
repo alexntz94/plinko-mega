@@ -2,6 +2,8 @@
 # shows whether the Cloudflare tunnel is connected.
 $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..\..')
+# a data copy from another machine, not loaded yet: load it first (once)
+if (Test-Path 'migration\db-data.tar.gz') { & (Join-Path $PSScriptRoot 'import.ps1') -FromStart }
 if (-not (Test-Path 'secrets\CLOUDFLARE_TUNNEL_TOKEN') -or -not (Test-Path '.env')) {
     throw 'Run windows-setup.cmd first.'
 }

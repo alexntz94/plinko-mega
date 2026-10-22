@@ -22,3 +22,5 @@ __pycache__/
 
 # a data copy moved from another machine (windows-import.cmd): database and secrets, never commit
 /migration/
+
+/migration-imported/

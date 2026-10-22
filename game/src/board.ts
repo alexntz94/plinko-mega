@@ -598,7 +598,9 @@ export class Board extends Container {
       const picture = view.landscape ? this.frame : this.framePortrait;
       const unitsW = picture.texture.width / (fit.spacing / PEG_SPACING), unitsH = picture.texture.height / (fit.spacing / PEG_SPACING);
       const room = place?.room ?? (view.landscape ? { w: view.stageW * 0.54, h: visibleH * 0.84 } : { w: view.stageW - 12, h: visibleH * 0.5 });
-      const fieldScale = Math.min(room.w / unitsW, room.h / unitsH) * fitTo;
+      // the room may be wider than the screen (the frame's outer art can run off it), but the bays always show whole
+      const visibleW = view.stageW - 2 * view.offsetX;
+      const fieldScale = Math.min(room.w / unitsW, room.h / unitsH, (visibleW - 8) / w) * fitTo;
       const frameScale = fieldScale * PEG_SPACING / fit.spacing;
       const fx = place?.x ?? view.stageW / 2;
       const fy = place?.y ?? view.stageH / 2;

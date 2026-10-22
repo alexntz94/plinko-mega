@@ -436,8 +436,8 @@ export class Game extends Container {
       const visibleW = view.stageW - 2 * view.offsetX;
       if (this.character) {
         if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.95, visibleH * 0.76);
-        // a phone: he steps in at the left for his big moments only
-        else this.character.place(view.offsetX + visibleW * 0.3, view.offsetY + visibleH * 0.66, visibleH * 0.5, true);
+        // a phone: in the top right corner, beside the pyramid's slope, his lower half behind the board
+        else this.character.place(view.offsetX + visibleW * 0.86, view.offsetY + visibleH * 0.5, visibleH * 0.42);
       }
       // with its own control bar: the board above it, without its console strip
       const barH = this.consoleBar && view.landscape ? this.barBox(view).height + 16 : 0;

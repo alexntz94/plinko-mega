@@ -46,6 +46,8 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.wheel.tesla ? [theme.wheel.tesla.orb, theme.wheel.tesla.flash, ...Object.values(theme.wheel.tesla.cells),
       ...(theme.wheel.tesla.plate ? [theme.wheel.tesla.plate.plate, theme.wheel.tesla.plate.coil] : [])] : []),
     ...(theme.wheel.chests ? chestFiles(theme.wheel.chests) : []),
+    ...(theme.wheel.gacha ? [theme.wheel.gacha.machine, theme.wheel.gacha.crank, theme.wheel.gacha.open, theme.wheel.gacha.burst,
+      ...Object.values(theme.wheel.gacha.capsules), ...Object.values(theme.wheel.gacha.tokens)] : []),
     ...(theme.wheel.spinMark ? [theme.wheel.spinMark] : []),
     ...(theme.character ? [theme.character.body, theme.character.head, theme.character.arm, theme.character.eyes,
       theme.character.cheer, theme.character.point] : []),
@@ -214,7 +216,7 @@ async function start(): Promise<void> {
   setBlastArt(theme.blast ? { fire: tex(theme.blast.fire), dust: tex(theme.blast.dust), smoke: tex(theme.blast.smoke) } : null);
   setSplatters((theme.blast?.splatters ?? []).map(tex));
   setBlastKinds(Object.fromEntries(Object.entries(theme.blast?.kinds ?? {}).map(([kind, file]) => [kind, tex(file)])),
-    theme.blast?.anchors ?? {}, theme.board.fx === 'reactor');   // energy glows; water and fire don't
+    theme.blast?.anchors ?? {}, theme.board.fx === 'reactor' || theme.board.fx === 'neon');   // energy and neon glow; water and fire don't
   setBlastSheets(Object.fromEntries(Object.entries(theme.blast?.sheets ?? {}).map(([kind, file]) =>
     [kind, { sheet: tex(file), grid: theme.blast?.grids[kind as keyof typeof theme.blast.grids] ?? [4, 4] }])));
   initSounds(theme.path, theme.sounds);

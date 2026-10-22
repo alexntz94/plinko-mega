@@ -253,6 +253,10 @@ const WAR_BLAST = { sparks: ['#fff3b0', '#ffd76a', '#ff8a1a', '#c1121f'], smoke:
   ink: '#e9e4d4', bigInk: '#f2b705' };
 const REACTOR_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#bff4ff', '#46d9f2', '#1a8fb0'], smoke: ['#c9d3d8', '#9aa6ad', '#e8eef0'],
   debris: null, words: ['SURGE!', 'ZAP!', 'CHARGED!'], bigWords: ['OVERLOAD!', 'CRITICAL!', 'FULL POWER!'], ink: '#eee4d1', bigInk: '#46d9f2' };
+/** a capsule ball under neon: pink and cyan sparkles, stars thrown up */
+const NEON_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#ff3e9d', '#32e6f2', '#8b5cff'], smoke: ['#8b5cff', '#ff3e9d', '#32e6f2'],
+  debris: ['#ffb14a', '#ff3e9d', '#32e6f2'], words: ['SUGOI!', 'NICE!', 'YATTA!'], bigWords: ['JACKPOT!', 'FEVER!', 'MAX POWER!'],
+  ink: '#ffffff', bigInk: '#32e6f2' };
 /** a grenade among zombies: fire, blood spray and gore thrown out, splatters left behind */
 const ZOMBIE_BLAST: typeof WAR_BLAST = { sparks: ['#ff4a3a', '#b52c2c', '#ffb050', '#8a0f0f'], smoke: ['#3a2c2a', '#4a3a36', '#2a2224'],
   debris: ['#8a0f0f', '#b52c2c', '#5a0a0a', '#76a83b'], words: ['SPLAT!', 'BOOM!', 'GIBBED!'], bigWords: ['MASSACRE!', 'BLOODBATH!', 'OVERKILL!'],
@@ -825,7 +829,7 @@ export class Board extends Container {
             entered = true;
             if (pegs.decoy) {
               // a cluster decoy: it fizzles in its slot, it pays nothing
-              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : ['#8b939b', '#ff8a1a'], 6, 160);
+              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : ['#8b939b', '#ff8a1a'], 6, 160);
               return;
             }
             this.slots[slot]?.hit();
@@ -1100,7 +1104,7 @@ export class Board extends Container {
   private explode(x: number, y: number, multiplier: number): void {
     const size = multiplier >= 10 ? 3 : multiplier >= 2 ? 2 : multiplier >= 1 ? 1 : 0;
     // a bomb: fire, smoke and debris; a reactor capsule: cyan-white sparks and a puff of vent steam, nothing thrown out
-    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : WAR_BLAST;
+    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : WAR_BLAST;
     this.particles.burst(x, y, look.sparks, [6, 12, 22, 36][size], [150, 220, 320, 440][size]);
     // smoke (steam) rising out of the hole
     this.particles.burst(x, y - 6, look.smoke, [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
@@ -1154,7 +1158,7 @@ export class Board extends Container {
     dot.blendMode = 'add';
     dot.position.copyFrom(ball.position);
     // a reactor capsule leaves a thin cyan streak (the capsule itself must stay the brightest thing)
-    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie';
+    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie' || this.fx === 'neon';
     const size = radius * (thin ? 0.3 : 0.7 + 0.25 * heat);
     const life = thin ? 0.22 : 0.32 + 0.12 * heat;
     dot.scale.set(size);

@@ -5,7 +5,7 @@ import { HistoryPanel } from './historyPanel';
 import { ResponsiblePlay } from './responsible';
 import { Board, smashedPegs, type Landing, type PegHit } from './board';
 import { BigWin, BlastShower, CoinShower, splatter, winLevel, type Shower } from './effects';
-import { FortuneWheel, type ChestPick, type PhotoRevolver, type TeslaRing } from './fortuneWheel';
+import { FortuneWheel, type ChestPick, type GachaPick, type PhotoRevolver, type TeslaRing } from './fortuneWheel';
 import { Character } from './character';
 import { MegaControls } from './megaControls';
 import { ConsoleControls } from './consoleControls';
@@ -56,6 +56,15 @@ function teslaRing(theme: Theme, tex: (file: string) => Texture): TeslaRing | nu
     plate: art.plate ? { plate: tex(art.plate.plate), coil: tex(art.plate.coil), spec: art.plate } : null };
 }
 
+/** The theme's gacha machine's textures, or null. */
+function gachaPick(theme: Theme, tex: (file: string) => Texture): GachaPick | null {
+  const g = theme.wheel.gacha;
+  if (!g) return null;
+  const kinds = (k: GachaPick['spec']['capsules']) => ({ plain: tex(k.plain), MINI: tex(k.MINI), MAJOR: tex(k.MAJOR), MEGA: tex(k.MEGA) });
+  return { machine: tex(g.machine), crank: tex(g.crank), open: tex(g.open), burst: tex(g.burst), capsules: kinds(g.capsules),
+    tokens: kinds(g.tokens), spec: g };
+}
+
 /** The theme's chest pick's textures, or null. */
 function chestPick(theme: Theme, tex: (file: string) => Texture): ChestPick | null {
   const art = theme.wheel.chests;
@@ -81,6 +90,9 @@ const LAGOON_STAMPS: Record<string, string> = { 'magnet-left': 'CROSSCURRENT', '
 /** Pharaoh's Drop's: Scarab Fortune is heavy, Twin Serpents the pair, Sirocco Draft the magnet, Tomb Raid the meltdown. */
 const PHARAOH_NAMES: Record<string, string> = { heavy: 'SCARAB', pair: 'SERPENTS', 'magnet-left': 'SIROCCO L', 'magnet-right': 'SIROCCO R', meltdown: 'TOMB RAID' };
 const PHARAOH_STAMPS: Record<string, string> = { pair: 'TWIN SERPENTS', 'magnet-left': 'SIROCCO DRAFT', 'magnet-right': 'SIROCCO DRAFT', meltdown: 'TOMB RAID' };
+/** Neon Nights': Golden Gacha is heavy, Twin Pop the pair, Side Magnet the magnet, Lucky Draw the meltdown. */
+const NEON_NAMES: Record<string, string> = { heavy: 'GOLDEN', pair: 'TWIN POP', 'magnet-left': 'MAGNET L', 'magnet-right': 'MAGNET R', meltdown: 'LUCKY DRAW' };
+const NEON_STAMPS: Record<string, string> = { pair: 'TWIN POP', 'magnet-left': 'SIDE MAGNET', 'magnet-right': 'SIDE MAGNET', meltdown: 'LUCKY DRAW' };
 /** Zombie War's: Mega Charge is heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the meltdown. */
 const ZOMBIE_NAMES: Record<string, string> = { heavy: 'MEGA CHARGE', pair: 'SPLIT FUSE', 'magnet-left': 'HORDE L', 'magnet-right': 'HORDE R', meltdown: 'RAID' };
 const ZOMBIE_STAMPS: Record<string, string> = { pair: 'SPLIT FUSE', 'magnet-left': 'HORDE RUSH', 'magnet-right': 'HORDE RUSH', meltdown: 'LOCKER RAID' };
@@ -129,6 +141,8 @@ export class Game extends Container {
   private readonly chestPick: boolean;
   /** the meltdown is a Tomb Raid on the tomb doors (Pharaoh's Drop), not the pressure gauge */
   private readonly tombRaid: boolean;
+  /** the spinner is a gacha machine (on a phone: big, in the upper middle) */
+  private readonly gacha: boolean;
   private readonly bar: MegaControls | ConsoleControls;
   /** the power-up armed for the next round (heavy, cluster), and the ARSENAL panel it is picked on */
   private power: string | null = null;
@@ -145,6 +159,7 @@ export class Game extends Container {
   private readonly phoneTop: number;
   /** a character beside the board (Pharaoh's Drop's pharaoh), or null */
   private readonly character: Character | null;
+  private readonly characterHeight: number;
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
@@ -216,11 +231,11 @@ export class Game extends Container {
     this.consoleBar = theme.console?.bar === true;
     this.phoneTop = theme.console?.phoneTop ?? 418;
     const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
-    const zombie = theme.board.fx === 'zombie';
+    const zombie = theme.board.fx === 'zombie', neon = theme.board.fx === 'neon';
     this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}),
-      ...(zombie ? ZOMBIE_NAMES : {}) };
-    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : 'HEAVY SHELLS';
+      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : 'HEAVY SHELLS';
     this.bloody = zombie;
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
@@ -235,12 +250,14 @@ export class Game extends Container {
     this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
-        explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex),
+        explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex), gacha: gachaPick(theme, tex),
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"]
-          : zombie ? ['SPLAT!', 'BLOODBATH!'] : ['BOOM!', 'KABOOM!'] });
-    this.ring = !!theme.wheel.tesla || !!theme.wheel.chests;
+          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : ['BOOM!', 'KABOOM!'] });
+    this.ring = !!theme.wheel.tesla || !!theme.wheel.chests || !!theme.wheel.gacha;
     this.chestPick = !!theme.wheel.chests;
-    this.tombRaid = !!theme.wheel.chests?.doors;
+    // (the gacha plays it too: the capsule holds the payout)
+    this.tombRaid = !!theme.wheel.chests?.doors || !!theme.wheel.gacha;
+    this.gacha = !!theme.wheel.gacha;
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
       // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
@@ -284,6 +301,7 @@ export class Game extends Container {
     this.ambient = new Ambient(theme.ambient.colours, theme.ambient.rise);
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
     const c = theme.character;
+    this.characterHeight = c?.height ?? 0.76;
     this.character = c ? new Character({ body: tex(c.body), head: tex(c.head), arm: tex(c.arm), eyes: tex(c.eyes),
       cheer: tex(c.cheer), point: tex(c.point) }, c) : null;
     this.table.addChild(this.ambient, this.vents, ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
@@ -297,7 +315,7 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (reactor || lagoon || pharaoh || zombie) {
+    if (reactor || lagoon || pharaoh || zombie || neon) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
         title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : 'CORE PRESSURE' });
@@ -353,7 +371,8 @@ export class Game extends Container {
     }
     // a chest pick's two shelves stand in the screen's upper middle
     else if (this.bar instanceof ConsoleControls) this.wheel.place(view.stageW / 2,
-      view.offsetY + (this.tombRaid ? visibleH * 0.42 : this.chestPick ? visibleH * 0.3 : 150 + visibleH * 0.19), Math.min(108, view.stageW * 0.25));
+      view.offsetY + (this.gacha ? visibleH * 0.42 : this.tombRaid ? visibleH * 0.42 : this.chestPick ? visibleH * 0.3 : 150 + visibleH * 0.19),
+      this.gacha ? Math.min(140, visibleH * 0.2, (view.stageW - 2 * view.offsetX) * 0.42) : Math.min(108, view.stageW * 0.25));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.36, Math.min(175, visibleH * 0.19));
     if (this.bar instanceof ConsoleControls) {
       this.layoutConsole(view, this.bar);
@@ -460,7 +479,7 @@ export class Game extends Container {
       // board on top (tall)
       const visibleW = view.stageW - 2 * view.offsetX;
       if (this.character) {
-        if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.95, visibleH * 0.76);
+        if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.95, visibleH * this.characterHeight);
         // a phone: in the top right corner, beside the pyramid's slope, his lower half behind the board
         else this.character.place(view.offsetX + visibleW * 0.86, view.offsetY + visibleH * 0.5, visibleH * 0.42);
       }
@@ -1057,7 +1076,7 @@ export class Game extends Container {
     gsap.to(this.board, { alpha: 0.35, duration: 0.25 });
     gsap.to([this.meter, this.ticker], { alpha: 0, duration: 0.2 });
     // a chest pick on a phone stands over the console too: the console steps back under it
-    const over = this.chestPick && !!this.view && !this.view.landscape;
+    const over = (this.chestPick || this.gacha) && !!this.view && !this.view.landscape;
     this.table.setChildIndex(this.wheel, this.table.getChildIndex(over ? this.bar : this.board) + (over ? 0 : 1));
     if (over) gsap.to(this.bar, { alpha: 0.25, duration: 0.25 });
     gsap.fromTo(this.wheel, { alpha: 0 }, { alpha: 1, duration: 0.2 });

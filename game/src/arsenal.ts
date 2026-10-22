@@ -61,6 +61,16 @@ const ZOMBIE_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'LOCKER RAID', text: 'Crack an ammo locker after the drop: x0.5 to x20', ready: true },
 ];
 
+/** Neon Nights' power-ups (Golden Gacha is the server's heavy, Twin Pop the pair, Side Magnet the magnet, Lucky Draw the
+ *  meltdown). */
+const NEON_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'GOLDEN GACHA', text: 'Every ball turns gold: x2 to x10', ready: true },
+  { id: 'pair', name: 'TWIN POP', text: 'Each ball splits in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'SIDE MAGNET', text: '70% of balls pulled to your side: its bays pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'LUCKY DRAW', text: 'Mochi turns the gacha after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
@@ -68,6 +78,7 @@ export const ARSENALS: Record<string, { title: string; hint: string; cards: Arse
   'lagoon-drop': { title: 'BOOSTERS', hint: 'Bless your next pearl', cards: LAGOON_CARDS },
   'pharaoh-drop': { title: 'RELICS', hint: "Call on the Pharaoh's relics", cards: PHARAOH_CARDS },
   'zombie-war': { title: 'LOADOUT', hint: 'Arm up before the horde hits', cards: ZOMBIE_CARDS },
+  'neon-nights': { title: 'POWER-UPS', hint: 'Light up your next drop', cards: NEON_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite | NineSliceSprite; lit: Graphics; price: Text;

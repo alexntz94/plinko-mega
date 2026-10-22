@@ -8,7 +8,7 @@ import { label, textQuality, typeface, fit } from './ui';
 import { Particles, calm, kindBlast, photoBlast, shake } from './effects';
 import { counting, goldText, mix, shade } from './paint';
 import type { Segment } from './api';
-import type { RevolverArt, TeslaPlate, WheelLook, WheelStyle } from './theme';
+import type { GachaArt, RevolverArt, TeslaPlate, WheelLook, WheelStyle } from './theme';
 import { chamberLayout, spinTarget } from './revolver';
 
 /** A revolver from pictures (theme wheel.revolverArt): its textures and its measured geometry. */
@@ -35,6 +35,14 @@ export interface ChestPick {
   tokens: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
   doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number;
     phone: { wall: Texture; arches: number[] }[] | null; phoneArchWidth: number; phoneGap: number } | null;
+}
+
+/** A gacha machine's textures (theme wheel.gacha), and its measured geometry (see GachaArt). */
+export interface GachaPick {
+  machine: Texture; crank: Texture; open: Texture; burst: Texture;
+  capsules: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
+  tokens: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
+  spec: GachaArt;
 }
 
 /** A chest on the shelf: the prize it holds (the segment's index), the slot it stands in now. */
@@ -101,6 +109,9 @@ export class FortuneWheel extends Container {
   /** how far under the (lower) shelf's line the win is counted */
   private chestBelow = 0;
   private chestOpen: ChestView | null = null;
+  /** The gacha machine's parts, and where the last capsule popped (null: none yet). */
+  private gachaParts: { machine: Sprite; crank: Sprite; capsule: Sprite; opened: Sprite; token: Container } | null = null;
+  private gachaAt: { x: number; y: number } | null = null;
   private get words(): [string, string] {
     return this.art.words ?? ['BOOM!', 'KABOOM!'];
   }
@@ -115,6 +126,7 @@ export class FortuneWheel extends Container {
               private readonly art: { bezel: Texture | null; glass: Texture | null; explode?: boolean; photo?: PhotoRevolver | null;
                 tesla?: TeslaRing | null;
                 chests?: ChestPick | null;
+                gacha?: GachaPick | null;
                 /** what a win shouts: [a win, a jackpot] */
                 words?: [string, string] } = { bezel: null, glass: null }) {
     super();
@@ -166,7 +178,7 @@ export class FortuneWheel extends Container {
 
   /** A revolver from pictures or a tesla ring: shown whole over the board (not the top half of a wheel). */
   private get popsUp(): boolean {
-    return !!(this.art.photo || this.art.tesla || this.art.chests);
+    return !!(this.art.photo || this.art.tesla || this.art.chests || this.art.gacha);
   }
 
   /** The chest pick, when the theme has one. */
@@ -244,7 +256,8 @@ export class FortuneWheel extends Container {
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
     const ring = this.tesla(segments);
-    if (this.chestPick(segments)?.doors) await this.doorTurn(segments, index);
+    if (this.art.gacha && this.gachaParts) await this.gachaTurn(segments, index);
+    else if (this.chestPick(segments)?.doors) await this.doorTurn(segments, index);
     else if (this.chestPick(segments)) await this.chestTurn(segments, index);
     else if (ring?.motion === 'tide') await this.tideTurn(segments, index);
     else if (ring) await this.teslaTurn(segments, index);
@@ -998,6 +1011,140 @@ export class FortuneWheel extends Container {
     gsap.to(view.chest, { rotation: 0.05, duration: 0.06, yoyo: true, repeat: 3, ease: 'sine.inOut', onComplete: () => { view.chest.rotation = 0; } });
   }
 
+  /** The gacha machine's size and where its parts are (centred on the spinner's middle): see GachaArt. */
+  private gachaGeometry(): { w: number; h: number; socket: { x: number; y: number }; chute: { x: number; y: number }; capsule: number } {
+    const art = this.art.gacha!;
+    const h = this.radius * 3.1, w = h * art.machine.width / art.machine.height;
+    return {
+      w, h,
+      socket: { x: (art.spec.socket[0] - 0.5) * w, y: (art.spec.socket[1] - 0.5) * h },
+      chute: { x: (art.spec.chute[0] - 0.5) * w, y: (art.spec.chute[1] - 0.5) * h },
+      capsule: w * 0.24,
+    };
+  }
+
+  /**
+   * The gacha machine: the machine (gold-tinted for a MEGA SPIN), its crank in the socket, and the capsule, the popped
+   * capsule and the prize token, hidden until a turn.
+   */
+  private drawGacha(art: GachaPick): void {
+    const { w, h, socket } = this.gachaGeometry();
+    const glow = new Graphics();
+    for (let k = 6; k > 0; k--) glow.circle(0, -h * 0.12, w * 0.12 * k).fill({ color: this.gold ? '#ffd76a' : this.style.title, alpha: 0.025 });
+    glow.blendMode = 'add';
+    const machine = new Sprite({ texture: art.machine, anchor: 0.5 });
+    machine.width = w;
+    machine.height = h;
+    if (this.gold) machine.tint = '#ffd98a';
+    const crank = new Sprite({ texture: art.crank, anchor: { x: art.spec.pivot[0], y: art.spec.pivot[1] } });
+    crank.scale.set(art.spec.socketRadius * w * 1.3 / (art.spec.plateRadius * art.crank.width));
+    crank.position.set(socket.x, socket.y);
+    const capsule = new Sprite({ texture: art.capsules.plain, anchor: 0.5 });
+    const opened = new Sprite({ texture: art.open, anchor: 0.5 });
+    const token = new Container();
+    capsule.visible = opened.visible = token.visible = false;
+    this.disc.addChild(glow, machine, crank, opened, token, capsule);
+    this.gachaParts = { machine, crank, capsule, opened, token };
+  }
+
+  /**
+   * The gacha: TURN THE CRANK! and the game waits for the player's tap on the machine; the crank turns round twice with
+   * a click a quarter, the machine shudders, a capsule (its colour the prize's kind) rolls out of the chute towards the
+   * player, wobbles and pops open, and the prize rises out of it.
+   */
+  private async gachaTurn(segments: Segment[], index: number): Promise<void> {
+    const art = this.art.gacha!, parts = this.gachaParts;
+    if (!parts) return;
+    const { w, h, chute, capsule: size } = this.gachaGeometry();
+    const segment = segments[index];
+    const kind = segment.name === 'MINI' || segment.name === 'MAJOR' || segment.name === 'MEGA' ? segment.name : 'plain';
+    const { machine, crank, capsule, opened, token } = parts;
+    gsap.killTweensOf([capsule, capsule.scale, opened, opened.scale, token, token.scale, crank, machine]);
+    capsule.visible = opened.visible = token.visible = false;
+    machine.x = 0;
+    // the prize the server drew: its token, inside the capsule
+    token.removeChildren().forEach(c => c.destroy());
+    const coin = new Sprite({ texture: art.tokens[kind], anchor: 0.5 });
+    coin.width = coin.height = size * 1.05;
+    const words = new Text({ text: segmentText(segment), anchor: 0.5, resolution: textQuality(),
+      style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(size * (segment.name ? 0.24 : 0.3)),
+        fill: segment.name ? '#ffd76a' : '#ffffff', stroke: { color: '#000000', width: size * 0.05, join: 'round' } } });
+    if (words.width > size * 0.82) words.scale.set(size * 0.82 / words.width);
+    token.addChild(coin, words);
+
+    // the player turns the crank
+    await this.waitForCrank(w, h);
+    const turn = gsap.timeline();
+    this.spin = turn;
+    const turns = { a: crank.rotation };
+    let clicks = Math.floor(turns.a / (Math.PI / 4));
+    turn.to(turns, { a: turns.a + Math.PI * 4, duration: calm ? 0.4 : 1.1, ease: 'power2.inOut', onUpdate: () => {
+      crank.rotation = turns.a;
+      const now = Math.floor(turns.a / (Math.PI / 4));
+      if (now !== clicks) { clicks = now; this.onTick?.(); }
+    } });
+    turn.to(machine, { x: w * 0.006, duration: 0.05, yoyo: true, repeat: calm ? 1 : 15, ease: 'sine.inOut' }, 0);
+    turn.set(machine, { x: 0 });
+    await new Promise<void>(resolve => turn.eventCallback('onComplete', () => resolve()));
+    // a capsule rolls out of the chute and comes towards the player
+    capsule.texture = art.capsules[kind];
+    capsule.width = capsule.height = size;
+    const base = capsule.scale.x;
+    capsule.position.set(chute.x, chute.y);
+    capsule.rotation = 0;
+    capsule.alpha = 0;
+    capsule.visible = true;
+    const at = { x: chute.x + w * (Math.random() < 0.5 ? -0.12 : 0.12), y: h * 0.5 + size * 0.35 };   // out in front, on the ground
+    this.gachaAt = at;
+    const roll = gsap.timeline();
+    this.spin = roll;
+    roll.to(capsule, { alpha: 1, duration: 0.1 })
+      .to(capsule, { x: at.x, y: at.y, rotation: Math.PI * 2 * (at.x > chute.x ? 1 : -1), duration: calm ? 0.2 : 0.6, ease: 'bounce.out' }, 0)
+      .to(capsule.scale, { x: base * 1.6, y: base * 1.6, duration: calm ? 0.2 : 0.6, ease: 'power2.out' }, 0)
+      // it wobbles, about to burst
+      .to(capsule, { rotation: '+=0.25', duration: 0.07, yoyo: true, repeat: calm ? 1 : 7, ease: 'sine.inOut' });
+    await new Promise<void>(resolve => roll.eventCallback('onComplete', () => resolve()));
+    // it pops: the two halves, light and confetti, the prize rising out
+    capsule.visible = false;
+    opened.width = opened.height = size * 2;
+    opened.position.set(at.x, at.y - size * 0.25);
+    opened.alpha = 1;
+    opened.visible = true;
+    this.onTick?.();
+    if (!calm) this.chestBurst({ burst: art.burst } as ChestPick, at.x, at.y, size * 3.2);
+    token.position.set(at.x, at.y);
+    token.visible = true;
+    gsap.timeline()
+      .fromTo(token, { alpha: 0 }, { alpha: 1, y: at.y - size * 1.25, duration: 0.4, ease: 'back.out(2)' }, 0)
+      .fromTo(token.scale, { x: 0.4, y: 0.4 }, { x: 1.35, y: 1.35, duration: 0.4, ease: 'back.out(2)' }, 0)
+      .to(opened, { alpha: 0.6, duration: 0.6 }, 0.6);
+  }
+
+  /** TURN THE CRANK! on the bar, the crank pulsing; resolves on a tap anywhere on the machine. */
+  private waitForCrank(w: number, h: number): Promise<void> {
+    const crank = this.gachaParts!.crank;
+    const said = this.jackpotAmount.text;
+    this.jackpotAmount.text = 'TURN THE CRANK!';
+    fit(this.jackpotAmount, this.radius * 0.9);
+    const s = crank.scale.x;
+    const pulse = gsap.to(crank.scale, { x: s * 1.12, y: s * 1.12, duration: 0.4, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+    const catcher = new Container();
+    catcher.eventMode = 'static';
+    catcher.cursor = 'pointer';
+    catcher.hitArea = new Rectangle(-w / 2, -h / 2, w, h);
+    this.addChild(catcher);
+    return new Promise(resolve => {
+      catcher.on('pointertap', () => {
+        pulse.kill();
+        crank.scale.set(s);
+        catcher.destroy();
+        this.jackpotAmount.text = said;
+        fit(this.jackpotAmount, this.radius * 0.9);
+        resolve();
+      });
+    });
+  }
+
   /** Where a win bursts out of the wheel, on the screen. */
   winPoint(): { x: number; y: number } {
     return this.toGlobal({ x: 0, y: -this.radius * 0.45 });
@@ -1030,13 +1177,13 @@ export class FortuneWheel extends Container {
     const amount = goldText(this.format(0), big ? r * 0.42 : r * 0.34);
     const ring = this.tesla(), opened = this.chestPick() ? this.chestOpen : null;
     // over the tesla ring's coil; over the chests
-    amount.y = ring ? 0 : opened ? this.chestLow + this.chestBelow : -r * 0.32;   // (under the shelf)
+    amount.y = ring ? 0 : opened ? this.chestLow + this.chestBelow : this.gachaAt ? -r * 0.7 : -r * 0.32;   // (under the shelf; over the globe)
     // a war theme blows up instead of the golden rays
     const explodes = this.art.explode && !calm;
     if (explodes) this.explode(big);
     const photo = this.photo();
     const lit = ring ? this.nodes[this.lit % this.nodes.length] ?? null
-      : opened ? { x: opened.chest.x, y: opened.feet - this.chestSize * 0.6 } : null;
+      : opened ? { x: opened.chest.x, y: opened.feet - this.chestSize * 0.6 } : this.gachaAt;
     if ((photo || ring || opened) && !calm) {
       // the shot: a muzzle flash out of the chamber under the hammer, or a plasma flash out of the cell that won
       const flash = new Sprite({ texture: photo?.flash ?? ring?.flash ?? this.art.chests!.glow, anchor: 0.5 });
@@ -1085,7 +1232,7 @@ export class FortuneWheel extends Container {
     // (a chest's blast, even a jackpot's, comes out of the chest that opened)
     const opened = this.chestPick() ? this.chestOpen : null;
     const cell = this.tesla() && !big ? this.nodes[this.lit % this.nodes.length] ?? null
-      : opened ? { x: opened.chest.x, y: opened.feet - this.chestSize * 0.5 } : null;
+      : opened ? { x: opened.chest.x, y: opened.feet - this.chestSize * 0.5 } : this.gachaAt;
     const bx = cell?.x ?? 0, by = cell?.y ?? y;
     if (kindBlast(this.burst, big ? 'mushroom' : 'heavy', bx, big ? (opened ? opened.feet : r * 0.55) : by,
         r * (big ? (opened ? 2.2 : 3.2) : cell ? 1.8 : 2.4))
@@ -1184,7 +1331,7 @@ export class FortuneWheel extends Container {
     const texts: Container[] = [this.jackpotName, this.jackpotAmount, this.spinsText];
     this.header.removeChildren().forEach(child => { if (!texts.includes(child)) child.destroy(); });
     // the photo revolver's header goes over its hammer (the bonus meter steps aside while it shows)
-    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.28 : this.art.tesla ? -r * 1.5 : this.art.chests ? -this.chestHeader() : -r * 1.42;
+    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.28 : this.art.tesla ? -r * 1.5 : this.art.chests ? -this.chestHeader() : this.art.gacha ? -r * 1.95 : -r * 1.42;
     const bar = new Graphics()
       .roundRect(-w / 2, y + 3, w, h, h * 0.3).fill({ color: '#000000', alpha: 0.5 })
       .roundRect(-w / 2, y, w, h, h * 0.3).fill(shade(mix(this.panel, '#ffffff', 0.08), mix(this.panel, '#000000', 0.6))).stroke({ color: this.style.title, width: 3 })
@@ -1212,12 +1359,15 @@ export class FortuneWheel extends Container {
     this.orb = null;
     this.chests = [];
     this.chestOpen = null;
-    const chest = this.chestPick(segments);
+    this.gachaParts = null;
+    this.gachaAt = null;
+    const gacha = this.art.gacha ?? null;
+    const chest = gacha ? null : this.chestPick(segments);
     this.bolt.clear();
     const ring = this.tesla(segments);
-    const r = this.art.bezel && !ring && !chest ? this.radius * 0.84 : this.radius;
+    const r = this.art.bezel && !ring && !chest && !gacha ? this.radius * 0.84 : this.radius;
     const look = this.gold ? this.style.gold : this.style;
-    this.glow.visible = !this.style.revolver && !ring && !chest;   // no coloured glow round a revolver
+    this.glow.visible = !this.style.revolver && !ring && !chest && !gacha;   // no coloured glow round a revolver
     this.glow.clear().circle(0, 0, r * 1.32).fill({ color: this.gold ? '#ffd76a' : this.style.title, alpha: 0.18 });
     this.rainbow.clear();
     RAINBOW.forEach((colour, i) => {
@@ -1229,7 +1379,7 @@ export class FortuneWheel extends Container {
     // the bezel: the theme's drawing, or a plain ring
     const bulbRadius = this.art.bezel ? r * 178 / 160 : r * 1.165;
     const photo = this.photo(segments);
-    if (photo || ring || chest) {
+    if (photo || ring || chest || gacha) {
       // the dial frame (with its hammer) is the bezel; the tesla ring has its own rim; the chests stand on a shelf
     } else if (this.art.bezel) {
       const bezel = new Sprite({ texture: this.art.bezel, anchor: 0.5 });
@@ -1248,19 +1398,20 @@ export class FortuneWheel extends Container {
       bulb.position.set(Math.cos(a) * bulbRadius, Math.sin(a) * bulbRadius);
       this.lights.addChild(bulb);
     }
-    this.lights.visible = !photo && !ring && !chest;
-    if (chest?.doors) this.drawDoors(segments, chest, chest.doors);
+    this.lights.visible = !photo && !ring && !chest && !gacha;
+    if (gacha) this.drawGacha(gacha);
+    else if (chest?.doors) this.drawDoors(segments, chest, chest.doors);
     else if (chest) this.drawChests(segments, chest);
     else if (photo) this.drawPhoto(r, segments, photo);
     else if (ring) this.drawTesla(r, segments, ring);
     else if (this.style.revolver) this.drawRevolver(r, step, segments);
     else this.drawWedges(r, step, segments, look);
-    if (this.art.glass && !photo && !ring && !chest) {
+    if (this.art.glass && !photo && !ring && !chest && !gacha) {
       const glass = new Sprite({ texture: this.art.glass, anchor: 0.5 });
       glass.width = glass.height = r * 440 / 160;
       this.cover.addChildAt(glass, 0);
     }
-    if (this.style.revolver || photo || ring || chest) {
+    if (this.style.revolver || photo || ring || chest || gacha) {
       // the cylinder's own centre: the ejector star (drawn with it)
     } else if (this.hub) {
       const hub = new Sprite({ texture: this.hub, anchor: 0.5 });
@@ -1269,7 +1420,7 @@ export class FortuneWheel extends Container {
     } else {
       this.disc.addChild(new Graphics().circle(0, 0, r * 0.28).fill(look.rim).stroke({ color: this.style.ink, width: 4 }));
     }
-    if (photo || ring || chest) {
+    if (photo || ring || chest || gacha) {
       // the hammer on the dial points at the chamber that wins; on the tesla ring, the bolt; the chest that opens
     } else if (this.finger) {
       const finger = new Sprite({ texture: this.finger, anchor: { x: 0.5, y: 0.9 } });

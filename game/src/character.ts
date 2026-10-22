@@ -77,7 +77,7 @@ export class Character extends Container {
     const look = watching ? -0.05 : 0;
     this.head.rotation += (look + 0.025 * Math.sin(t * 0.45) - this.head.rotation) * Math.min(1, dt * 3);
     this.eyes.rotation = this.head.rotation;
-    this.arm.rotation = 0.018 * Math.sin(t * 0.8);
+    this.arm.rotation = this.spec.swing * Math.sin(t * this.spec.swingSpeed);
     this.eyes.alpha = watching ? 0.85 + 0.15 * Math.sin(t * 6) : 0.45 + 0.4 * Math.max(0, Math.sin(t * 0.9));
     this.dustIn -= dt;
     if (this.dustIn <= 0 && this.idle.visible) {

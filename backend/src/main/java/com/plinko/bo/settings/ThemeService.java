@@ -24,6 +24,7 @@ public class ThemeService {
         KNOWN.put("lagoon-drop", "Lagoon Drop");
         KNOWN.put("pharaoh-drop", "Pharaoh's Drop");
         KNOWN.put("zombie-war", "Zombie War");
+        KNOWN.put("neon-nights", "Neon Nights");
     }
 
     public record Themes(List<String> enabled, String defaultTheme) {

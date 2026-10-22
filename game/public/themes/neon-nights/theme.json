@@ -1,0 +1,336 @@
+{
+  "name": "Neon Nights",
+  "title": "Neon Nights · Plinko",
+  "background": "#111522",
+  "accent": "#ff3e9d",
+  "text": "#fff4fc",
+  "playText": "#fff4fc",
+  "retina": true,
+  "logoNeon": 2,
+  "font": {
+    "family": "Fredoka",
+    "file": "fredoka-700.woff2",
+    "weight": "700"
+  },
+  "board": {
+    "fx": "neon",
+    "peg": "item_peg.png",
+    "pegFlash": "#ffffff",
+    "trail": "#ff3e9d",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#3c468c",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#32e6f2",
+        "text": "#111522"
+      },
+      {
+        "face": "#8b5cff",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#ffb14a",
+        "text": "#111522"
+      },
+      {
+        "face": "#ff3e9d",
+        "text": "#ffffff"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 1.0606,
+        "x": 384,
+        "y": 79.14,
+        "spacing": 37.581,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.9462,
+        "x": 384,
+        "y": 83.44,
+        "spacing": 37.581,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.854,
+        "x": 384,
+        "y": 86.91,
+        "spacing": 37.581,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.7782,
+        "x": 384,
+        "y": 89.75,
+        "spacing": 37.581,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.7359,
+        "x": 384,
+        "y": 92.14,
+        "spacing": 36.502,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.7307,
+        "x": 384,
+        "y": 94.16,
+        "spacing": 33.991,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.7262,
+        "x": 384,
+        "y": 95.9,
+        "spacing": 31.803,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.86
+  },
+  "wheel": {
+    "faces": [
+      "#3c468c",
+      "#ff3e9d",
+      "#32e6f2",
+      "#8b5cff",
+      "#ffb14a",
+      "#111522"
+    ],
+    "text": [
+      "#ffffff",
+      "#ffffff",
+      "#111522",
+      "#ffffff",
+      "#111522",
+      "#ffffff"
+    ],
+    "rim": "#ff3e9d",
+    "ink": "#111522",
+    "title": "#32e6f2",
+    "gold": {
+      "faces": [
+        "#ffb14a",
+        "#fff3b0",
+        "#ff3e9d",
+        "#32e6f2"
+      ],
+      "text": [
+        "#111522",
+        "#111522",
+        "#ffffff",
+        "#111522"
+      ],
+      "rim": "#ffb14a"
+    },
+    "style": "gacha",
+    "gacha": {
+      "machine": "gacha_machine.png",
+      "crank": "gacha_crank.png",
+      "open": "capsule_open.png",
+      "burst": "anim_pop.png",
+      "capsules": {
+        "plain": "capsule_plain.png",
+        "MINI": "capsule_mini.png",
+        "MAJOR": "capsule_major.png",
+        "MEGA": "capsule_mega.png"
+      },
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "socket": [
+        0.4995,
+        0.637
+      ],
+      "socketRadius": 0.0742,
+      "chute": [
+        0.498,
+        0.7982
+      ],
+      "pivot": [
+        0.4883,
+        0.4277
+      ],
+      "plateRadius": 0.2148
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#ff3e9d",
+      "#ffb3d9",
+      "#32e6f2"
+    ],
+    "rise": false
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#111522",
+    "panel": "#1a1f33"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        62,
+        428,
+        272,
+        482
+      ],
+      "centre": [
+        352,
+        424,
+        416,
+        488
+      ],
+      "right": [
+        496,
+        428,
+        706,
+        482
+      ]
+    },
+    "inner": [
+      0.07,
+      0.22,
+      0.93,
+      0.78
+    ],
+    "bar": true,
+    "phoneTop": 486
+  },
+  "blast": {
+    "fire": "vfx_ring.png",
+    "dust": "vfx_haze.png",
+    "smoke": "vfx_haze.png",
+    "kinds": {
+      "small": "vfx_spark.png",
+      "impact": "vfx_spark.png",
+      "heavy": "vfx_ring.png",
+      "napalm": "vfx_ring.png",
+      "mushroom": "vfx_fountain.png",
+      "fireball": "vfx_glow.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.5
+      ],
+      "impact": [
+        0.5,
+        0.55
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.88
+      ],
+      "fireball": [
+        0.5,
+        0.5
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_spark.png",
+      "heavy": "anim_ring.png",
+      "mushroom": "anim_fountain.png",
+      "arc": "anim_magnet.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    }
+  },
+  "character": {
+    "body": "cat_body.png",
+    "head": "cat_head.png",
+    "arm": "cat_paw.png",
+    "eyes": "cat_eyes.png",
+    "cheer": "cat_cheer.png",
+    "point": "cat_point.png",
+    "cheerScale": 1.0,
+    "neck": [
+      0.507,
+      0.456
+    ],
+    "shoulder": [
+      0.83,
+      0.573
+    ],
+    "feet": [
+      0.5,
+      0.932
+    ],
+    "swing": 0.22,
+    "swingSpeed": 4.5,
+    "height": 0.6
+  },
+  "music": "music.mp3"
+}

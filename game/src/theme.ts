@@ -32,7 +32,7 @@ export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: 
 /** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills); lagoon:
  * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight);
  * zombie: a grenade (explosions and blood: splatters left on the board, big wins splashing the screen) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie';
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -52,6 +52,8 @@ export interface WheelStyle extends WheelLook { ink: string; title: string; gold
   tesla: TeslaArt | null;
   /** a treasure-chest pick instead of a wheel (style "chests", see ChestArt); null: not one */
   chests: ChestArt | null;
+  /** a gacha machine instead of a wheel (style "gacha", see GachaArt); null: not one */
+  gacha: GachaArt | null;
   /** a small picture marking the SPIN slots, or null */
   spinMark: string | null }
 /**
@@ -110,6 +112,18 @@ export interface ChestArt {
     phoneGap: number } | null;
 }
 /**
+ * The gacha machine (Neon Nights): the player turns its crank, a capsule rolls out of the chute, wobbles and pops open
+ * with the prize. The machine, the crank (turning on `pivot`, shares of its picture; its round plate `plateRadius` of
+ * its width), a capsule per kind of prize, the capsule popped open, a prize token per kind, the pop's burst (a 4x4
+ * sheet); on the machine (shares of its width and height), the crank's socket and its radius, the chute's opening.
+ */
+export interface GachaArt {
+  machine: string; crank: string; open: string; burst: string;
+  capsules: { plain: string; MINI: string; MAJOR: string; MEGA: string };
+  tokens: { plain: string; MINI: string; MAJOR: string; MEGA: string };
+  socket: [number, number]; socketRadius: number; chute: [number, number]; pivot: [number, number]; plateRadius: number;
+}
+/**
  * A character standing beside the board (Pharaoh's Drop): the body, the head and the arm with the staff laid over it,
  * the eyes' glow, and two whole poses (cheering, pointing), all drawn on the same frame. The cheer was drawn smaller
  * (cheerScale: how much it is scaled about the feet); where the head and the arm turn (neck, shoulder) and the feet
@@ -118,6 +132,10 @@ export interface ChestArt {
 export interface CharacterArt {
   body: string; head: string; arm: string; eyes: string; cheer: string; point: string;
   cheerScale: number; neck: [number, number]; shoulder: [number, number]; feet: [number, number];
+  /** how far (radians) and how fast (radians a second) the arm swings: a staff sways a little, a lucky cat beckons */
+  swing: number; swingSpeed: number;
+  /** how tall beside the board, as a share of the screen's height (a wide character smaller) */
+  height: number;
 }
 export interface Theme {
   id: string;
@@ -245,6 +263,26 @@ function readChests(json: unknown, style: unknown): ChestArt | null {
   return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA }, doors };
 }
 
+function readGacha(json: unknown, style: unknown): GachaArt | null {
+  const g = (json ?? null) as Record<string, unknown> | null;
+  if (style !== 'gacha' || !g) return null;
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const share = (v: unknown) => (typeof v === 'number' && v > 0 && v < 1 ? v : null);
+  const pair = (v: unknown): [number, number] | null =>
+    Array.isArray(v) && v.length === 2 && share(v[0]) && share(v[1]) ? [v[0] as number, v[1] as number] : null;
+  const kinds = (v: unknown) => {
+    const k = (v ?? {}) as Record<string, unknown>;
+    const files = [k.plain, k.MINI, k.MAJOR, k.MEGA].map(png);
+    return files.every(f => f) ? { plain: files[0]!, MINI: files[1]!, MAJOR: files[2]!, MEGA: files[3]! } : null;
+  };
+  const [machine, crank, open, burst] = [g.machine, g.crank, g.open, g.burst].map(png);
+  const capsules = kinds(g.capsules), tokens = kinds(g.tokens);
+  const socket = pair(g.socket), chute = pair(g.chute), pivot = pair(g.pivot);
+  const socketRadius = share(g.socketRadius), plateRadius = share(g.plateRadius);
+  if (!machine || !crank || !open || !burst || !capsules || !tokens || !socket || !chute || !pivot || !socketRadius || !plateRadius) return null;
+  return { machine, crank, open, burst, capsules, tokens, socket, socketRadius, chute, pivot, plateRadius };
+}
+
 function readCharacter(json: unknown): CharacterArt | null {
   const c = (json ?? null) as Record<string, unknown> | null;
   if (!c) return null;
@@ -257,7 +295,10 @@ function readCharacter(json: unknown): CharacterArt | null {
   const scale = typeof c.cheerScale === 'number' && c.cheerScale > 0.5 && c.cheerScale < 2 ? c.cheerScale : 1;
   if (parts.some(p => !p) || !neck || !shoulder || !feet) return null;
   const [body, head, arm, eyes, cheer, point] = parts as string[];
-  return { body, head, arm, eyes, cheer, point, cheerScale: scale, neck, shoulder, feet };
+  const swing = typeof c.swing === 'number' && c.swing >= 0 && c.swing < 1 ? c.swing : 0.018;
+  const swingSpeed = typeof c.swingSpeed === 'number' && c.swingSpeed > 0 && c.swingSpeed < 20 ? c.swingSpeed : 0.8;
+  const height = typeof c.height === 'number' && c.height > 0.3 && c.height < 1 ? c.height : 0.78;
+  return { body, head, arm, eyes, cheer, point, cheerScale: scale, neck, shoulder, feet, swing, swingSpeed, height };
 }
 
 function readTesla(json: unknown, style: unknown): TeslaArt | null {
@@ -355,7 +396,7 @@ function readBoard(json: unknown): BoardStyle {
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' ? b.fx : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' ? b.fx : 'standard',
   };
 }
 
@@ -384,6 +425,7 @@ function readWheel(json: unknown, board: BoardStyle, accent: string, text: strin
     revolverArt: readRevolverArt(w.revolverArt),
     tesla: readTesla(w.tesla, w.style),
     chests: readChests(w.chests, w.style),
+    gacha: readGacha(w.gacha, w.style),
     spinMark: fileName(w.spinMark, /\.png$/),
   };
 }

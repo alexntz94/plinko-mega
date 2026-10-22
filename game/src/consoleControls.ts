@@ -218,46 +218,49 @@ export class ConsoleControls extends Container {
       this.place(rects);
       return;
     }
-    // tall, top to bottom, filling the screen: credits | win; bet | balls; risk; the keys; DROP (no quick bets: the
-    // board gets the room)
-    const w = Math.min(view.stageW - 20, 560);
+    // tall, top to bottom: credits | win; bet | balls; then the keys in three rows on the left (risk; auto, turbo;
+    // rows, the power-ups) and DROP big beside them on the right, under the thumb (no quick bets: the board gets the room)
+    const w = Math.min(view.stageW - 2 * view.offsetX - 16, 560);
     const x0 = (view.stageW - w) / 2;
-    const bottom = view.stageH - view.offsetY - 12;
-    const unit = (bottom - top) / 6.9;
+    const bottom = view.stageH - view.offsetY - 10;
     for (const k of this.quick) k.visible = false;
     for (const k of [this.rowsDown, this.rowsShown, this.rowsUp]) k.visible = false;
     this.rowsKey.visible = true;
-    const rowH = Math.min(84, unit * 0.8);
+    this.bumpKey.visible = false;
+    // five rows: the readouts a little taller than the keys; whatever height is left goes between them
+    const rowH = Math.min(64, w * 0.15, (bottom - top) / 6);
+    const gap = Math.max(4, Math.min(rowH * 0.45, (bottom - top - rowH * 5) / 6));
     if (this.back) {
-      // one steel console behind everything, as on the board
-      this.back.position.set(view.stageW / 2, (top + bottom) / 2);
+      // one plate behind everything, as on the board
+      this.back.position.set(view.stageW / 2, (top + bottom) / 2 + 2);
       this.back.width = view.stageW + 8;
-      this.back.height = bottom - top + 20;
+      this.back.height = bottom - top + 24;
     }
-    let y = top + unit * 0.55;
-    this.credits.position.set(x0 + w * 0.25, y); this.credits.size(w * 0.48, rowH);
-    this.win.position.set(x0 + w * 0.75, y); this.win.size(w * 0.48, rowH);
-    y += unit * 1.1;
+    let y = top + gap + rowH / 2;
+    this.credits.position.set(x0 + w * 0.25, y); this.credits.size(w * 0.49, rowH);
+    this.win.position.set(x0 + w * 0.75, y); this.win.size(w * 0.49, rowH);
+    y += rowH + gap;
     this.row(this.betMinus, this.bet, this.betPlus, x0, w * 0.49, y, rowH);
     this.row(this.ballsMinus, this.balls, this.ballsPlus, x0 + w * 0.51, w * 0.49, y, rowH);
-    y += unit * 1.1;
-    this.spread(this.risks, x0, w, y, rowH * 0.85);
-    y += unit;
-    this.spread([this.auto, this.turboKey, this.rowsKey, this.arsenalKey], x0, w, y, rowH * 0.8);
-    this.bumpKey.visible = false;
-    y += unit * 1.55;
-    // a wide plate fills the row; a round key (Reactor Drop's RELEASE) keeps its shape, a little taller
-    const dropH = Math.min(unit * 1.9, w * 0.3);
-    this.drop.position.set(view.stageW / 2, y);
+    y += rowH + gap;
+    const left = w * 0.64, keyH = rowH * 0.82;
+    this.spread(this.risks, x0, left, y, keyH);
+    this.spread([this.auto, this.turboKey], x0, left, y + keyH + gap, keyH);
+    this.spread([this.rowsKey, this.arsenalKey], x0, left, y + 2 * (keyH + gap), keyH);
+    // DROP beside the three rows of keys
+    const span = 3 * keyH + 2 * gap;
+    const cx = x0 + left + (w - left) / 2, cy = y + span / 2 - keyH / 2;
+    const dropH = Math.min(span * 1.05, (w - left) * 1.05);
+    this.drop.position.set(cx, cy);
     if (this.roundDrop()) {
       const ratio = this.drop.art.texture.width / this.drop.art.texture.height;
-      this.drop.size(dropH * 1.3 * ratio, dropH * 1.3);
+      this.drop.size(dropH * ratio, dropH);
       this.dropText = 0.44;
-      this.drop.text.style.fontSize = Math.round(Math.min(unit * 0.55, 40));
+      this.drop.text.style.fontSize = Math.round(dropH * 0.2);
     } else {
-      this.drop.size(w * 0.8, dropH);
+      this.drop.size(w - left - 6, Math.min(span, (w - left) * 0.7));
       this.dropText = 0.7;
-      this.drop.text.style.fontSize = Math.round(Math.min(unit * 0.8, 52));
+      this.drop.text.style.fontSize = Math.round(Math.min(span * 0.3, 44));
     }
     fit(this.drop.text, this.drop.art.width * this.dropText);
     this.drop.base = 1;

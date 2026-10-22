@@ -114,6 +114,8 @@ export class Game extends Container {
   private readonly wheel: FortuneWheel;
   /** the theme's wheel is a tesla ring or a chest pick (shorter than a revolver, so it is drawn bigger) */
   private readonly ring: boolean;
+  /** the theme's spinner is a chest pick (on a phone: two shelves in the upper middle of the screen) */
+  private readonly chestPick: boolean;
   private readonly bar: MegaControls | ConsoleControls;
   /** the power-up armed for the next round (heavy, cluster), and the ARSENAL panel it is picked on */
   private power: string | null = null;
@@ -210,6 +212,7 @@ export class Game extends Container {
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex),
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests;
+    this.chestPick = !!theme.wheel.chests;
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
       // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
@@ -308,7 +311,7 @@ export class Game extends Container {
     const visibleH = view.stageH - 2 * view.offsetY;
     const boardX = this.bar instanceof ConsoleControls ? view.stageW / 2 : view.stageW * 0.32;
     // a chest pick's shelf may take most of what is on screen across
-    this.wheel.setRoom(Math.min(view.stageW - 2 * view.offsetX - 24, view.landscape ? visibleH * 1.25 : Infinity));
+    this.wheel.setRoom(Math.min(view.stageW - 2 * view.offsetX - 24, view.landscape ? visibleH * 1.25 : Infinity), !view.landscape);
     if (view.landscape) {
       // over the middle of the board, clear of the console (a photo revolver's dial is about 3.5 radii tall)
       // a tesla ring is only about 2.7 radii tall, so it can be bigger
@@ -316,7 +319,9 @@ export class Game extends Container {
       this.wheel.place(boardX, view.offsetY + visibleH * (photo ? 0.42 : 0.62),
         Math.min(ring ? 150 : photo ? 112 : 170, visibleH * (ring ? 0.22 : photo ? 0.17 : 0.28)));
     }
-    else if (this.bar instanceof ConsoleControls) this.wheel.place(view.stageW / 2, view.offsetY + 150 + visibleH * 0.19, Math.min(108, view.stageW * 0.25));
+    // a chest pick's two shelves stand in the screen's upper middle
+    else if (this.bar instanceof ConsoleControls) this.wheel.place(view.stageW / 2,
+      view.offsetY + (this.chestPick ? visibleH * 0.3 : 150 + visibleH * 0.19), Math.min(108, view.stageW * 0.25));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.36, Math.min(175, visibleH * 0.19));
     if (this.bar instanceof ConsoleControls) {
       this.layoutConsole(view, this.bar);
@@ -960,13 +965,17 @@ export class Game extends Container {
     sound('spin', { volume: 0.6 });
     gsap.to(this.board, { alpha: 0.35, duration: 0.25 });
     gsap.to([this.meter, this.ticker], { alpha: 0, duration: 0.2 });
+    // a chest pick on a phone stands over the console too: the console steps back under it
+    const over = this.chestPick && !!this.view && !this.view.landscape;
+    this.table.setChildIndex(this.wheel, this.table.getChildIndex(over ? this.bar : this.board) + (over ? 0 : 1));
+    if (over) gsap.to(this.bar, { alpha: 0.25, duration: 0.25 });
     gsap.fromTo(this.wheel, { alpha: 0 }, { alpha: 1, duration: 0.2 });
     await new Promise<void>(resolve => gsap.fromTo(this.wheel.scale, { x: 0.4, y: 0.4 }, { x: 1, y: 1, duration: 0.35, ease: 'back.out(1.8)', onComplete: resolve }));
   }
 
   /** ...and goes away again when they are done. */
   private async hideWheel(): Promise<void> {
-    gsap.to([this.board, this.meter, this.ticker], { alpha: 1, duration: 0.25 });
+    gsap.to([this.board, this.meter, this.ticker, this.bar], { alpha: 1, duration: 0.25 });
     await new Promise<void>(resolve => gsap.to(this.wheel, { alpha: 0, duration: 0.25, onComplete: resolve }));
     this.wheel.visible = false;
     this.wheel.alpha = 1;

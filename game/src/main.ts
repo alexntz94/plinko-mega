@@ -37,6 +37,8 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.console ? [theme.console.drop, theme.console.panel, theme.console.key, ...(theme.console.back ? [theme.console.back] : [])] : []),
     ...(theme.wheel.revolverArt ? [theme.wheel.revolverArt.cylinder, theme.wheel.revolverArt.dial, theme.wheel.revolverArt.flash,
       ...Object.values(theme.wheel.revolverArt.cartridges)] : []),
+    ...(theme.wheel.tesla ? [theme.wheel.tesla.orb, theme.wheel.tesla.flash, ...Object.values(theme.wheel.tesla.cells),
+      ...(theme.wheel.tesla.plate ? [theme.wheel.tesla.plate.plate, theme.wheel.tesla.plate.coil] : [])] : []),
     ...(theme.wheel.spinMark ? [theme.wheel.spinMark] : []),
     ...(theme.blast ? [theme.blast.fire, theme.blast.dust, theme.blast.smoke, ...Object.values(theme.blast.kinds),
       ...Object.values(theme.blast.sheets), ...(theme.blast.tank ? [theme.blast.tank.body, theme.blast.tank.target] : [])] : []),

@@ -43,6 +43,8 @@ export interface WheelStyle extends WheelLook { ink: string; title: string; gold
   revolver: boolean;
   /** pictures for the revolver (see RevolverArt), or null: drawn in code */
   revolverArt: RevolverArt | null;
+  /** a tesla ring instead of a wheel (see TeslaArt): nothing turns, a bolt hops round the prizes; null: not one */
+  tesla: TeslaArt | null;
   /** a small picture marking the SPIN slots, or null */
   spinMark: string | null }
 /**
@@ -56,6 +58,27 @@ export interface RevolverArt {
   cartridges: { plain: string; MINI: string; MAJOR: string; MEGA: string };
   centre: [number, number]; radius: number; chambers: [number, number][]; chamberRadius: number;
   opening: [number, number]; openingRadius: number;
+}
+/**
+ * A tesla ring: a coil in the middle and an energy cell per prize round it; a bolt from the coil hops from cell to cell
+ * and stops on the prize. Its pictures: a cell per kind of prize, the plasma in the coil, the flash of a win.
+ */
+export interface TeslaArt {
+  cells: { plain: string; MINI: string; MAJOR: string; MEGA: string };
+  orb: string; flash: string;
+  /** optional pictures of the ring (its sockets measured, see TeslaPlate); else it is drawn in code */
+  plate: TeslaPlate | null;
+}
+/**
+ * The ring's pictures: the plate (sockets and the coil's well) and the coil that sits in the well. Geometry in shares
+ * of the plate's width: the plate's outline (centre, radius), each socket's centre (the first at the top, then
+ * clockwise) and their size across, the well's centre and radius; the coil's outline radius and its glass dome's radius
+ * as shares of its own width and outline radius.
+ */
+export interface TeslaPlate {
+  plate: string; coil: string;
+  centre: [number, number]; radius: number; sockets: [number, number][]; socket: number;
+  well: [number, number]; wellRadius: number; coilRadius: number; dome: number;
 }
 export interface Theme {
   id: string;
@@ -144,6 +167,30 @@ function readRevolverArt(json: unknown): RevolverArt | null {
   const [cylinder, dial, flash, plain, MINI, MAJOR, MEGA] = parts as string[];
   return { cylinder, dial, flash, cartridges: { plain, MINI, MAJOR, MEGA }, centre, radius, chambers: chambers as [number, number][],
     chamberRadius, opening, openingRadius };
+}
+
+function readTesla(json: unknown, style: unknown): TeslaArt | null {
+  const t = (json ?? null) as Record<string, unknown> | null;
+  if (style !== 'tesla' || !t) return null;
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const c = (t.cells ?? {}) as Record<string, unknown>;
+  const parts = [png(c.plain), png(c.MINI), png(c.MAJOR), png(c.MEGA), png(t.orb), png(t.flash)];
+  if (parts.some(p => !p)) return null;
+  const [plain, MINI, MAJOR, MEGA, orb, flash] = parts as string[];
+  return { cells: { plain, MINI, MAJOR, MEGA }, orb, flash, plate: readTeslaPlate(t) };
+}
+
+function readTeslaPlate(t: Record<string, unknown>): TeslaPlate | null {
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const share = (v: unknown) => (typeof v === 'number' && v > 0 && v < 1 ? v : null);
+  const pair = (v: unknown): [number, number] | null =>
+    Array.isArray(v) && v.length === 2 && share(v[0]) && share(v[1]) ? [v[0] as number, v[1] as number] : null;
+  const plate = png(t.plate), coil = png(t.coil), centre = pair(t.centre), well = pair(t.well);
+  const sockets = Array.isArray(t.sockets) ? t.sockets.map(pair) : [];
+  const [radius, socket, wellRadius, coilRadius, dome] = [t.radius, t.socket, t.wellRadius, t.coilRadius, t.dome].map(share);
+  if (!plate || !coil || !centre || !well || !radius || !socket || !wellRadius || !coilRadius || !dome
+      || sockets.length < 3 || sockets.some(s => !s)) return null;
+  return { plate, coil, centre, radius, sockets: sockets as [number, number][], socket, well, wellRadius, coilRadius, dome };
 }
 
 const BLAST_NAMES = ['small', 'fireball', 'heavy', 'napalm', 'impact', 'mushroom', 'muzzle', 'arc'] as const;
@@ -238,6 +285,7 @@ function readWheel(json: unknown, board: BoardStyle, accent: string, text: strin
     bezel: fileName(w.bezel, /\.png$/), glass: fileName(w.glass, /\.png$/),
     revolver: w.style === 'revolver',
     revolverArt: readRevolverArt(w.revolverArt),
+    tesla: readTesla(w.tesla, w.style),
     spinMark: fileName(w.spinMark, /\.png$/),
   };
 }

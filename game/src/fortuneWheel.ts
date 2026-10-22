@@ -8,7 +8,7 @@ import { label, textQuality, typeface, fit } from './ui';
 import { Particles, calm, kindBlast, photoBlast, shake } from './effects';
 import { counting, goldText, mix, shade } from './paint';
 import type { Segment } from './api';
-import type { RevolverArt, WheelLook, WheelStyle } from './theme';
+import type { RevolverArt, TeslaPlate, WheelLook, WheelStyle } from './theme';
 import { chamberLayout, spinTarget } from './revolver';
 
 /** A revolver from pictures (theme wheel.revolverArt): its textures and its measured geometry. */
@@ -17,6 +17,17 @@ export interface PhotoRevolver {
   cartridges: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
   spec: RevolverArt;
 }
+
+/** A tesla ring's textures (theme wheel.tesla): an energy cell per kind of prize, the coil's plasma, a win's flash. */
+export interface TeslaRing {
+  cells: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
+  orb: Texture; flash: Texture;
+  /** the ring's own pictures and their measured geometry, or null: drawn in code */
+  plate: { plate: Texture; coil: Texture; spec: TeslaPlate } | null;
+}
+
+/** A cell of the tesla ring: where it sits round the coil (the first at the top), what lights up, its own scale. */
+interface TeslaNode { x: number; y: number; cell: Sprite; halo: Graphics; base: number }
 
 const random = (min: number, max: number) => min + Math.random() * (max - min);
 const RAINBOW = ['#ff3b3b', '#ff9a1b', '#ffe14a', '#4ade5a', '#2ec4ff', '#8a5bff', '#ff4fd8'];
@@ -52,6 +63,12 @@ export class FortuneWheel extends Container {
   private jackpotIndex = 0;
   private hurried = false;
   private spin: gsap.core.Timeline | null = null;
+  /** The tesla ring: its cells, the cell the bolt is on, the bolt, the plasma in the coil, the time to the next idle spark. */
+  private nodes: TeslaNode[] = [];
+  private lit = 0;
+  private readonly bolt = new Graphics();
+  private orb: Sprite | null = null;
+  private idleSpark = 1;
   private get words(): [string, string] {
     return this.art.words ?? ['BOOM!', 'KABOOM!'];
   }
@@ -64,6 +81,7 @@ export class FortuneWheel extends Container {
   constructor(private readonly style: WheelStyle, private readonly hub: Texture | null, private readonly finger: Texture | null,
               private readonly format: (value: number) => string, private readonly panel = '#2a1747',
               private readonly art: { bezel: Texture | null; glass: Texture | null; explode?: boolean; photo?: PhotoRevolver | null;
+                tesla?: TeslaRing | null;
                 /** what a win shouts: [a win, a jackpot] */
                 words?: [string, string] } = { bezel: null, glass: null }) {
     super();
@@ -76,7 +94,8 @@ export class FortuneWheel extends Container {
     // the glow and the rainbow ring are cut off where the disc is, and a base hides the cut
     const back = new Container();
     back.addChild(this.glow, this.rainbow, this.disc, this.cover, this.lights);
-    this.addChild(back, this.mask_, this.base, this.pointer, this.header, this.sparks, this.burst);
+    this.bolt.blendMode = 'add';
+    this.addChild(back, this.mask_, this.base, this.pointer, this.header, this.bolt, this.sparks, this.burst);
     back.mask = this.mask_;
     // a tap hurries a turning wheel along (the segment is already decided)
     this.disc.eventMode = 'static';
@@ -88,16 +107,26 @@ export class FortuneWheel extends Container {
     this.radius = r;
     this.position.set(x, y);
     // the photo revolver shows whole (it pops up over the board); a wheel only above its base
-    if (this.photo()) this.mask_.clear().rect(-r * 3, -r * 3, r * 6, r * 6).fill('#ffffff');
+    if (this.popsUp) this.mask_.clear().rect(-r * 3, -r * 3, r * 6, r * 6).fill('#ffffff');
     else this.mask_.clear().rect(-r * 1.4, -r * 1.4, r * 2.8, r * 1.5).fill('#ffffff');
     // the base the wheel turns in: a dark plinth with a gold rim across the cut
     this.base.clear()
       .roundRect(-r * 1.32, r * 0.04, r * 2.64, r * 0.34, r * 0.08).fill({ color: '#000000', alpha: 0.5 })
       .roundRect(-r * 1.3, 0, r * 2.6, r * 0.32, r * 0.08).fill(shade(mix(this.panel, '#ffffff', 0.08), mix(this.panel, '#000000', 0.7))).stroke({ color: this.style.title, width: 3 })
       .moveTo(-r * 1.2, r * 0.07).lineTo(r * 1.2, r * 0.07).stroke({ color: '#ffffff', width: 1, alpha: 0.25 });
-    if (this.photo()) this.base.clear();
+    if (this.popsUp) this.base.clear();
     this.drawHeader();
     this.draw();
+  }
+
+  /** A revolver from pictures or a tesla ring: shown whole over the board (not the top half of a wheel). */
+  private get popsUp(): boolean {
+    return !!(this.art.photo || this.art.tesla);
+  }
+
+  /** The tesla ring, when the theme has one. */
+  private tesla(segments = this.segments): TeslaRing | null {
+    return this.art.tesla && segments.length >= 3 ? this.art.tesla : null;
   }
 
   /** The photo revolver, when the theme has one with a chamber per prize. */
@@ -109,6 +138,7 @@ export class FortuneWheel extends Container {
 
   /** Every frame: the marquee lights chase round the rim, and the glow breathes. */
   update(deltaMs: number): void {
+    if (this.nodes.length) { this.teslaIdle(deltaMs); return; }
     if (calm || this.lights.children.length === 0) return;
     this.chase += Math.min(deltaMs, 50) / 1000 * this.chaseSpeed;
     const n = this.lights.children.length;
@@ -159,6 +189,26 @@ export class FortuneWheel extends Container {
     fit(this.jackpotAmount, this.radius * 0.9);
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
+    if (this.tesla(segments)) await this.teslaTurn(segments, index);
+    else await this.turnDisc(segments, index);
+    const segment = segments[index];
+    this.jackpotName.text = segment.name ? `${segment.name} JACKPOT` : options.title;
+    // a jackpot is called by its name (MAJOR JACKPOT, then its win), a plain chamber shows its sum
+    this.jackpotAmount.text = segment.name ? `${segment.name}!`
+      : options.base !== undefined ? `${this.format(options.base)} × ${segment.multiplier}` : segmentText(segment);
+    fit(this.jackpotAmount, this.radius * 0.9);
+    fit(this.jackpotName, this.radius * 0.38);
+    fit(this.spinsText, this.radius * 0.38);
+    await this.celebrate(win, !!segment.name || options.gold);
+    if (options.gold) {
+      this.gold = false;
+      this.draw();
+    }
+    this.cycleJackpots();
+  }
+
+  /** A wheel or a revolver turns to segment `index`. */
+  private async turnDisc(segments: Segment[], index: number): Promise<void> {
     const step = Math.PI * 2 / segments.length;
     // never the same stop twice: how many turns, how fast, and how many chambers click in one by one at the end
     const turns = calm ? 1 : this.hurried ? 2 : 2 + Math.floor(Math.random() * 3);
@@ -199,20 +249,164 @@ export class FortuneWheel extends Container {
     glowSpin.kill();
     this.chaseSpeed = 6;
     gsap.to(this.rainbow, { alpha: 0, duration: 0.6, onComplete: () => { this.rainbow.visible = false; } });
-    const segment = segments[index];
-    this.jackpotName.text = segment.name ? `${segment.name} JACKPOT` : options.title;
-    // a jackpot is called by its name (MAJOR JACKPOT, then its win), a plain chamber shows its sum
-    this.jackpotAmount.text = segment.name ? `${segment.name}!`
-      : options.base !== undefined ? `${this.format(options.base)} × ${segment.multiplier}` : segmentText(segment);
-    fit(this.jackpotAmount, this.radius * 0.9);
-    fit(this.jackpotName, this.radius * 0.38);
-    fit(this.spinsText, this.radius * 0.38);
-    await this.celebrate(win, !!segment.name || options.gold);
-    if (options.gold) {
-      this.gold = false;
-      this.draw();
+  }
+
+  /**
+   * The tesla ring: a bolt from the coil hops round the cells, fast, then slower and slower (a relay click a hop), and
+   * stops on the prize; a last strike lights it. A tap hurries it.
+   */
+  private async teslaTurn(segments: Segment[], index: number): Promise<void> {
+    const n = this.nodes.length;
+    if (n !== segments.length) return;
+    const loops = calm ? 0 : this.hurried ? 1 : 2 + Math.floor(Math.random() * 2);
+    const from = this.lit % n;
+    const hops = loops * n + (((index - from) % n) + n) % n;
+    this.nodes.forEach(node => { node.halo.alpha = 0; });
+    let at = -1;
+    const hop = { k: 0 };
+    const show = () => {
+      const k = Math.min(Math.floor(hop.k), hops);
+      const node = this.nodes[(from + k) % n];
+      if (k !== at) {
+        if (at >= 0) this.nodes[(from + at) % n].halo.alpha = 0;
+        at = k;
+        node.halo.alpha = 1;
+        gsap.fromTo(node.cell.scale, { x: node.base * 1.12, y: node.base * 1.12 }, { x: node.base, y: node.base, duration: 0.12, overwrite: true });
+        if (k > 0) this.onTick?.();
+      }
+      this.drawBolt(node.x, node.y, 1);
+    };
+    show();
+    await new Promise<void>(resolve => {
+      const spin = gsap.timeline({ onComplete: resolve });
+      this.spin = spin;
+      // the bolt crackles all the way (redrawn every frame) and slows down like a wheel running down
+      spin.to(hop, { k: hops + 0.999, duration: calm ? 0.8 : this.hurried ? 1.3 : random(2.2, 2.9), ease: 'power3.out', onUpdate: show });
+    });
+    this.lit = index;
+    const node = this.nodes[index];
+    // the strike: the bolt flares onto the cell and dies, the theme's arc from coil to cell, a spark on the cell
+    const strike = { w: 2.2 };
+    gsap.to(strike, { w: 0, duration: calm ? 0.2 : 0.5, ease: 'power2.in', onUpdate: () => this.drawBolt(node.x, node.y, strike.w),
+      onComplete: () => { this.bolt.clear(); } });
+    if (!calm) {
+      kindBlast(this.burst, 'arc', node.x / 2, node.y / 2, Math.hypot(node.x, node.y) / 0.8, Math.atan2(node.y, node.x));
+      kindBlast(this.burst, 'small', node.x, node.y, this.radius * 0.6);
     }
-    this.cycleJackpots();
+    gsap.fromTo(node.cell.scale, { x: node.base * 1.35, y: node.base * 1.35 }, { x: node.base, y: node.base, duration: 0.35, ease: 'back.out(3)', overwrite: true });
+  }
+
+  /** The bolt from the coil to (x, y): a glow, a core and a white-hot middle, jagged differently every frame. */
+  private drawBolt(x: number, y: number, weight: number): void {
+    this.bolt.clear();
+    if (weight <= 0) return;
+    const r = this.radius;
+    const colour = this.gold ? '#ffd76a' : this.style.title;
+    const d = Math.hypot(x, y), nx = -y / d, ny = x / d;
+    const from = r * 0.16 / d;   // out of the top of the coil
+    for (const [width, c, alpha] of [[r * 0.1, colour, 0.25], [r * 0.04, colour, 0.75], [r * 0.016, '#ffffff', 1]] as const) {
+      this.bolt.moveTo(x * from, y * from);
+      for (let k = 1; k < 7; k++) {
+        const t = from + (1 - from) * k / 7, j = (Math.random() - 0.5) * r * 0.12;
+        this.bolt.lineTo(x * t + nx * j, y * t + ny * j);
+      }
+      this.bolt.lineTo(x, y).stroke({ color: c, width: width * weight, alpha, cap: 'round', join: 'round' });
+    }
+  }
+
+  /** Between spins the coil's plasma breathes and now and then spits a short spark at a cell. */
+  private teslaIdle(deltaMs: number): void {
+    if (calm || this.spin?.isActive()) return;
+    const dt = Math.min(deltaMs, 50) / 1000;
+    this.chase += dt;
+    if (this.orb) this.orb.alpha = 0.75 + 0.25 * Math.sin(this.chase * 3);
+    this.idleSpark -= dt;
+    if (this.idleSpark > 0 || !this.visible) return;
+    this.idleSpark = random(1.2, 2.6);
+    const node = this.nodes[Math.floor(Math.random() * this.nodes.length)];
+    const zap = { w: 0.6 };
+    let frames = 0;
+    gsap.to(zap, { w: 0, duration: 0.22, ease: 'power1.in', onUpdate: () => {
+      // a flicker, short of the cell: on and off frame by frame
+      if (this.spin?.isActive()) return;
+      if (frames++ % 2 === 0) this.drawBolt(node.x * 0.8, node.y * 0.8, zap.w); else this.bolt.clear();
+    }, onComplete: () => { if (!this.spin?.isActive()) this.bolt.clear(); } });
+  }
+
+  /**
+   * The tesla ring: the theme's plate with an energy cell in each socket and the coil in its well (the middle of the
+   * well is the ring's centre, where the bolt starts), or, without pictures, the same drawn: a dark plate in a copper
+   * rim, a conduit ring through the cells, rails from the coil to each cell. A cell per prize (copper; steel for MINI,
+   * cyan for MAJOR, red for MEGA) with its prize on it, plasma in the coil. Gold for a MEGA SPIN.
+   */
+  private drawTesla(r: number, segments: Segment[], art: TeslaRing): void {
+    const glow = this.gold ? '#ffd76a' : this.style.title;
+    const pictures = art.plate && art.plate.spec.sockets.length === segments.length ? art.plate : null;
+    let places: { x: number; y: number }[], size: number, dome: number;
+    if (pictures) {
+      const { spec } = pictures;
+      const s = r / (spec.radius * pictures.plate.width), w = pictures.plate.width * s;   // plate picture to screen
+      const [wx, wy] = spec.well;
+      this.disc.addChild(new Graphics().circle((spec.centre[0] - wx) * w, (spec.centre[1] - wy) * w, r * 1.07).fill({ color: glow, alpha: 0.12 }));
+      const plate = new Sprite({ texture: pictures.plate, anchor: { x: wx, y: wy } });
+      plate.scale.set(s);
+      if (this.gold) plate.tint = '#ffcf6a';
+      const coil = new Sprite({ texture: pictures.coil, anchor: 0.5 });
+      const coilR = spec.wellRadius * w * 1.08;
+      coil.scale.set(coilR / (spec.coilRadius * pictures.coil.width));
+      this.disc.addChild(plate, coil);
+      places = spec.sockets.map(([x, y]) => ({ x: (x - wx) * w, y: (y - wy) * w }));
+      size = spec.socket * w * 1.2;
+      dome = coilR * spec.dome * 2.1;
+    } else {
+      const step = Math.PI * 2 / segments.length, ring = r * 0.74;
+      const rim = this.gold ? '#ffd76a' : this.style.rim;
+      size = r * 0.46;
+      dome = r * 0.4;
+      places = segments.map((_, i) => ({ x: Math.cos(-Math.PI / 2 + i * step) * ring, y: Math.sin(-Math.PI / 2 + i * step) * ring }));
+      this.disc.addChild(new Graphics()
+        .circle(0, 0, r * 1.07).fill({ color: glow, alpha: 0.1 })
+        .circle(0, 0, r).fill('#0d1216').stroke({ color: rim, width: r * 0.05 })
+        .circle(0, 0, r * 0.95).stroke({ color: '#000000', width: r * 0.02, alpha: 0.6 })
+        .circle(0, 0, ring).stroke({ color: '#05080a', width: r * 0.09 })
+        .circle(0, 0, ring).stroke({ color: glow, width: r * 0.012, alpha: 0.45 }));
+      const rails = new Graphics();
+      for (const { x, y } of places) {
+        const d = Math.hypot(x, y), c = x / d, s = y / d, out = ring - size * 0.45;
+        rails.moveTo(c * r * 0.24, s * r * 0.24).lineTo(c * out, s * out).stroke({ color: '#05080a', width: r * 0.05 })
+          .moveTo(c * r * 0.24, s * r * 0.24).lineTo(c * out, s * out).stroke({ color: rim, width: r * 0.012, alpha: 0.7 });
+      }
+      // the coil: copper windings round a dark core
+      const coil = new Graphics().circle(0, 0, r * 0.27).fill('#05080a');
+      for (let k = 0; k < 5; k++) coil.circle(0, 0, r * (0.25 - k * 0.022)).stroke({ color: k % 2 ? '#6e3a1a' : '#c47a3e', width: r * 0.016 });
+      coil.circle(0, 0, r * 0.14).fill('#0b1a22').stroke({ color: glow, width: r * 0.012 });
+      this.disc.addChild(rails, coil);
+    }
+    // the plasma in the coil's glass
+    const orb = new Sprite({ texture: art.orb, anchor: 0.5 });
+    orb.width = orb.height = dome;
+    orb.blendMode = 'add';
+    if (this.gold) orb.tint = '#ffd76a';
+    this.orb = orb;
+    this.disc.addChild(orb);
+    this.nodes = segments.map((segment, i) => {
+      const { x, y } = places[i];
+      const halo = new Graphics().circle(0, 0, size * 0.78).fill({ color: glow, alpha: 0.16 }).circle(0, 0, size * 0.62).fill({ color: glow, alpha: 0.3 });
+      halo.blendMode = 'add';
+      halo.position.set(x, y);
+      halo.alpha = 0;
+      const kind = segment.name === 'MINI' || segment.name === 'MAJOR' || segment.name === 'MEGA' ? segment.name : 'plain';
+      const cell = new Sprite({ texture: art.cells[kind], anchor: 0.5 });
+      cell.width = cell.height = size;
+      cell.position.set(x, y);
+      const words = new Text({ text: segmentText(segment), anchor: 0.5, resolution: textQuality(),
+        style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(size * (segment.name ? 0.22 : 0.26)),
+          fill: segment.name ? '#ffd76a' : '#fff6dc', stroke: { color: '#000000', width: size * 0.065, join: 'round' } } });
+      words.position.set(x, y);
+      if (words.width > size * 0.8) words.scale.set(size * 0.8 / words.width);
+      this.disc.addChild(halo, cell, words);
+      return { x, y, cell, halo, base: cell.scale.y };
+    });
   }
 
   /** Where a win bursts out of the wheel, on the screen. */
@@ -245,16 +439,18 @@ export class FortuneWheel extends Container {
     flash.filters = [new BlurFilter({ strength: 24 })];
     flash.blendMode = 'add';
     const amount = goldText(this.format(0), big ? r * 0.42 : r * 0.34);
-    amount.y = -r * 0.32;
+    const ring = this.tesla();
+    amount.y = ring ? 0 : -r * 0.32;   // over the tesla ring's coil
     // a war theme blows up instead of the golden rays
     const explodes = this.art.explode && !calm;
     if (explodes) this.explode(big);
     const photo = this.photo();
-    if (photo && !calm) {
-      // the shot: a muzzle flash out of the chamber under the hammer
-      const flash = new Sprite({ texture: photo.flash, anchor: 0.5 });
+    const lit = ring ? this.nodes[this.lit % this.nodes.length] ?? null : null;
+    if ((photo || ring) && !calm) {
+      // the shot: a muzzle flash out of the chamber under the hammer, or a plasma flash out of the cell that won
+      const flash = new Sprite({ texture: (photo ?? ring)!.flash, anchor: 0.5 });
       flash.blendMode = 'add';
-      flash.position.set(0, -r * 0.7);
+      flash.position.set(lit?.x ?? 0, lit?.y ?? -r * 0.7);
       this.burst.addChild(flash);
       gsap.timeline()
         .fromTo(flash, { width: r * 0.3, height: r * 0.3, alpha: 1 }, { width: r * (big ? 2.4 : 1.7), height: r * (big ? 2.4 : 1.7), duration: 0.12, ease: 'power3.out' })
@@ -294,11 +490,14 @@ export class FortuneWheel extends Container {
     const y = -r * 0.42;
     // soft edges drawn in (rings of falling opacity), not blurred: cheap on a phone
     // the theme's explosion over the wheel: a mushroom cloud for a jackpot, a fireball for a win; else the photo blast
-    if (kindBlast(this.burst, big ? 'mushroom' : 'heavy', 0, big ? r * 0.55 : y, r * (big ? 3.2 : 2.4))
-        || photoBlast(this.burst, 0, y, r * (big ? 2.2 : 1.6))) {
-      this.sparks.burst(0, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 40 : 22, big ? 850 : 600, 500);
+    // on a tesla ring a win blows on its cell (a jackpot still over the whole ring)
+    const cell = this.tesla() && !big ? this.nodes[this.lit % this.nodes.length] ?? null : null;
+    const bx = cell?.x ?? 0, by = cell?.y ?? y;
+    if (kindBlast(this.burst, big ? 'mushroom' : 'heavy', bx, big ? r * 0.55 : by, r * (big ? 3.2 : cell ? 1.8 : 2.4))
+        || photoBlast(this.burst, bx, by, r * (big ? 2.2 : 1.6))) {
+      this.sparks.burst(bx, by, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 40 : 22, big ? 850 : 600, 500);
       const word = goldText(big ? this.words[1] : this.words[0], r * (big ? 0.34 : 0.26));
-      word.position.set(0, y - r * 0.55);
+      word.position.set(cell ? 0 : bx, cell ? -r * 1.25 : by - r * 0.55);
       this.burst.addChild(word);
       gsap.timeline()
         .fromTo(word.scale, { x: 2.6, y: 2.6 }, { x: 1, y: 1, duration: 0.2, ease: 'power3.in' }, 0)
@@ -310,7 +509,7 @@ export class FortuneWheel extends Container {
       .circle(0, 0, radius * 0.6).fill({ color: colour, alpha: 0.5 * alpha });
     // smoke first, so the fire is in front of it: grey enough to show on the dark wheel, rolling up and out
     // smoke only round a drawn wheel (over the photo revolver, flat puffs look fake)
-    for (let i = 0; i < (this.art.photo ? 0 : big ? 12 : 7); i++) {
+    for (let i = 0; i < (this.popsUp ? 0 : big ? 12 : 7); i++) {
       const puff = soft(r * random(0.2, 0.32), ['#5c5f66', '#474a50', '#6e7178'][i % 3], 1.6);
       const a = random(0, Math.PI * 2);
       puff.position.set(Math.cos(a) * r * 0.25, y + Math.sin(a) * r * 0.15);
@@ -355,7 +554,7 @@ export class FortuneWheel extends Container {
     // debris and embers
     this.sparks.burst(0, y, ['#1a1d21', '#4b5320', '#2b3036', '#6e5216'], big ? 34 : 20, big ? 950 : 700, 1500);
     this.sparks.burst(0, y, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 46 : 26, big ? 850 : 600, 500);
-    if (!this.art.photo) shake(this, big ? 18 : 9);   // the photo revolver stays still under its blast
+    if (!this.popsUp) shake(this, big ? 18 : 9);   // the photo revolver stays still under its blast
   }
 
   /** The jackpot display shows MINI, MAJOR and MEGA in turn, each as what it multiplies a ball's win by. */
@@ -389,7 +588,7 @@ export class FortuneWheel extends Container {
     const texts: Container[] = [this.jackpotName, this.jackpotAmount, this.spinsText];
     this.header.removeChildren().forEach(child => { if (!texts.includes(child)) child.destroy(); });
     // the photo revolver's header goes over its hammer (the bonus meter steps aside while it shows)
-    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.28 : -r * 1.42;
+    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.28 : this.art.tesla ? -r * 1.5 : -r * 1.42;
     const bar = new Graphics()
       .roundRect(-w / 2, y + 3, w, h, h * 0.3).fill({ color: '#000000', alpha: 0.5 })
       .roundRect(-w / 2, y, w, h, h * 0.3).fill(shade(mix(this.panel, '#ffffff', 0.08), mix(this.panel, '#000000', 0.6))).stroke({ color: this.style.title, width: 3 })
@@ -413,9 +612,13 @@ export class FortuneWheel extends Container {
     this.pointer.removeChildren().forEach(child => child.destroy({ children: true }));
     this.cover.removeChildren().forEach(child => child.destroy({ children: true }));
     // with the theme's bezel the disc is smaller, so the whole wheel keeps its size
-    const r = this.art.bezel ? this.radius * 0.84 : this.radius;
+    this.nodes = [];
+    this.orb = null;
+    this.bolt.clear();
+    const ring = this.tesla(segments);
+    const r = this.art.bezel && !ring ? this.radius * 0.84 : this.radius;
     const look = this.gold ? this.style.gold : this.style;
-    this.glow.visible = !this.style.revolver;   // no coloured glow round a revolver
+    this.glow.visible = !this.style.revolver && !ring;   // no coloured glow round a revolver
     this.glow.clear().circle(0, 0, r * 1.32).fill({ color: this.gold ? '#ffd76a' : this.style.title, alpha: 0.18 });
     this.rainbow.clear();
     RAINBOW.forEach((colour, i) => {
@@ -427,8 +630,8 @@ export class FortuneWheel extends Container {
     // the bezel: the theme's drawing, or a plain ring
     const bulbRadius = this.art.bezel ? r * 178 / 160 : r * 1.165;
     const photo = this.photo(segments);
-    if (photo) {
-      // the dial frame (with its hammer) is the bezel
+    if (photo || ring) {
+      // the dial frame (with its hammer) is the bezel; the tesla ring has its own rim
     } else if (this.art.bezel) {
       const bezel = new Sprite({ texture: this.art.bezel, anchor: 0.5 });
       bezel.width = bezel.height = r * 440 / 160;
@@ -446,16 +649,17 @@ export class FortuneWheel extends Container {
       bulb.position.set(Math.cos(a) * bulbRadius, Math.sin(a) * bulbRadius);
       this.lights.addChild(bulb);
     }
-    this.lights.visible = !photo;
+    this.lights.visible = !photo && !ring;
     if (photo) this.drawPhoto(r, segments, photo);
+    else if (ring) this.drawTesla(r, segments, ring);
     else if (this.style.revolver) this.drawRevolver(r, step, segments);
     else this.drawWedges(r, step, segments, look);
-    if (this.art.glass && !photo) {
+    if (this.art.glass && !photo && !ring) {
       const glass = new Sprite({ texture: this.art.glass, anchor: 0.5 });
       glass.width = glass.height = r * 440 / 160;
       this.cover.addChildAt(glass, 0);
     }
-    if (this.style.revolver || photo) {
+    if (this.style.revolver || photo || ring) {
       // the cylinder's own centre: the ejector star (drawn with it)
     } else if (this.hub) {
       const hub = new Sprite({ texture: this.hub, anchor: 0.5 });
@@ -464,8 +668,8 @@ export class FortuneWheel extends Container {
     } else {
       this.disc.addChild(new Graphics().circle(0, 0, r * 0.28).fill(look.rim).stroke({ color: this.style.ink, width: 4 }));
     }
-    if (photo) {
-      // the hammer on the dial points at the chamber that wins
+    if (photo || ring) {
+      // the hammer on the dial points at the chamber that wins; on the tesla ring, the bolt
     } else if (this.finger) {
       const finger = new Sprite({ texture: this.finger, anchor: { x: 0.5, y: 0.9 } });
       finger.scale.set(r * (this.art.bezel ? 0.42 : 0.3) / Math.max(finger.texture.height, 1));

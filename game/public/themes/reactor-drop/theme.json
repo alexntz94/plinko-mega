@@ -1,6 +1,6 @@
 {
   "name": "Reactor Drop",
-  "title": "Reactor Drop · Plinko",
+  "title": "Reactor Drop \u00b7 Plinko",
   "background": "#171b20",
   "accent": "#46d9f2",
   "text": "#eee4d1",
@@ -134,58 +134,61 @@
       ],
       "rim": "#ffb43c"
     },
-    "style": "revolver",
-    "revolverArt": {
-      "cylinder": "wheel_rotor.png",
-      "dial": "wheel_housing.png",
-      "flash": "wheel_flash.png",
-      "cartridges": {
+    "style": "tesla",
+    "tesla": {
+      "cells": {
         "plain": "cap_copper.png",
         "MINI": "cap_steel.png",
         "MAJOR": "cap_cyan.png",
         "MEGA": "cap_red.png"
       },
+      "orb": "vfx_plasma.png",
+      "flash": "wheel_flash.png",
+      "plate": "tesla_plate.png",
+      "coil": "tesla_coil.png",
       "centre": [
-        0.4987,
-        0.4933
+        0.5,
+        0.4936
       ],
       "radius": 0.4833,
-      "chambers": [
+      "sockets": [
         [
-          0.4987,
-          0.1663
+          0.4992,
+          0.1471
         ],
         [
-          0.7544,
-          0.2894
+          0.7779,
+          0.2795
         ],
         [
-          0.8176,
-          0.5661
+          0.8437,
+          0.5506
         ],
         [
-          0.6406,
-          0.7879
+          0.6703,
+          0.7695
         ],
         [
-          0.3568,
-          0.7879
+          0.3289,
+          0.7691
         ],
         [
-          0.1799,
-          0.5661
+          0.1559,
+          0.5506
         ],
         [
-          0.243,
-          0.2894
+          0.2213,
+          0.2795
         ]
       ],
-      "opening": [
-        0.4998,
-        0.4928
+      "socket": 0.1427,
+      "well": [
+        0.496,
+        0.4797
       ],
-      "openingRadius": 0.323,
-      "chamberRadius": 0.08
+      "wellRadius": 0.1334,
+      "coilRadius": 0.4936,
+      "dome": 0.4006
     }
   },
   "ambient": {

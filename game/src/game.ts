@@ -250,8 +250,8 @@ export class Game extends Container {
       rows: (step: number) => {
         const n = this.rowOptions.length;
         const at = this.rowOptions.indexOf(this.rows) + step;
-        // the phone's single ROWS key wraps round; the arrows stop at the ends
-        this.changeRows(this.bar instanceof ConsoleControls && step > 0 && at >= n && this.view && !this.view.landscape ? 0 : at);
+        // the single ROWS key (phones, a control bar) wraps round; the arrows stop at the ends
+        this.changeRows(this.bar instanceof ConsoleControls && step > 0 && at >= n && this.bar.rowsKeyShown ? 0 : at);
       },
       pickBet: (value: number) => this.pickBet(value),
       arsenal: () => this.openArsenal(),

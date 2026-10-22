@@ -85,9 +85,18 @@ class Key extends Container {
     this.hitArea = new Rectangle(-w / 2, -h / 2, w, h);
     // a wide key with a thick frame (its ends carved): the label stays in the plain middle
     const framed = this.inner && this.art.texture === this.wide;
-    const room = framed ? (this.inner![2] - this.inner![0]) * w * 0.86 : w * 0.8;
+    this.room = framed ? (this.inner![2] - this.inner![0]) * w * 0.86 : w * 0.8;
     this.text.style.fontSize = Math.round(Math.min(h * (framed ? 0.4 : 0.42), 26));
-    fit(this.text, room);
+    fit(this.text, this.room);
+  }
+
+  /** How wide the label may be (set by size). */
+  private room = 100;
+
+  /** A new label, kept inside the key as size placed it. */
+  relabel(text: string): void {
+    this.text.text = text;
+    fit(this.text, this.room);
   }
 
   setEnabled(enabled: boolean): void {
@@ -393,20 +402,23 @@ export class ConsoleControls extends Container {
   private arsenalName = 'ARSENAL';
   setArsenalName(name: string): void {
     this.arsenalName = name;
-    this.arsenalKey.text.text = name;
+    this.arsenalKey.relabel(name);
   }
 
   /** The armed power-up (its short name), lit on the ARSENAL key; null: none. */
   setArmed(name: string | null): void {
-    this.arsenalKey.text.text = name ?? this.arsenalName;
+    this.arsenalKey.relabel(name ?? this.arsenalName);
     this.arsenalKey.setLit(name !== null, this.look);
-    fit(this.arsenalKey.text, this.arsenalKey.art.width * 0.8);
+  }
+
+  /** Whether the rows are changed with the single ROWS key (it goes round: past the largest board, the smallest). */
+  get rowsKeyShown(): boolean {
+    return this.rowsKey.visible;
   }
 
   setRows(rows: number): void {
     this.rowsShown.set(String(rows));
-    this.rowsKey.text.text = `ROWS ${rows}`;
-    fit(this.rowsKey.text, this.rowsKey.art.width * 0.8);
+    this.rowsKey.relabel(`ROWS ${rows}`);
   }
 
   /** busy: balls falling (settings lock); auto: autoplay; left: balls still to land. */

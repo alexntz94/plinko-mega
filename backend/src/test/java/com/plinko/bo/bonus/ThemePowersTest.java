@@ -23,6 +23,9 @@ class ThemePowersTest {
         assertThat(BonusService.themeSells("lagoon-drop", "meltdown")).as("Volcano Vault").isTrue();
         assertThat(BonusService.themeSells("lagoon-drop", "chain")).isFalse();
         assertThat(BonusService.themeSells("reactor-drop", "pair")).isFalse();
+        assertThat(BonusService.themeSells("pharaoh-drop", "pair")).as("Twin Serpents").isTrue();
+        assertThat(BonusService.themeSells("pharaoh-drop", "meltdown")).as("Tomb Raid").isTrue();
+        assertThat(BonusService.themeSells("pharaoh-drop", "tank")).isFalse();
         assertThat(BonusService.themeSells("old-theme", "heavy")).isFalse();
         for (List<String> powers : BonusService.THEME_POWERS.values()) {
             assertThat(BonusService.POWERS).containsAll(powers);

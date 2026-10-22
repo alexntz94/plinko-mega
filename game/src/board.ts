@@ -253,6 +253,10 @@ const WAR_BLAST = { sparks: ['#fff3b0', '#ffd76a', '#ff8a1a', '#c1121f'], smoke:
   ink: '#e9e4d4', bigInk: '#f2b705' };
 const REACTOR_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#bff4ff', '#46d9f2', '#1a8fb0'], smoke: ['#c9d3d8', '#9aa6ad', '#e8eef0'],
   debris: null, words: ['SURGE!', 'ZAP!', 'CHARGED!'], bigWords: ['OVERLOAD!', 'CRITICAL!', 'FULL POWER!'], ink: '#eee4d1', bigInk: '#46d9f2' };
+/** a scarab: gold dust and sand, gold coins thrown up */
+const PHARAOH_BLAST: typeof WAR_BLAST = { sparks: ['#fff6d0', '#ffd76a', '#d9a441', '#ffffff'], smoke: ['#d8b98a', '#c9a46a', '#efd9a8'],
+  debris: ['#ffd76a', '#d9a441', '#36afa6'], words: ['GOLD!', 'RICHES!', 'BLESSED!'], bigWords: ["PHARAOH'S GOLD!", 'TREASURE!', 'DIVINE!'],
+  ink: '#fff2d6', bigInk: '#ffd76a' };
 /** a pearl: spray and foam, hibiscus petals thrown up */
 const LAGOON_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#d8fbf8', '#18c9c2', '#f5b642'], smoke: ['#ffffff', '#e6fbf9', '#bfeeea'],
   debris: ['#ef735f', '#ff4f6a', '#f5b642'], words: ['SPLASH!', 'SPLOOSH!', 'NICE!'], bigWords: ['TIDAL WAVE!', 'ALOHA!', 'PARADISE!'],
@@ -808,7 +812,7 @@ export class Board extends Container {
             entered = true;
             if (pegs.decoy) {
               // a cluster decoy: it fizzles in its slot, it pays nothing
-              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : ['#8b939b', '#ff8a1a'], 6, 160);
+              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : ['#8b939b', '#ff8a1a'], 6, 160);
               return;
             }
             this.slots[slot]?.hit();
@@ -1083,7 +1087,7 @@ export class Board extends Container {
   private explode(x: number, y: number, multiplier: number): void {
     const size = multiplier >= 10 ? 3 : multiplier >= 2 ? 2 : multiplier >= 1 ? 1 : 0;
     // a bomb: fire, smoke and debris; a reactor capsule: cyan-white sparks and a puff of vent steam, nothing thrown out
-    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : WAR_BLAST;
+    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : WAR_BLAST;
     this.particles.burst(x, y, look.sparks, [6, 12, 22, 36][size], [150, 220, 320, 440][size]);
     // smoke (steam) rising out of the hole
     this.particles.burst(x, y - 6, look.smoke, [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
@@ -1135,7 +1139,7 @@ export class Board extends Container {
     dot.blendMode = 'add';
     dot.position.copyFrom(ball.position);
     // a reactor capsule leaves a thin cyan streak (the capsule itself must stay the brightest thing)
-    const thin = this.fx === 'reactor' || this.fx === 'lagoon';
+    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh';
     const size = radius * (thin ? 0.3 : 0.7 + 0.25 * heat);
     const life = thin ? 0.22 : 0.32 + 0.12 * heat;
     dot.scale.set(size);

@@ -6,6 +6,7 @@ import { ResponsiblePlay } from './responsible';
 import { Board, smashedPegs, type Landing, type PegHit } from './board';
 import { BigWin, BlastShower, CoinShower, winLevel, type Shower } from './effects';
 import { FortuneWheel, type ChestPick, type PhotoRevolver, type TeslaRing } from './fortuneWheel';
+import { Character } from './character';
 import { MegaControls } from './megaControls';
 import { ConsoleControls } from './consoleControls';
 import { ArsenalPanel, ARSENALS } from './arsenal';
@@ -61,7 +62,7 @@ function chestPick(theme: Theme, tex: (file: string) => Texture): ChestPick | nu
   if (!art) return null;
   const t = art.tokens;
   return { closed: tex(art.closed), open: tex(art.open), goldClosed: tex(art.goldClosed), goldOpen: tex(art.goldOpen),
-    shelf: tex(art.shelf), glow: tex(art.glow), burst: tex(art.burst), plank: art.plank, span: art.span,
+    shelf: tex(art.shelf), glow: tex(art.glow), burst: tex(art.burst), plank: art.plank, span: art.span, doors: art.doors,
     tokens: { plain: tex(t.plain), MINI: tex(t.MINI), MAJOR: tex(t.MAJOR), MEGA: tex(t.MEGA) } };
 }
 
@@ -73,6 +74,9 @@ const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER'
  *  meltdown). */
 const LAGOON_NAMES: Record<string, string> = { heavy: 'SUNBURST', 'magnet-left': 'CURRENT L', 'magnet-right': 'CURRENT R', meltdown: 'VOLCANO' };
 const LAGOON_STAMPS: Record<string, string> = { 'magnet-left': 'CROSSCURRENT', 'magnet-right': 'CROSSCURRENT', meltdown: 'VOLCANO VAULT', pair: 'PEARL PAIR' };
+/** Pharaoh's Drop's: Scarab Fortune is heavy, Twin Serpents the pair, Sirocco Draft the magnet, Tomb Raid the meltdown. */
+const PHARAOH_NAMES: Record<string, string> = { heavy: 'SCARAB', pair: 'SERPENTS', 'magnet-left': 'SIROCCO L', 'magnet-right': 'SIROCCO R', meltdown: 'TOMB RAID' };
+const PHARAOH_STAMPS: Record<string, string> = { pair: 'TWIN SERPENTS', 'magnet-left': 'SIROCCO DRAFT', 'magnet-right': 'SIROCCO DRAFT', meltdown: 'TOMB RAID' };
 /** Every power-up the arsenal can sell. */
 const POWER_IDS = ['heavy', 'cluster', 'strike-left', 'strike-centre', 'strike-right', 'crates', 'missile', 'night', 'tank',
   'chain', 'magnet-left', 'magnet-right', 'meltdown', 'pair'];
@@ -124,6 +128,8 @@ export class Game extends Container {
   private readonly meltdown: CoreMeltdown | null = null;
   /** Steam from the station's vents, behind the board (Reactor Drop). */
   private readonly vents = new Container();
+  /** a character beside the board (Pharaoh's Drop's pharaoh), or null */
+  private readonly character: Character | null;
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
@@ -192,10 +198,10 @@ export class Game extends Container {
       ok: tex('button_confirm.png'), no: tex('button_cancel.png') }, theme.landscapeExitFromPortrait,
     () => { this.closeExit(); this.go('menu'); }, () => this.closeExit());
     this.consoleRects = theme.console?.rects ?? null;
-    const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon';
-    this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}) };
-    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : 'HEAVY SHELLS';
+    const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
+    this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : 'HEAVY SHELLS';
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
     this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text],
@@ -210,7 +216,7 @@ export class Game extends Container {
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex),
-        words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : ['BOOM!', 'KABOOM!'] });
+        words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests;
     this.chestPick = !!theme.wheel.chests;
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
@@ -255,7 +261,11 @@ export class Game extends Container {
     this.ticker = new WinTicker(theme.wheel.title);
     this.ambient = new Ambient(theme.ambient.colours, theme.ambient.rise);
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
-    this.table.addChild(this.ambient, this.vents, this.board, this.ticker, this.wheel, this.banner, this.meter, this.bar);
+    const c = theme.character;
+    this.character = c ? new Character({ body: tex(c.body), head: tex(c.head), arm: tex(c.arm), eyes: tex(c.eyes),
+      cheer: tex(c.cheer), point: tex(c.point) }, c) : null;
+    this.table.addChild(this.ambient, this.vents, ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
+      this.banner, this.meter, this.bar);
     // Reactor Drop: the station breathes: vent steam drifts up at the sides now and then
     if (theme.board.fx === 'reactor' && theme.blast) this.ventSteam(tex(theme.blast.smoke));
     if (theme.console && config.mega?.powers && Object.keys(config.mega.powers).length) {
@@ -265,10 +275,10 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (reactor || lagoon) {
+    if (reactor || lagoon || pharaoh) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
-        title: lagoon ? 'VOLCANO HEAT' : 'CORE PRESSURE' });
+        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : 'CORE PRESSURE' });
       this.table.addChild(this.meltdown);
     }
     if (theme.blast?.tank) {
@@ -309,7 +319,7 @@ export class Game extends Container {
     this.shower.layout(view);
     // the board with the wheel right under it, as one column; portrait: the bar below them, landscape: beside them
     const visibleH = view.stageH - 2 * view.offsetY;
-    const boardX = this.bar instanceof ConsoleControls ? view.stageW / 2 : view.stageW * 0.32;
+    const boardX = this.bar instanceof ConsoleControls ? this.boardX(view) : view.stageW * 0.32;
     // a chest pick's shelf may take most of what is on screen across
     this.wheel.setRoom(Math.min(view.stageW - 2 * view.offsetX - 24, view.landscape ? visibleH * 1.25 : Infinity), !view.landscape);
     if (view.landscape) {
@@ -390,14 +400,27 @@ export class Game extends Container {
     gsap.delayedCall(1.5, puff);
   }
 
+  /** Where a console board's middle is across: the middle of the screen, or left of the character beside it. */
+  private boardX(view: Viewport): number {
+    return this.character && view.landscape ? view.offsetX + (view.stageW - 2 * view.offsetX) * 0.41 : view.stageW / 2;
+  }
+
   /** The board's place: room for the wheel and the control bar. */
   private layoutBoard(view: Viewport): void {
     // the wheel only shows at the end of a round with spins (over the board), so the board has the room
     const visibleH = view.stageH - 2 * view.offsetY;
     if (this.bar instanceof ConsoleControls) {
-      // the board and its console, centred and as big as the screen allows (wide); the board on top (tall)
+      // the board and its console, centred and as big as the screen allows (wide; with a character, left of him); the
+      // board on top (tall)
+      const visibleW = view.stageW - 2 * view.offsetX;
+      if (this.character) {
+        if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.98, visibleH * 0.78);
+        // a phone: he steps in at the left for his big moments only
+        else this.character.place(view.offsetX + visibleW * 0.3, view.offsetY + visibleH * 0.66, visibleH * 0.5, true);
+      }
       this.board.layout(view, view.landscape
-        ? { x: view.stageW / 2, y: view.offsetY + visibleH * 0.52, fit: 1, room: { w: view.stageW * 0.78, h: visibleH * 0.94 } }
+        ? { x: this.boardX(view), y: view.offsetY + visibleH * 0.52, fit: 1,
+          room: { w: this.character ? visibleW * 0.74 : view.stageW * 0.78, h: visibleH * 0.94 } }
         : { x: view.stageW / 2, y: view.offsetY + 100 + visibleH * 0.25, fit: 1, room: { w: view.stageW - 2 * view.offsetX - 8, h: visibleH * 0.5 } });
       return;
     }
@@ -724,7 +747,7 @@ export class Game extends Container {
     // a round bought with a power-up is announced once; then its MEGA BALLs are quiet (one of many)
     const heavy = round.power === 'heavy';
     if (heavy) { this.board.stamp(`${this.heavyName} x${count}`); sound('huge'); this.screen.flash(0.35); }
-    if (round.power && this.powerStamps[round.power]) { this.board.stamp(this.powerStamps[round.power]); sound('huge'); }
+    if (round.power && this.powerStamps[round.power]) { this.board.stamp(this.powerStamps[round.power]); sound('huge'); this.character?.point(); }
     // a power-up by slot: the boosted prizes and their targets (the night) for this round
     if (round.slotFactors?.length) this.board.setPower(round.power ?? null, round.slotFactors);
     const crateOf = new Map((round.crates ?? []).map(c => [c.ball, c.multiplier]));
@@ -858,7 +881,10 @@ export class Game extends Container {
     // a round that paid 10x its cost or more gets a celebration (the amount is the server's; tap to skip)
     const level = winLevel(round.totalWin, round.totalBet);
     if (level) sound('bigWin');
-    if (level) await this.bigWin.show(level, round.totalWin, value => this.money(value), round.totalBet);
+    if (level) {
+      this.character?.cheer();
+      await this.bigWin.show(level, round.totalWin, value => this.money(value), round.totalBet);
+    }
   }
 
   /** Everything has landed: the screen shows exactly the server's balance; out of credit ends the game. */
@@ -956,12 +982,14 @@ export class Game extends Container {
     this.board.update(deltaMs);
     this.ambient.update(deltaMs);
     this.wheel.update(deltaMs);
+    this.character?.update(deltaMs, this.busy());
   }
 
   /** The wheel pops up over the board (dimmed) for a round's spins. */
   private async revealWheel(): Promise<void> {
     if (this.wheel.visible) return;
     this.wheel.visible = true;
+    this.character?.point();
     sound('spin', { volume: 0.6 });
     gsap.to(this.board, { alpha: 0.35, duration: 0.25 });
     gsap.to([this.meter, this.ticker], { alpha: 0, duration: 0.2 });

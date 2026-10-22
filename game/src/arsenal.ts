@@ -41,11 +41,22 @@ const LAGOON_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'VOLCANO VAULT', text: 'The volcano erupts after the drop: x0.5 to x20', ready: true },
 ];
 
+/** Pharaoh's Drop's relics (Scarab Fortune is the server's heavy, Twin Serpents the pair, Sirocco Draft the magnet,
+ *  Tomb Raid the meltdown). */
+const PHARAOH_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'SCARAB FORTUNE', text: 'Every scarab is blessed: x2 to x10', ready: true },
+  { id: 'pair', name: 'TWIN SERPENTS', text: 'Each scarab splits in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'SIROCCO DRAFT', text: '70% of scarabs blown to your side: its bays pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'TOMB RAID', text: 'Raid the tomb after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
   'reactor-drop': { title: 'BOOST', hint: 'Charge your next release', cards: REACTOR_CARDS },
   'lagoon-drop': { title: 'BOOSTERS', hint: 'Bless your next pearl', cards: LAGOON_CARDS },
+  'pharaoh-drop': { title: 'RELICS', hint: "Call on the Pharaoh's relics", cards: PHARAOH_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite | NineSliceSprite; lit: Graphics; price: Text;

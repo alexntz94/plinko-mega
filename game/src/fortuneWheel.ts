@@ -33,12 +33,15 @@ export interface ChestPick {
   closed: Texture; open: Texture; goldClosed: Texture; goldOpen: Texture; shelf: Texture; glow: Texture; burst: Texture;
   plank: number; span: [number, number];
   tokens: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
+  doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number } | null;
 }
 
 /** A chest on the shelf: the prize it holds (the segment's index), the slot it stands in now. */
 interface ChestView { chest: Sprite; glow: Sprite; token: Container; slot: number; segment: number;
   /** the shelf line it stands on */
-  feet: number }
+  feet: number;
+  /** a door's doorway (it sinks out of it when it opens), its height */
+  arch?: Graphics; archH?: number }
 
 /** A cell of the tesla ring: where it sits round the coil (the first at the top), what lights up, its own scale. */
 interface TeslaNode { x: number; y: number; cell: Sprite; halo: Graphics; base: number;
@@ -87,14 +90,15 @@ export class FortuneWheel extends Container {
   private idleSpark = 1;
   /**
    * The chest pick: its chests, where each slot is (x and the shelf line it stands on), the top shelf's line, the
-   * bottom shelf's (the same on one shelf), a shelf's height, a chest's size, the chest that opened.
+   * bottom shelf's (the same on one shelf), a chest's size, the chest that opened.
    */
   private chests: ChestView[] = [];
   private chestSlots: { x: number; y: number }[] = [];
   private chestFeet = 0;
   private chestLow = 0;
   private chestSize = 0;
-  private chestShelf = 0;
+  /** how far under the (lower) shelf's line the win is counted */
+  private chestBelow = 0;
   private chestOpen: ChestView | null = null;
   private get words(): [string, string] {
     return this.art.words ?? ['BOOM!', 'KABOOM!'];
@@ -235,7 +239,8 @@ export class FortuneWheel extends Container {
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
     const ring = this.tesla(segments);
-    if (this.chestPick(segments)) await this.chestTurn(segments, index);
+    if (this.chestPick(segments)?.doors) await this.doorTurn(segments, index);
+    else if (this.chestPick(segments)) await this.chestTurn(segments, index);
     else if (ring?.motion === 'tide') await this.tideTurn(segments, index);
     else if (ring) await this.teslaTurn(segments, index);
     else await this.turnDisc(segments, index);
@@ -580,7 +585,7 @@ export class FortuneWheel extends Container {
     }
     this.chestFeet = feet;
     this.chestLow = feet + (rows - 1) * gap;
-    this.chestShelf = h;
+    this.chestBelow = h * 0.75;
     this.chestSize = size;
     const glows = new Container(), bodies = new Container(), tokens = new Container();
     this.disc.addChild(glows, bodies, tokens);
@@ -628,8 +633,13 @@ export class FortuneWheel extends Container {
     return { w, h, size, gap: size * 1.55 + h * 0.5, perRow };
   }
 
-  /** How far above the (upper) shelf's line the prize bar goes: over the tokens risen out of the chests. */
+  /** How far above the (upper) shelf's line the prize bar goes: over the tokens risen out of the chests (over the wall). */
   private chestHeader(): number {
+    const doors = this.art.chests!.doors;
+    if (doors) {
+      const { h } = this.doorGeometry();
+      return h * 0.5 + this.radius * 0.3;
+    }
     const { h, size } = this.chestGeometry(Math.max(this.segments.length, 2));
     return size * 1.9 + this.radius * 0.34 - h * 0.1;
   }
@@ -744,17 +754,141 @@ export class FortuneWheel extends Container {
     }
   }
 
+  /** The tomb wall's size: its width and height, a door's width (a doorway's), a doorway's height. */
+  private doorGeometry(): { w: number; h: number; doorW: number; archH: number } {
+    const art = this.art.chests!, doors = art.doors!;
+    const span = doors.arches[doors.arches.length - 1] - doors.arches[0] + doors.archWidth;
+    // a phone: as wide as the screen's doorways allow (the torches at the ends may run off it)
+    const w = this.tall ? this.room * 0.97 / span : Math.min(this.radius * 6.2, this.room);
+    const h = w * art.shelf.height / art.shelf.width;
+    return { w, h, doorW: doors.archWidth * w, archH: (doors.archBottom - doors.archTop) * h };
+  }
+
+  /**
+   * The tomb doors: the wall, a prize token in each doorway (behind its door), the door closing it (stone; gold for a
+   * MEGA SPIN), a glow over each for the light that runs across them. A door sinks out of its doorway when it opens.
+   */
+  private drawDoors(segments: Segment[], art: ChestPick, doors: NonNullable<ChestPick['doors']>): void {
+    const { w, h, doorW, archH } = this.doorGeometry();
+    // the wall's middle where the spinner is placed
+    const feet = (doors.archBottom - 0.5) * h;
+    const wall = new Sprite({ texture: art.shelf, anchor: { x: 0.5, y: doors.archBottom } });
+    wall.width = w;
+    wall.height = h;
+    wall.y = feet;
+    this.disc.addChild(wall);
+    this.chestSlots = segments.map((_, i) => ({ x: ((doors.arches[i] ?? 0.5) - 0.5) * w, y: feet }));
+    this.chestFeet = this.chestLow = feet;
+    this.chestBelow = (1 - doors.archBottom) * h + this.radius * 0.35;
+    this.chestSize = doorW;
+    const tokens = new Container(), bodies = new Container(), glows = new Container();
+    this.disc.addChild(tokens, bodies, glows);
+    this.chests = segments.map((segment, i) => {
+      const { x } = this.chestSlots[i];
+      const kind = segment.name === 'MINI' || segment.name === 'MAJOR' || segment.name === 'MEGA' ? segment.name : 'plain';
+      const token = new Container();
+      const coin = new Sprite({ texture: art.tokens[kind], anchor: 0.5 });
+      coin.width = coin.height = doorW * 0.92;
+      const words = new Text({ text: segmentText(segment), anchor: 0.5, resolution: textQuality(),
+        style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(doorW * (segment.name ? 0.2 : 0.26)),
+          fill: segment.name ? '#ffd76a' : '#fff6dc', stroke: { color: '#000000', width: doorW * 0.05, join: 'round' } } });
+      if (words.width > doorW * 0.8) words.scale.set(doorW * 0.8 / words.width);
+      token.addChild(coin, words);
+      token.position.set(x, feet - archH * 0.48);
+      const door = new Sprite({ texture: this.gold ? art.goldClosed : art.closed, anchor: { x: 0.5, y: 1 } });
+      door.width = doorW * 1.04;
+      door.height = archH * 1.02;
+      door.position.set(x, feet);
+      // the doorway: the door sinks out of it and is not seen below the floor
+      const arch = new Graphics().rect(x - doorW * 0.6, feet - archH * 1.1, doorW * 1.2, archH * 1.1).fill('#ffffff');
+      door.mask = arch;
+      const glow = new Sprite({ texture: art.glow, anchor: 0.5 });
+      glow.width = glow.height = doorW * 1.8;
+      glow.blendMode = 'add';
+      glow.alpha = 0;
+      glow.position.set(x, feet - archH * 0.5);
+      tokens.addChild(token);
+      bodies.addChild(door, arch);
+      glows.addChild(glow);
+      return { chest: door, glow, token, slot: i, segment: i, feet, arch, archH };
+    });
+  }
+
+  /**
+   * The tomb doors: a light runs across the doors and back, slowing, then the game waits for the player to pick a door
+   * (the prize the server drew is behind whichever is picked); it shakes, grinds down into the floor in a burst of
+   * sand, and the treasure behind it shines out; the other doors then sink halfway to show what they hid.
+   */
+  private async doorTurn(segments: Segment[], index: number): Promise<void> {
+    const art = this.art.chests!;
+    const n = this.chests.length;
+    if (n !== segments.length) return;
+    const closed = this.gold ? art.goldClosed : art.closed;
+    for (const v of this.chests) {
+      gsap.killTweensOf([v.chest, v.token.scale, v.glow]);
+      v.chest.texture = closed;
+      v.chest.y = v.feet;
+      v.chest.alpha = 1;
+      v.glow.alpha = 0;
+      v.token.alpha = 1;
+      v.token.scale.set(1);
+    }
+    // the light runs along the doors and back, a tick a door, slowing down
+    const tl = gsap.timeline();
+    this.spin = tl;
+    const order = calm ? [] : [...Array(n).keys(), ...[...Array(n).keys()].reverse().slice(1)];
+    order.forEach((k, i) => {
+      const v = this.chests[k], pace = 0.06 + 0.1 * (i / Math.max(1, order.length - 1)) ** 2;
+      tl.call(() => this.onTick?.());
+      tl.to(v.glow, { alpha: 0.9, duration: pace * 0.4 });
+      tl.to(v.glow, { alpha: 0, duration: pace * 1.6 }, '>');
+    });
+    await new Promise<void>(resolve => tl.eventCallback('onComplete', () => resolve()));
+    const pick = await this.chooseChest();
+    const holder = this.chests.find(v => v.segment === index)!;
+    if (holder !== pick) {
+      [pick.token, holder.token] = [holder.token, pick.token];
+      [pick.segment, holder.segment] = [holder.segment, pick.segment];
+      const px = pick.token.x;
+      pick.token.x = holder.token.x;
+      holder.token.x = px;
+    }
+    // the picked door glows and shakes, then grinds down into the floor
+    const archH = pick.archH ?? this.chestSize * 1.6;
+    const open = gsap.timeline();
+    this.spin = open;
+    open.to(pick.glow, { alpha: 1, duration: 0.25 });
+    open.to(pick.chest, { x: pick.chest.x + this.chestSize * 0.03, duration: 0.04, yoyo: true, repeat: calm ? 1 : 9, ease: 'sine.inOut' }, '<');
+    open.call(() => {
+      this.onTick?.();
+      if (!calm) this.chestBurst(art, pick.chest.x, pick.feet - archH * 0.15, this.chestSize * 2.2);
+    });
+    open.to(pick.chest, { y: pick.feet + archH, duration: calm ? 0.2 : 0.7, ease: 'power2.in' });
+    await new Promise<void>(resolve => open.eventCallback('onComplete', () => resolve()));
+    this.chestOpen = pick;
+    gsap.fromTo(pick.token.scale, { x: 0.8, y: 0.8 }, { x: 1.2, y: 1.2, duration: 0.35, ease: 'back.out(2.5)' });
+    // the others sink halfway to show what they hid
+    for (const v of this.chests) {
+      if (v === pick) continue;
+      gsap.to(v.chest, { y: v.feet + (v.archH ?? archH) * 0.6, alpha: 0.7, duration: 0.4, delay: calm ? 0 : 0.5, ease: 'power1.in' });
+      gsap.to(v.token, { alpha: 0.55, duration: 0.4, delay: calm ? 0 : 0.5 });
+    }
+  }
+
   /**
    * Waits for the player to tap a chest: PICK A CHEST! on the bar, the chests bobbing a little. The tap is caught over
    * the whole row (the chests sit under the spinner's mask, which takes no taps) and goes to the nearest chest.
    */
   private chooseChest(): Promise<ChestView> {
     const said = this.jackpotAmount.text;
-    this.jackpotAmount.text = 'PICK A CHEST!';
+    const doors = !!this.art.chests?.doors;
+    this.jackpotAmount.text = doors ? 'PICK A DOOR!' : 'PICK A CHEST!';
     fit(this.jackpotAmount, this.radius * 0.9);
     const size = this.chestSize;
-    const bobbing = this.chests.map((v, i) => gsap.to(v.chest, { y: v.feet - size * 0.05, duration: 0.45, yoyo: true, repeat: -1,
-      delay: i * 0.07, ease: 'sine.inOut' }));
+    // chests bob; doors in a wall glow in turn instead
+    const bobbing = this.chests.map((v, i) => doors
+      ? gsap.to(v.glow, { alpha: 0.5, duration: 0.5, yoyo: true, repeat: -1, delay: i * 0.12, ease: 'sine.inOut' })
+      : gsap.to(v.chest, { y: v.feet - size * 0.05, duration: 0.45, yoyo: true, repeat: -1, delay: i * 0.07, ease: 'sine.inOut' }));
     const xs = this.chests.map(v => v.chest.x);
     const left = Math.min(...xs) - size / 2, right = Math.max(...xs) + size / 2;
     const catcher = new Container();
@@ -769,7 +903,10 @@ export class FortuneWheel extends Container {
       catcher.on('pointertap', event => {
         const view = near(event.getLocalPosition(this));
         bobbing.forEach(b => b.kill());
-        for (const v of this.chests) v.chest.y = v.feet;
+        for (const v of this.chests) {
+          v.chest.y = v.feet;
+          if (doors) v.glow.alpha = 0;
+        }
         catcher.destroy();
         this.onTick?.();
         this.jackpotAmount.text = said;
@@ -838,7 +975,7 @@ export class FortuneWheel extends Container {
     const amount = goldText(this.format(0), big ? r * 0.42 : r * 0.34);
     const ring = this.tesla(), opened = this.chestPick() ? this.chestOpen : null;
     // over the tesla ring's coil; over the chests
-    amount.y = ring ? 0 : opened ? this.chestLow + this.chestShelf * 0.75 : -r * 0.32;   // (under the shelf)
+    amount.y = ring ? 0 : opened ? this.chestLow + this.chestBelow : -r * 0.32;   // (under the shelf)
     // a war theme blows up instead of the golden rays
     const explodes = this.art.explode && !calm;
     if (explodes) this.explode(big);
@@ -1057,7 +1194,8 @@ export class FortuneWheel extends Container {
       this.lights.addChild(bulb);
     }
     this.lights.visible = !photo && !ring && !chest;
-    if (chest) this.drawChests(segments, chest);
+    if (chest?.doors) this.drawDoors(segments, chest, chest.doors);
+    else if (chest) this.drawChests(segments, chest);
     else if (photo) this.drawPhoto(r, segments, photo);
     else if (ring) this.drawTesla(r, segments, ring);
     else if (this.style.revolver) this.drawRevolver(r, step, segments);

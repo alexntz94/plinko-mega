@@ -144,8 +144,8 @@
                 <label class="check-row"><input type="checkbox" name="chainOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().chain()}"> Chain lightning: a capsule also wins half of each neighbouring bay's prize</label>
                 <label class="check-row"><input type="checkbox" name="magnetOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().magnet()}"> Magnetic field: 70% of capsules pulled to the chosen half, whose bays pay x1.5</label>
                 <label class="check-row"><input type="checkbox" name="meltdownOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().meltdown()}"> Core meltdown: after the capsules one payout of x0.5 to x20 of the round's bet</label>
-                <p class="hint">Lagoon Drop (its Sunburst Surge is Heavy shells, Crosscurrent the magnetic field, Volcano Vault the core meltdown):</p>
-                <label class="check-row"><input type="checkbox" name="pairOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().pair()}"> Pearl pair: every pearl splits in two and pays the better landing</label>
+                <p class="hint">Lagoon Drop and Pharaoh's Drop (Sunburst Surge / Scarab Fortune are Heavy shells, Crosscurrent / Sirocco Draft the magnetic field, Volcano Vault / Tomb Raid the core meltdown):</p>
+                <label class="check-row"><input type="checkbox" name="pairOn" value="true" th:checked="${bonus.arsenal() != null and bonus.arsenal().pair()}"> Pearl pair / Twin Serpents: every ball splits in two and pays the better landing</label>
             </div>
         </div>
 

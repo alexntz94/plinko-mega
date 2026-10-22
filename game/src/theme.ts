@@ -30,8 +30,8 @@ export interface BoardStyle {
  * thick ink outlines; `ink` and `panel` give its colours). */
 export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: string }
 /** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills); lagoon:
- * a pearl (splashes of water, petals, a volcano for the top wins) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon';
+ * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight) */
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -99,6 +99,19 @@ export interface ChestArt {
   closed: string; open: string; goldClosed: string; goldOpen: string; shelf: string; glow: string; burst: string;
   plank: number; span: [number, number];
   tokens: { plain: string; MINI: string; MAJOR: string; MEGA: string };
+  /** doors in a wall instead of chests on a shelf (the "shelf" is the wall): each doorway's middle and the width they
+   *  all have (shares of the wall's width), their top and bottom (shares of its height); the door that closes each */
+  doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number } | null;
+}
+/**
+ * A character standing beside the board (Pharaoh's Drop): the body, the head and the arm with the staff laid over it,
+ * the eyes' glow, and two whole poses (cheering, pointing), all drawn on the same frame. The cheer was drawn smaller
+ * (cheerScale: how much it is scaled about the feet); where the head and the arm turn (neck, shoulder) and the feet
+ * stand, as shares of the frame.
+ */
+export interface CharacterArt {
+  body: string; head: string; arm: string; eyes: string; cheer: string; point: string;
+  cheerScale: number; neck: [number, number]; shoulder: [number, number]; feet: [number, number];
 }
 export interface Theme {
   id: string;
@@ -140,6 +153,8 @@ export interface Theme {
   wheel: WheelStyle;
   /** What drifts over the scene all the time: its colours, and whether it rises (embers) or falls (petals, snow). */
   ambient: { colours: string[]; rise: boolean };
+  /** a character standing beside the board, or null */
+  character: CharacterArt | null;
   path: string;
 }
 
@@ -202,7 +217,27 @@ function readChests(json: unknown, style: unknown): ChestArt | null {
   const plank = share(c.plank), span = Array.isArray(c.span) ? c.span.map(share) : [];
   if (parts.some(p => !p) || !plank || span.length !== 2 || !span[0] || !span[1] || span[0] >= span[1]) return null;
   const [closed, open, goldClosed, goldOpen, shelf, glow, burst, plain, MINI, MAJOR, MEGA] = parts as string[];
-  return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA } };
+  const d = (c.doors ?? null) as Record<string, unknown> | null;
+  const arches = Array.isArray(d?.arches) ? (d!.arches as unknown[]).map(share) : [];
+  const [archWidth, archTop, archBottom] = [d?.archWidth, d?.archTop, d?.archBottom].map(share);
+  const doors = d && arches.length >= 2 && arches.every(a => a) && archWidth && archTop && archBottom && archTop < archBottom
+    ? { arches: arches as number[], archWidth, archTop, archBottom } : null;
+  return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA }, doors };
+}
+
+function readCharacter(json: unknown): CharacterArt | null {
+  const c = (json ?? null) as Record<string, unknown> | null;
+  if (!c) return null;
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const parts = [c.body, c.head, c.arm, c.eyes, c.cheer, c.point].map(png);
+  const share = (v: unknown) => (typeof v === 'number' && v > 0 && v < 1 ? v : null);
+  const pair = (v: unknown): [number, number] | null =>
+    Array.isArray(v) && v.length === 2 && share(v[0]) && share(v[1]) ? [v[0] as number, v[1] as number] : null;
+  const neck = pair(c.neck), shoulder = pair(c.shoulder), feet = pair(c.feet);
+  const scale = typeof c.cheerScale === 'number' && c.cheerScale > 0.5 && c.cheerScale < 2 ? c.cheerScale : 1;
+  if (parts.some(p => !p) || !neck || !shoulder || !feet) return null;
+  const [body, head, arm, eyes, cheer, point] = parts as string[];
+  return { body, head, arm, eyes, cheer, point, cheerScale: scale, neck, shoulder, feet };
 }
 
 function readTesla(json: unknown, style: unknown): TeslaArt | null {
@@ -298,7 +333,7 @@ function readBoard(json: unknown): BoardStyle {
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' ? b.fx : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' ? b.fx : 'standard',
   };
 }
 
@@ -366,6 +401,7 @@ export async function loadTheme(id: string): Promise<Theme> {
       colours: colours((json.ambient as Record<string, unknown> | undefined)?.colours, [colour(json.accent, '#ffffff')]),
       rise: (json.ambient as Record<string, unknown> | undefined)?.rise === true,
     },
+    character: readCharacter(json.character),
     path,
   };
   document.title = theme.title;

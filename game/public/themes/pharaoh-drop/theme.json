@@ -1,0 +1,332 @@
+{
+  "name": "Pharaoh's Drop",
+  "title": "Pharaoh's Drop · Plinko",
+  "background": "#211b18",
+  "accent": "#d9a441",
+  "text": "#fff2d6",
+  "playText": "#28160a",
+  "retina": true,
+  "font": {
+    "family": "Cinzel",
+    "file": "cinzel-800.woff2",
+    "weight": "800"
+  },
+  "board": {
+    "fx": "pharaoh",
+    "peg": "item_peg.png",
+    "pegFlash": "#ffe08a",
+    "trail": "#d9a441",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#173e78",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#36afa6",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#d2a03c",
+        "text": "#28160a"
+      },
+      {
+        "face": "#c0392b",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#e8621a",
+        "text": "#ffffff"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 0.7018,
+        "x": 384,
+        "y": 83.93,
+        "spacing": 47.832,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.6917,
+        "x": 384,
+        "y": 87.55,
+        "spacing": 43.291,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.6836,
+        "x": 384,
+        "y": 90.47,
+        "spacing": 39.538,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.677,
+        "x": 384,
+        "y": 92.87,
+        "spacing": 36.383,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.6714,
+        "x": 384,
+        "y": 94.88,
+        "spacing": 33.695,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.6667,
+        "x": 384,
+        "y": 96.58,
+        "spacing": 31.376,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.6626,
+        "x": 384,
+        "y": 98.05,
+        "spacing": 29.356,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.66
+  },
+  "wheel": {
+    "faces": [
+      "#173e78",
+      "#d9a441",
+      "#36afa6",
+      "#c0392b",
+      "#b98952",
+      "#211b18"
+    ],
+    "text": [
+      "#ffffff",
+      "#28160a",
+      "#ffffff",
+      "#ffffff",
+      "#28160a",
+      "#ffffff"
+    ],
+    "rim": "#d9a441",
+    "ink": "#211b18",
+    "title": "#d9a441",
+    "gold": {
+      "faces": [
+        "#d9a441",
+        "#fff3b0",
+        "#c0392b",
+        "#36afa6"
+      ],
+      "text": [
+        "#28160a",
+        "#28160a",
+        "#ffffff",
+        "#ffffff"
+      ],
+      "rim": "#d9a441"
+    },
+    "style": "chests",
+    "chests": {
+      "closed": "door_closed.png",
+      "open": "door_closed.png",
+      "goldClosed": "door_gold.png",
+      "goldOpen": "door_gold.png",
+      "shelf": "tomb_wall.png",
+      "glow": "vfx_glow.png",
+      "burst": "anim_door.png",
+      "plank": 0.7781,
+      "span": [
+        0.06,
+        0.94
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "doors": {
+        "arches": [
+          0.1263,
+          0.2438,
+          0.3717,
+          0.499,
+          0.6227,
+          0.749,
+          0.8698
+        ],
+        "archWidth": 0.1004,
+        "archTop": 0.3953,
+        "archBottom": 0.7781
+      }
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#ffd76a",
+      "#d9a441",
+      "#fff2d6"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#211b18",
+    "panel": "#173e78"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        62,
+        431,
+        272,
+        479
+      ],
+      "centre": [
+        352,
+        424,
+        416,
+        488
+      ],
+      "right": [
+        496,
+        431,
+        706,
+        479
+      ]
+    },
+    "inner": [
+      0.11,
+      0.2,
+      0.89,
+      0.82
+    ]
+  },
+  "blast": {
+    "fire": "vfx_sunbeam.png",
+    "dust": "vfx_ring.png",
+    "smoke": "vfx_sand.png",
+    "kinds": {
+      "small": "vfx_dust.png",
+      "impact": "vfx_dust.png",
+      "heavy": "vfx_ring.png",
+      "napalm": "vfx_ring.png",
+      "mushroom": "vfx_sunbeam.png",
+      "fireball": "vfx_glow.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.6
+      ],
+      "impact": [
+        0.5,
+        0.65
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.85
+      ],
+      "fireball": [
+        0.5,
+        0.55
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_dust.png",
+      "heavy": "anim_ring.png",
+      "mushroom": "anim_sunbeam.png",
+      "arc": "anim_sirocco.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    }
+  },
+  "character": {
+    "body": "pharaoh_body.png",
+    "head": "pharaoh_head.png",
+    "arm": "pharaoh_arm.png",
+    "eyes": "pharaoh_eyes.png",
+    "cheer": "pharaoh_cheer.png",
+    "point": "pharaoh_point.png",
+    "cheerScale": 1.157,
+    "neck": [
+      0.6,
+      0.25
+    ],
+    "shoulder": [
+      0.73,
+      0.36
+    ],
+    "feet": [
+      0.5,
+      0.972
+    ]
+  },
+  "music": "music.mp3"
+}

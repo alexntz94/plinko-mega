@@ -97,7 +97,8 @@
         "frame": "item_plinko_r14.png",
         "framePortrait": "item_plinko_r14_p.png"
       }
-    }
+    },
+    "portraitSpan": 0.83
   },
   "wheel": {
     "faces": [

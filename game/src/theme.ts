@@ -22,6 +22,9 @@ export interface BoardStyle {
    * these numbers of rows are offered.
    */
   fit: Record<number, FitFrame> | null;
+  /** how much of a tall frame picture's width has to show on a phone (its middle; the rest is empty or ornament
+   *  that may run off the screen) */
+  portraitSpan: number;
 }
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
@@ -121,7 +124,7 @@ export interface Theme {
 }
 
 const DEFAULT_FONT: ThemeFont = { family: 'Azonix', file: null, weight: 'normal' };
-const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null };
+const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1 };
 
 // theme.json is our own static file, but only well-formed values are used
 const colour = (value: unknown, fallback: string) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
@@ -258,6 +261,7 @@ function readBoard(json: unknown): BoardStyle {
     slotRadius: Math.min(20, Math.max(0, number(b.slotRadius, DEFAULT_BOARD.slotRadius))),
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
+    portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
     fx: b.fx === 'war' || b.fx === 'reactor' ? b.fx : 'standard',
   };
 }

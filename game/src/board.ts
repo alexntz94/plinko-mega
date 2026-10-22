@@ -596,7 +596,8 @@ export class Board extends Container {
     if (fit) {
       // a frame drawn for this board: the whole frame fits the room, and the pegs sit where the frame shows them
       const picture = view.landscape ? this.frame : this.framePortrait;
-      const unitsW = picture.texture.width / (fit.spacing / PEG_SPACING), unitsH = picture.texture.height / (fit.spacing / PEG_SPACING);
+      const shown = view.landscape ? 1 : this.style.portraitSpan;
+      const unitsW = picture.texture.width * shown / (fit.spacing / PEG_SPACING), unitsH = picture.texture.height / (fit.spacing / PEG_SPACING);
       const room = place?.room ?? (view.landscape ? { w: view.stageW * 0.54, h: visibleH * 0.84 } : { w: view.stageW - 12, h: visibleH * 0.5 });
       // the room may be wider than the screen (the frame's outer art can run off it), but the bays always show whole
       const visibleW = view.stageW - 2 * view.offsetX;

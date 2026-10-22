@@ -1,6 +1,6 @@
 {
   "name": "Reactor Drop",
-  "title": "Reactor Drop \u00b7 Plinko",
+  "title": "Reactor Drop · Plinko",
   "background": "#171b20",
   "accent": "#46d9f2",
   "text": "#eee4d1",
@@ -97,7 +97,8 @@
         "frame": "item_plinko_r14.png",
         "framePortrait": "item_plinko_r14_p.png"
       }
-    }
+    },
+    "portraitSpan": 0.88
   },
   "wheel": {
     "faces": [

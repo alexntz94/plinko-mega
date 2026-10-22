@@ -340,7 +340,7 @@ export class Game extends Container {
     }
     // a chest pick's two shelves stand in the screen's upper middle
     else if (this.bar instanceof ConsoleControls) this.wheel.place(view.stageW / 2,
-      view.offsetY + (this.chestPick ? visibleH * 0.3 : 150 + visibleH * 0.19), Math.min(108, view.stageW * 0.25));
+      view.offsetY + (this.tombRaid ? visibleH * 0.42 : this.chestPick ? visibleH * 0.3 : 150 + visibleH * 0.19), Math.min(108, view.stageW * 0.25));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.36, Math.min(175, visibleH * 0.19));
     if (this.bar instanceof ConsoleControls) {
       this.layoutConsole(view, this.bar);

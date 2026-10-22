@@ -639,8 +639,8 @@ export class FortuneWheel extends Container {
   private chestHeader(): number {
     const doors = this.art.chests!.doors;
     if (doors) {
-      const { h } = this.doorGeometry();
-      return h * 0.5 + this.radius * 0.3;
+      const { h, rows } = this.doorGeometry();
+      return doors.archBottom * h - rows[0].y + this.radius * 0.3;
     }
     const { h, size } = this.chestGeometry(Math.max(this.segments.length, 2));
     return size * 1.9 + this.radius * 0.34 - h * 0.1;
@@ -756,14 +756,27 @@ export class FortuneWheel extends Container {
     }
   }
 
-  /** The tomb wall's size: its width and height, a door's width (a doorway's), a doorway's height. */
-  private doorGeometry(): { w: number; h: number; doorW: number; archH: number } {
-    const art = this.art.chests!, doors = art.doors!;
-    const span = doors.arches[doors.arches.length - 1] - doors.arches[0] + doors.archWidth;
-    // a phone: as wide as the screen's doorways allow (the torches at the ends may run off it)
-    const w = this.tall ? this.room * 0.97 / span : Math.min(this.radius * 6.2, this.room);
+  /**
+   * The tomb wall's size: its width and height, a door's width (a doorway's), a doorway's height, and its rows: each a
+   * run of doorways (their indexes), the part of the wall picture it shows (shares of its width) and the line its doors
+   * stand on. One wall; on a phone two (4 doors above, the rest below), each doorway twice as wide.
+   */
+  private doorGeometry(): { w: number; h: number; doorW: number; archH: number;
+    rows: { doors: number[]; x0: number; x1: number; y: number }[] } {
+    const art = this.art.chests!, doors = art.doors!, n = doors.arches.length;
+    const margin = doors.archWidth * 0.6;
+    const runs = this.tall ? [[...Array(Math.ceil(n / 2)).keys()], [...Array(n).keys()].slice(Math.ceil(n / 2))] : [[...Array(n).keys()]];
+    const span = (run: number[]) => doors.arches[run[run.length - 1]] - doors.arches[run[0]] + 2 * margin;
+    // a phone: the longest run as wide as the screen; else the whole wall as wide as there is room
+    const w = this.tall ? this.room * 0.97 / span(runs[0]) : Math.min(this.radius * 6.2, this.room);
     const h = w * art.shelf.height / art.shelf.width;
-    return { w, h, doorW: doors.archWidth * w, archH: (doors.archBottom - doors.archTop) * h };
+    const archH = (doors.archBottom - doors.archTop) * h;
+    const gap = h * 0.62;   // the second wall under the first: its top trim just under the first's floor
+    const top = (doors.archBottom - 0.5) * h - (runs.length - 1) * gap / 2;
+    const rows = runs.map((run, k) => this.tall
+      ? { doors: run, x0: doors.arches[run[0]] - margin, x1: doors.arches[run[run.length - 1]] + margin, y: top + k * gap }
+      : { doors: run, x0: 0, x1: 1, y: top + k * gap });
+    return { w, h, doorW: doors.archWidth * w, archH, rows };
   }
 
   /**
@@ -771,22 +784,30 @@ export class FortuneWheel extends Container {
    * MEGA SPIN), a glow over each for the light that runs across them. A door sinks out of its doorway when it opens.
    */
   private drawDoors(segments: Segment[], art: ChestPick, doors: NonNullable<ChestPick['doors']>): void {
-    const { w, h, doorW, archH } = this.doorGeometry();
-    // the wall's middle where the spinner is placed
-    const feet = (doors.archBottom - 0.5) * h;
-    const wall = new Sprite({ texture: art.shelf, anchor: { x: 0.5, y: doors.archBottom } });
-    wall.width = w;
-    wall.height = h;
-    wall.y = feet;
-    this.disc.addChild(wall);
-    this.chestSlots = segments.map((_, i) => ({ x: ((doors.arches[i] ?? 0.5) - 0.5) * w, y: feet }));
-    this.chestFeet = this.chestLow = feet;
+    const { w, h, doorW, archH, rows } = this.doorGeometry();
+    const tex = art.shelf;
+    this.chestSlots = [];
+    for (const row of rows) {
+      // the part of the wall with this row's doorways, centred
+      const fw = tex.frame.width, fh = tex.frame.height;
+      const part = new Texture({ source: tex.source, frame: new Rectangle(tex.frame.x + row.x0 * fw, tex.frame.y, (row.x1 - row.x0) * fw, fh) });
+      const wall = new Sprite({ texture: part, anchor: { x: 0.5, y: doors.archBottom } });
+      wall.width = (row.x1 - row.x0) * w;
+      wall.height = h;
+      wall.y = row.y;
+      this.disc.addChild(wall);
+      const mid = (row.x0 + row.x1) / 2;
+      for (const d of row.doors) this.chestSlots[d] = { x: (doors.arches[d] - mid) * w, y: row.y };
+    }
+    const feet = rows[0].y;
+    this.chestFeet = feet;
+    this.chestLow = rows[rows.length - 1].y;
     this.chestBelow = (1 - doors.archBottom) * h + this.radius * 0.35;
     this.chestSize = doorW;
     const tokens = new Container(), bodies = new Container(), glows = new Container();
     this.disc.addChild(tokens, bodies, glows);
     this.chests = segments.map((segment, i) => {
-      const { x } = this.chestSlots[i];
+      const { x, y: feet } = this.chestSlots[i] ?? { x: 0, y: this.chestFeet };
       const kind = segment.name === 'MINI' || segment.name === 'MAJOR' || segment.name === 'MEGA' ? segment.name : 'plain';
       const token = new Container();
       const coin = new Sprite({ texture: art.tokens[kind], anchor: 0.5 });
@@ -901,8 +922,9 @@ export class FortuneWheel extends Container {
     catcher.hitArea = new Rectangle(left, this.chestFeet - tall, right - left, this.chestLow - this.chestFeet + tall + size * 0.1);
     this.addChild(catcher);
     // a tap goes to the chest whose middle is nearest
+    const mid = (v: ChestView) => v.feet - (v.archH ?? size * 0.8) / 2;
     const near = (p: { x: number; y: number }) => this.chests.reduce((a, b) =>
-      (Math.hypot(b.chest.x - p.x, b.feet - size * 0.4 - p.y) < Math.hypot(a.chest.x - p.x, a.feet - size * 0.4 - p.y) ? b : a));
+      (Math.hypot(b.chest.x - p.x, mid(b) - p.y) < Math.hypot(a.chest.x - p.x, mid(a) - p.y) ? b : a));
     return new Promise(resolve => {
       catcher.on('pointertap', event => {
         const view = near(event.getLocalPosition(this));

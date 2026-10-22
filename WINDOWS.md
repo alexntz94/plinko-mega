@@ -57,6 +57,16 @@ Double-click **windows-start.cmd**. The first build takes several minutes. When 
 
 The containers restart by themselves after a reboot, as long as Docker Desktop starts with Windows (Docker Desktop → Settings → General → *Start Docker Desktop when you sign in*).
 
+## Moving the data from another machine
+
+To keep the players, wallets, rounds, admin accounts and settings of a demo that ran elsewhere:
+
+1. Unzip the full copy (`plinko-mega-full.zip`) into this folder. It adds a `migration` folder with the database and its secrets. **It holds passwords: carry it on a USB stick, not by email or chat, and delete it afterwards.**
+2. Double-click **windows-import.cmd** and type `YES`. It stops Plinko Mega, replaces its data with the copy, keeps this machine's tunnel token, and starts it again.
+3. Delete the `migration` folder and the zip.
+
+Stop the demo on the other machine once this one says **Tunnel connected**: two machines on the same tunnel share the visitors between them.
+
 ## Admin panel
 
 On the server, open **http://127.0.0.1:8091/admin**. The first time, sign in with **admin / admin** within 24 hours; it then asks you to set up 2FA and choose a new password.

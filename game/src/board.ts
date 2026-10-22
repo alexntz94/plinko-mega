@@ -692,7 +692,7 @@ export class Board extends Container {
 
     const radius = ball.texture.width / 2;
     // every ball has its own pace, but within a ball the hops change smoothly (no random jerks from peg to peg)
-    const pace = random(0.17, 0.19);
+    const pace = random(0.21, 0.235);   // (the user asked for a calmer fall than 0.17-0.19)
     const slotTop = this.slotY() - SLOT_H / 2;
 
     return new Promise(resolve => {

@@ -66,6 +66,9 @@ function chestPick(theme: Theme, tex: (file: string) => Texture): ChestPick | nu
     tokens: { plain: tex(t.plain), MINI: tex(t.MINI), MAJOR: tex(t.MAJOR), MEGA: tex(t.MEGA) } };
 }
 
+/** Tomb Raid's payouts (x the round's bet): the server's meltdown table, a door each, the first on the left. */
+const TOMB_RAID = [0.5, 1, 2, 3, 5, 10, 20];
+
 /** The power-ups' short names, for the status line and the ARSENAL key. */
 const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER', 'strike-left': 'STRIKE L', 'strike-centre': 'STRIKE C',
   'strike-right': 'STRIKE R', crates: 'CRATES', missile: 'MISSILE', night: 'NIGHT', tank: 'TANK',
@@ -120,6 +123,8 @@ export class Game extends Container {
   private readonly ring: boolean;
   /** the theme's spinner is a chest pick (on a phone: two shelves in the upper middle of the screen) */
   private readonly chestPick: boolean;
+  /** the meltdown is a Tomb Raid on the tomb doors (Pharaoh's Drop), not the pressure gauge */
+  private readonly tombRaid: boolean;
   private readonly bar: MegaControls | ConsoleControls;
   /** the power-up armed for the next round (heavy, cluster), and the ARSENAL panel it is picked on */
   private power: string | null = null;
@@ -222,6 +227,7 @@ export class Game extends Container {
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests;
     this.chestPick = !!theme.wheel.chests;
+    this.tombRaid = !!theme.wheel.chests?.doors;
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
       // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
@@ -822,7 +828,18 @@ export class Game extends Container {
     this.board.combo(0);
 
     // core meltdown: the reactor's pressure gauge climbs to what it pays
-    if (round.power === 'meltdown' && round.targets?.length && this.meltdown) {
+    if (round.power === 'meltdown' && round.targets?.length && this.tombRaid) {
+      // Pharaoh's Drop's Tomb Raid: each tomb door hides one of the raid's payouts; the player picks one
+      await this.revealWheel();
+      const pays = round.targets[0];
+      const segments = TOMB_RAID.map(m => ({ multiplier: m, name: m === 20 ? 'MEGA' : m === 10 ? 'MAJOR' : null }));
+      const win = round.targetWins?.[0] ?? 0;
+      // the raid pays x the round's plain bet (the bet a ball times the balls)
+      await this.wheel.turn(segments, Math.max(0, TOMB_RAID.indexOf(pays)), win, { gold: false, title: 'TOMB RAID', base: cents(bet * round.slots.length) });
+      land(win);
+      sound(pays >= 5 ? 'jackpot' : 'big');
+      if (!(round.spins?.length || round.megaSpins?.length)) await this.hideWheel();
+    } else if (round.power === 'meltdown' && round.targets?.length && this.meltdown) {
       if (this.view) this.meltdown.layout(this.view);
       const win = round.targetWins?.[0] ?? 0;
       await this.meltdown.play(round.targets[0], `x${round.targets[0]}  ${this.money(win)}`,

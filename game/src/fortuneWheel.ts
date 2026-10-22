@@ -231,7 +231,9 @@ export class FortuneWheel extends Container {
   async turn(segments: Segment[], index: number, win: number, options: { gold: boolean; title: string; base?: number }): Promise<void> {
     const wasGold = this.gold;
     this.gold = options.gold;
-    if (options.gold || wasGold) this.draw(segments);
+    // other prizes than the wheel's (a bonus played on it, as Tomb Raid on the tomb doors): drawn for this turn
+    const other = segments !== this.segments && !options.gold;
+    if (options.gold || wasGold || other) this.draw(segments);
     this.jackpotTimer?.pause();
     this.jackpotName.text = options.title;
     this.jackpotAmount.text = options.base !== undefined ? `${this.format(options.base)} × ?` : options.gold ? 'MEGA SPIN' : 'SPIN!';
@@ -253,7 +255,7 @@ export class FortuneWheel extends Container {
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
     await this.celebrate(win, !!segment.name || options.gold);
-    if (options.gold) {
+    if (options.gold || other) {
       this.gold = false;
       this.draw();
     }
@@ -894,7 +896,9 @@ export class FortuneWheel extends Container {
     const catcher = new Container();
     catcher.eventMode = 'static';
     catcher.cursor = 'pointer';
-    catcher.hitArea = new Rectangle(left, this.chestFeet - size * 1.1, right - left, this.chestLow - this.chestFeet + size * 1.2);
+    // (a door is taller than a chest: its whole doorway)
+    const tall = doors ? (this.chests[0]?.archH ?? size * 1.6) : size * 1.1;
+    catcher.hitArea = new Rectangle(left, this.chestFeet - tall, right - left, this.chestLow - this.chestFeet + tall + size * 0.1);
     this.addChild(catcher);
     // a tap goes to the chest whose middle is nearest
     const near = (p: { x: number; y: number }) => this.chests.reduce((a, b) =>

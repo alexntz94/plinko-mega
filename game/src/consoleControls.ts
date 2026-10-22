@@ -124,10 +124,10 @@ class Readout extends Container {
       // a thick frame: the title and the value both inside its plain middle
       const { x0, x1, y0, y1 } = area, ih = y1 - y0;
       this.room = (x1 - x0) * 0.92;
-      this.title.style.fontSize = Math.round(ih * 0.34);
-      this.title.y = y0 + ih * 0.26;
-      this.value.style.fontSize = Math.round(ih * 0.56);
-      this.value.y = y0 + ih * 0.66;
+      this.title.style.fontSize = Math.round(ih * 0.4);
+      this.title.y = y0 + ih * 0.24;
+      this.value.style.fontSize = Math.round(ih * 0.64);
+      this.value.y = y0 + ih * 0.67;
       this.title.x = this.value.x = (x0 + x1) / 2;
       fit(this.title, this.room);
     } else {
@@ -191,7 +191,7 @@ export class ConsoleControls extends Container {
     this.risks = ['LOW', 'MED', 'HIGH'].map((name, i) => key(name, () => actions.risk(i - this.riskIndex)));
     this.auto = key('AUTO', () => actions.auto());
     this.turboKey = key('TURBO', () => { this.turbo = !this.turbo; this.turboKey.setLit(this.turbo, look); actions.turbo(this.turbo); });
-    this.bumpKey = key('⚡', () => actions.bump());
+    this.bumpKey = key('BUMP', () => actions.bump());
     // the board's rows: a tap goes to the next size (the game wraps from the largest back to the smallest)
     this.rowsKey = key('ROWS 8', () => actions.rows(1));
     this.arsenalKey = key('ARSENAL', () => actions.arsenal());

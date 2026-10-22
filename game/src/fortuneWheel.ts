@@ -668,12 +668,24 @@ export class FortuneWheel extends Container {
       tl.to(va.chest, { y: feet - size * 0.3, duration: pace / 2, ease: 'power2.out', yoyo: true, repeat: 1 }, '<');
     }
     this.chests.forEach((v, i) => { v.slot = where[i]; });
-    // the pick: the chest holding the prize glows and rattles
-    const pick = this.chests.find(v => v.segment === index)!;
-    tl.to(pick.glow, { alpha: 1, duration: 0.25 });
-    tl.to(pick.chest, { rotation: 0.06, duration: 0.05, yoyo: true, repeat: calm ? 1 : 7, ease: 'sine.inOut' }, '<');
-    tl.set(pick.chest, { rotation: 0 });
     await new Promise<void>(resolve => tl.eventCallback('onComplete', () => resolve()));
+    // the game waits for the player to pick a chest (even in autoplay or turbo); the prize the server drew is in
+    // whichever is picked: its token changes places with the chest holding it (hidden inside, unseen)
+    const pick = await this.chooseChest();
+    const holder = this.chests.find(v => v.segment === index)!;
+    if (holder !== pick) {
+      [pick.token, holder.token] = [holder.token, pick.token];
+      [pick.segment, holder.segment] = [holder.segment, pick.segment];
+      this.placeChest(pick, pick.chest.x);
+      this.placeChest(holder, holder.chest.x);
+    }
+    // the picked chest glows and rattles
+    const rattle = gsap.timeline();
+    this.spin = rattle;
+    rattle.to(pick.glow, { alpha: 1, duration: 0.25 });
+    rattle.to(pick.chest, { rotation: 0.06, duration: 0.05, yoyo: true, repeat: calm ? 1 : 7, ease: 'sine.inOut' }, '<');
+    rattle.set(pick.chest, { rotation: 0 });
+    await new Promise<void>(resolve => rattle.eventCallback('onComplete', () => resolve()));
     // it bursts open: the lid flies up, light pours out, the token rises
     pick.chest.texture = open;
     this.chestOpen = pick;
@@ -693,6 +705,39 @@ export class FortuneWheel extends Container {
         gsap.to(v.token.scale, { x: 0.8, y: 0.8, duration: 0.25 });
       });
     }
+  }
+
+  /**
+   * Waits for the player to tap a chest: PICK A CHEST! on the bar, the chests bobbing a little. The tap is caught over
+   * the whole row (the chests sit under the spinner's mask, which takes no taps) and goes to the nearest chest.
+   */
+  private chooseChest(): Promise<ChestView> {
+    const said = this.jackpotAmount.text;
+    this.jackpotAmount.text = 'PICK A CHEST!';
+    fit(this.jackpotAmount, this.radius * 0.9);
+    const size = this.chestSize, feet = this.chestFeet;
+    const bobbing = this.chests.map((v, i) => gsap.to(v.chest, { y: feet - size * 0.05, duration: 0.45, yoyo: true, repeat: -1,
+      delay: i * 0.07, ease: 'sine.inOut' }));
+    const xs = this.chests.map(v => v.chest.x);
+    const left = Math.min(...xs) - size / 2, right = Math.max(...xs) + size / 2;
+    const catcher = new Container();
+    catcher.eventMode = 'static';
+    catcher.cursor = 'pointer';
+    catcher.hitArea = new Rectangle(left, feet - size * 1.1, right - left, size * 1.2);
+    this.addChild(catcher);
+    return new Promise(resolve => {
+      catcher.on('pointertap', event => {
+        const x = event.getLocalPosition(this).x;
+        const view = this.chests.reduce((a, b) => (Math.abs(b.chest.x - x) < Math.abs(a.chest.x - x) ? b : a));
+        bobbing.forEach(b => b.kill());
+        for (const v of this.chests) v.chest.y = feet;
+        catcher.destroy();
+        this.onTick?.();
+        this.jackpotAmount.text = said;
+        fit(this.jackpotAmount, this.radius * 0.9);
+        resolve(view);
+      });
+    });
   }
 
   /** Light and sparkles bursting out of an opening chest (the theme's 4x4 sheet). */

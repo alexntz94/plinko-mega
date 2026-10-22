@@ -1023,6 +1023,8 @@ export class Game extends Container {
   private async revealWheel(): Promise<void> {
     if (this.wheel.visible) return;
     this.wheel.visible = true;
+    // on a phone the bonus fills the top of the screen where he stands: he steps out of sight until it is done
+    if (this.view && !this.view.landscape) this.character?.setAway(true);
     this.character?.point();
     sound('spin', { volume: 0.6 });
     gsap.to(this.board, { alpha: 0.35, duration: 0.25 });
@@ -1038,6 +1040,7 @@ export class Game extends Container {
   /** ...and goes away again when they are done. */
   private async hideWheel(): Promise<void> {
     gsap.to([this.board, this.meter, this.ticker, this.bar], { alpha: 1, duration: 0.25 });
+    this.character?.setAway(false);
     await new Promise<void>(resolve => gsap.to(this.wheel, { alpha: 0, duration: 0.25, onComplete: resolve }));
     this.wheel.visible = false;
     this.wheel.alpha = 1;

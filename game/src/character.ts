@@ -100,6 +100,15 @@ export class Character extends Container {
       .to(dot, { alpha: 0, duration: 1.6, ease: 'power1.in' }, 0);
   }
 
+  /** Steps out of sight (on a phone, while the bonus fills the screen) and back. */
+  private away = false;
+  setAway(away: boolean): void {
+    if (away === this.away) return;
+    this.away = away;
+    if (away) this.posing?.progress(1);
+    gsap.to(this, { alpha: away ? 0 : 1, duration: 0.25, overwrite: true });
+  }
+
   /** Points his staff at the board (a spell starts: a booster, the bonus). */
   point(): void {
     this.pose(this.pointPose, 1.6, 0.6);
@@ -111,7 +120,7 @@ export class Character extends Container {
   }
 
   private pose(sprite: Sprite, hold: number, glow: number): void {
-    if (calm) return;
+    if (calm || this.away) return;
     this.posing?.kill();
     this.visible = true;
     this.alpha = 1;

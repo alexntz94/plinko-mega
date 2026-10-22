@@ -51,12 +51,23 @@ const PHARAOH_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'TOMB RAID', text: 'Raid the tomb after the drop: x0.5 to x20', ready: true },
 ];
 
+/** Zombie War's loadout (Mega Charge is the server's heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the
+ *  meltdown). */
+const ZOMBIE_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'MEGA CHARGE', text: 'Every grenade is a mega bomb: x2 to x10', ready: true },
+  { id: 'pair', name: 'SPLIT FUSE', text: 'Each grenade splits in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'HORDE RUSH', text: '70% of grenades dragged to your side: its bays pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'LOCKER RAID', text: 'Crack an ammo locker after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
   'reactor-drop': { title: 'BOOST', hint: 'Charge your next release', cards: REACTOR_CARDS },
   'lagoon-drop': { title: 'BOOSTERS', hint: 'Bless your next pearl', cards: LAGOON_CARDS },
   'pharaoh-drop': { title: 'RELICS', hint: "Call on the Pharaoh's relics", cards: PHARAOH_CARDS },
+  'zombie-war': { title: 'LOADOUT', hint: 'Arm up before the horde hits', cards: ZOMBIE_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite | NineSliceSprite; lit: Graphics; price: Text;

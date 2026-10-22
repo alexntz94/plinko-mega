@@ -13,7 +13,7 @@ import { atlasUrls, imageUrls, inAtlas, type Formats } from './images';
 import { computeViewport } from './viewport';
 import { initSounds, startMusic } from './sound';
 import { setTextQuality, setTypeface } from './ui';
-import { setBlastArt, setBlastKinds, setBlastSheets } from './effects';
+import { setBlastArt, setBlastKinds, setBlastSheets, setSplatters } from './effects';
 import { setMegaLook, setSlotArt, setSlotLooks, setSpinMark } from './board';
 import { Game } from './game';
 import { BackdropVideo } from './backdrop';
@@ -50,7 +50,8 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.character ? [theme.character.body, theme.character.head, theme.character.arm, theme.character.eyes,
       theme.character.cheer, theme.character.point] : []),
     ...(theme.blast ? [theme.blast.fire, theme.blast.dust, theme.blast.smoke, ...Object.values(theme.blast.kinds),
-      ...Object.values(theme.blast.sheets), ...(theme.blast.tank ? [theme.blast.tank.body, theme.blast.tank.target] : [])] : []),
+      ...Object.values(theme.blast.sheets), ...(theme.blast.tank ? [theme.blast.tank.body, theme.blast.tank.target] : []),
+      ...theme.blast.splatters] : []),
     ...Object.values(theme.board.fit ?? {}).flatMap(f => [f.frame, f.framePortrait]),
   ];
 }
@@ -211,6 +212,7 @@ async function start(): Promise<void> {
   setMegaLook(theme.wheel.title, theme.wheel.ink, theme.wheel.gate ? tex(theme.wheel.gate) : null);
   setSpinMark(theme.wheel.spinMark ? tex(theme.wheel.spinMark) : null);
   setBlastArt(theme.blast ? { fire: tex(theme.blast.fire), dust: tex(theme.blast.dust), smoke: tex(theme.blast.smoke) } : null);
+  setSplatters((theme.blast?.splatters ?? []).map(tex));
   setBlastKinds(Object.fromEntries(Object.entries(theme.blast?.kinds ?? {}).map(([kind, file]) => [kind, tex(file)])),
     theme.blast?.anchors ?? {}, theme.board.fx === 'reactor');   // energy glows; water and fire don't
   setBlastSheets(Object.fromEntries(Object.entries(theme.blast?.sheets ?? {}).map(([kind, file]) =>

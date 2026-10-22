@@ -4,7 +4,7 @@ import { errorText, formatAmount, playRound, resumeSession, type ApiError, type 
 import { HistoryPanel } from './historyPanel';
 import { ResponsiblePlay } from './responsible';
 import { Board, smashedPegs, type Landing, type PegHit } from './board';
-import { BigWin, BlastShower, CoinShower, winLevel, type Shower } from './effects';
+import { BigWin, BlastShower, CoinShower, splatter, winLevel, type Shower } from './effects';
 import { FortuneWheel, type ChestPick, type PhotoRevolver, type TeslaRing } from './fortuneWheel';
 import { Character } from './character';
 import { MegaControls } from './megaControls';
@@ -81,6 +81,9 @@ const LAGOON_STAMPS: Record<string, string> = { 'magnet-left': 'CROSSCURRENT', '
 /** Pharaoh's Drop's: Scarab Fortune is heavy, Twin Serpents the pair, Sirocco Draft the magnet, Tomb Raid the meltdown. */
 const PHARAOH_NAMES: Record<string, string> = { heavy: 'SCARAB', pair: 'SERPENTS', 'magnet-left': 'SIROCCO L', 'magnet-right': 'SIROCCO R', meltdown: 'TOMB RAID' };
 const PHARAOH_STAMPS: Record<string, string> = { pair: 'TWIN SERPENTS', 'magnet-left': 'SIROCCO DRAFT', 'magnet-right': 'SIROCCO DRAFT', meltdown: 'TOMB RAID' };
+/** Zombie War's: Mega Charge is heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the meltdown. */
+const ZOMBIE_NAMES: Record<string, string> = { heavy: 'MEGA CHARGE', pair: 'SPLIT FUSE', 'magnet-left': 'HORDE L', 'magnet-right': 'HORDE R', meltdown: 'RAID' };
+const ZOMBIE_STAMPS: Record<string, string> = { pair: 'SPLIT FUSE', 'magnet-left': 'HORDE RUSH', 'magnet-right': 'HORDE RUSH', meltdown: 'LOCKER RAID' };
 /** Every power-up the arsenal can sell. */
 const POWER_IDS = ['heavy', 'cluster', 'strike-left', 'strike-centre', 'strike-right', 'crates', 'missile', 'night', 'tank',
   'chain', 'magnet-left', 'magnet-right', 'meltdown', 'pair'];
@@ -134,8 +137,12 @@ export class Game extends Container {
   private readonly meltdown: CoreMeltdown | null = null;
   /** Steam from the station's vents, behind the board (Reactor Drop). */
   private readonly vents = new Container();
+  /** big wins splash blood over the screen (Zombie War) */
+  private readonly bloody: boolean;
   /** the controls in a bar of their own under the board on a wide screen too (theme console.bar) */
   private readonly consoleBar: boolean;
+  /** on a phone, where the controls start under the board (theme console.phoneTop) */
+  private readonly phoneTop: number;
   /** a character beside the board (Pharaoh's Drop's pharaoh), or null */
   private readonly character: Character | null;
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
@@ -207,10 +214,14 @@ export class Game extends Container {
     () => { this.closeExit(); this.go('menu'); }, () => this.closeExit());
     this.consoleRects = theme.console?.rects ?? null;
     this.consoleBar = theme.console?.bar === true;
+    this.phoneTop = theme.console?.phoneTop ?? 418;
     const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
-    this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}) };
-    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : 'HEAVY SHELLS';
+    const zombie = theme.board.fx === 'zombie';
+    this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}),
+      ...(zombie ? ZOMBIE_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : 'HEAVY SHELLS';
+    this.bloody = zombie;
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
     this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text],
@@ -225,7 +236,8 @@ export class Game extends Container {
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex),
-        words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"] : ['BOOM!', 'KABOOM!'] });
+        words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"]
+          : zombie ? ['SPLAT!', 'BLOODBATH!'] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests;
     this.chestPick = !!theme.wheel.chests;
     this.tombRaid = !!theme.wheel.chests?.doors;
@@ -285,7 +297,7 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (reactor || lagoon || pharaoh) {
+    if (reactor || lagoon || pharaoh || zombie) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
         title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : 'CORE PRESSURE' });
@@ -331,7 +343,7 @@ export class Game extends Container {
     const visibleH = view.stageH - 2 * view.offsetY;
     const boardX = this.bar instanceof ConsoleControls ? this.boardX(view) : view.stageW * 0.32;
     // a chest pick's shelf may take most of what is on screen across
-    this.wheel.setRoom(Math.min(view.stageW - 2 * view.offsetX - 24, view.landscape ? visibleH * 1.25 : Infinity), !view.landscape);
+    this.wheel.setRoom(Math.min(view.stageW - 2 * view.offsetX - 24, view.landscape ? visibleH * 1.25 : Infinity), !view.landscape, visibleH * 0.78);
     if (view.landscape) {
       // over the middle of the board, clear of the console (a photo revolver's dial is about 3.5 radii tall)
       // a tesla ring is only about 2.7 radii tall, so it can be bigger
@@ -388,7 +400,7 @@ export class Game extends Container {
       bar.layout(view, { left: box(r.left), centre: box(r.centre), right: box(r.right),
         credits: new Rectangle(view.stageW - view.offsetX - w - 120, view.offsetY + 14, w, 116) });
     } else {
-      bar.layout(view, null, at(384, 418).y + 6);
+      bar.layout(view, null, at(384, this.phoneTop).y + 6);
     }
   }
 
@@ -420,6 +432,18 @@ export class Game extends Container {
     const h = Math.min(150, visibleH * 0.19);
     const w = Math.min(this.character ? visibleW * 0.76 : visibleW * 0.9, h * 9);
     return new Rectangle(this.boardX(view) - w / 2, view.offsetY + visibleH - h - 10, w, h);
+  }
+
+  /** A big win splashes blood over the screen: a few big splatters (more for a bigger win) that run down and fade. */
+  private bloodScreen(level: string): void {
+    const view = this.view;
+    if (!view) return;
+    const visibleW = view.stageW - 2 * view.offsetX, visibleH = view.stageH - 2 * view.offsetY;
+    const count = level === 'EPIC WIN' ? 10 : level === 'MEGA WIN' ? 7 : 4;
+    for (let k = 0; k < count; k++) {
+      gsap.delayedCall(k * 0.09, () => splatter(this.screen, view.offsetX + visibleW * random(0.05, 0.95), view.offsetY + visibleH * random(0.05, 0.8),
+        Math.min(visibleW, visibleH) * random(0.28, 0.5), random(2.8, 4), 0.35));
+    }
   }
 
   /** Where a console board's middle is across: the middle of the screen, or left of the character beside it. */
@@ -836,7 +860,8 @@ export class Game extends Container {
       const segments = TOMB_RAID.map(m => ({ multiplier: m, name: m === 20 ? 'MEGA' : m === 10 ? 'MAJOR' : null }));
       const win = round.targetWins?.[0] ?? 0;
       // the raid pays x the round's plain bet (the bet a ball times the balls)
-      await this.wheel.turn(segments, Math.max(0, TOMB_RAID.indexOf(pays)), win, { gold: false, title: 'TOMB RAID', base: cents(bet * round.slots.length) });
+      await this.wheel.turn(segments, Math.max(0, TOMB_RAID.indexOf(pays)), win,
+        { gold: false, title: this.powerStamps.meltdown ?? 'BONUS', base: cents(bet * round.slots.length) });
       land(win);
       sound(pays >= 5 ? 'jackpot' : 'big');
       if (!(round.spins?.length || round.megaSpins?.length)) await this.hideWheel();
@@ -918,6 +943,7 @@ export class Game extends Container {
     if (level) sound('bigWin');
     if (level) {
       this.character?.cheer();
+      if (this.bloody) this.bloodScreen(level);
       await this.bigWin.show(level, round.totalWin, value => this.money(value), round.totalBet);
     }
   }

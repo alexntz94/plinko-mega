@@ -1,0 +1,363 @@
+{
+  "name": "Zombie War",
+  "title": "Zombie War · Plinko",
+  "background": "#17191b",
+  "accent": "#b52c2c",
+  "text": "#f0e8d6",
+  "playText": "#f0e8d6",
+  "retina": true,
+  "font": {
+    "family": "Black Ops One",
+    "file": "black-ops-one.woff2",
+    "weight": "400"
+  },
+  "board": {
+    "fx": "zombie",
+    "peg": "item_peg.png",
+    "pegFlash": "#ff4a3a",
+    "trail": "#b52c2c",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#46505a",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#76a83b",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#f18a35",
+        "text": "#17191b"
+      },
+      {
+        "face": "#b52c2c",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#dc1e1e",
+        "text": "#ffffff"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 0.8774,
+        "x": 384,
+        "y": 70.42,
+        "spacing": 46.255,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.7827,
+        "x": 384,
+        "y": 74.79,
+        "spacing": 46.255,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.7233,
+        "x": 384,
+        "y": 78.32,
+        "spacing": 45.178,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.7094,
+        "x": 384,
+        "y": 81.22,
+        "spacing": 41.977,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.6979,
+        "x": 384,
+        "y": 83.65,
+        "spacing": 39.189,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.6883,
+        "x": 384,
+        "y": 85.71,
+        "spacing": 36.741,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.6802,
+        "x": 384,
+        "y": 87.48,
+        "spacing": 34.575,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.82
+  },
+  "wheel": {
+    "faces": [
+      "#46505a",
+      "#b52c2c",
+      "#76a83b",
+      "#f18a35",
+      "#66513f",
+      "#17191b"
+    ],
+    "text": [
+      "#ffffff",
+      "#ffffff",
+      "#ffffff",
+      "#17191b",
+      "#ffffff",
+      "#ffffff"
+    ],
+    "rim": "#b52c2c",
+    "ink": "#17191b",
+    "title": "#ff4a3a",
+    "gold": {
+      "faces": [
+        "#f18a35",
+        "#ffd76a",
+        "#b52c2c",
+        "#76a83b"
+      ],
+      "text": [
+        "#17191b",
+        "#17191b",
+        "#ffffff",
+        "#ffffff"
+      ],
+      "rim": "#f18a35"
+    },
+    "style": "chests",
+    "chests": {
+      "closed": "door_closed.png",
+      "open": "door_closed.png",
+      "goldClosed": "door_gold.png",
+      "goldOpen": "door_gold.png",
+      "shelf": "locker_wall.png",
+      "glow": "vfx_glow.png",
+      "burst": "anim_locker.png",
+      "plank": 0.8078,
+      "span": [
+        0.06,
+        0.94
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "doors": {
+        "arches": [
+          0.1331,
+          0.2568,
+          0.3796,
+          0.5013,
+          0.6224,
+          0.7448,
+          0.8675
+        ],
+        "archWidth": 0.0832,
+        "archTop": 0.2188,
+        "archBottom": 0.8078,
+        "phone": [
+          {
+            "wall": "locker_wall_4.png",
+            "arches": [
+              0.2271,
+              0.4111,
+              0.5938,
+              0.7754
+            ]
+          },
+          {
+            "wall": "locker_wall_3.png",
+            "arches": [
+              0.3184,
+              0.501,
+              0.6826
+            ]
+          }
+        ],
+        "phoneArchWidth": 0.125,
+        "phoneGap": 0.97
+      }
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#ff4a3a",
+      "#f18a35",
+      "#76a83b"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#17191b",
+    "panel": "#2a2c2e"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        62,
+        428,
+        272,
+        482
+      ],
+      "centre": [
+        352,
+        424,
+        416,
+        488
+      ],
+      "right": [
+        496,
+        428,
+        706,
+        482
+      ]
+    },
+    "inner": [
+      0.1,
+      0.2,
+      0.9,
+      0.8
+    ],
+    "bar": true,
+    "phoneTop": 482
+  },
+  "blast": {
+    "fire": "vfx_blast.png",
+    "dust": "vfx_smoke.png",
+    "smoke": "vfx_smoke.png",
+    "kinds": {
+      "small": "vfx_splat.png",
+      "impact": "vfx_splat.png",
+      "heavy": "vfx_blast.png",
+      "napalm": "vfx_blast.png",
+      "mushroom": "vfx_geyser.png",
+      "fireball": "vfx_glow.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.55
+      ],
+      "impact": [
+        0.5,
+        0.6
+      ],
+      "heavy": [
+        0.5,
+        0.55
+      ],
+      "napalm": [
+        0.5,
+        0.55
+      ],
+      "mushroom": [
+        0.5,
+        0.88
+      ],
+      "fireball": [
+        0.5,
+        0.55
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_splat.png",
+      "heavy": "anim_blast.png",
+      "mushroom": "anim_geyser.png",
+      "arc": "anim_horde.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    },
+    "splatters": [
+      "blood_1.png",
+      "blood_2.png",
+      "blood_3.png",
+      "blood_4.png",
+      "blood_5.png",
+      "blood_6.png"
+    ]
+  },
+  "character": {
+    "body": "hunter_body.png",
+    "head": "hunter_head.png",
+    "arm": "hunter_arm.png",
+    "eyes": "hunter_eyes.png",
+    "cheer": "hunter_cheer.png",
+    "point": "hunter_point.png",
+    "cheerScale": 1.0,
+    "neck": [
+      0.518,
+      0.2
+    ],
+    "shoulder": [
+      0.47,
+      0.42
+    ],
+    "feet": [
+      0.5,
+      0.99
+    ]
+  },
+  "music": "music.mp3"
+}

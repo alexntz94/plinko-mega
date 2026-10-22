@@ -26,6 +26,8 @@ class ThemePowersTest {
         assertThat(BonusService.themeSells("pharaoh-drop", "pair")).as("Twin Serpents").isTrue();
         assertThat(BonusService.themeSells("pharaoh-drop", "meltdown")).as("Tomb Raid").isTrue();
         assertThat(BonusService.themeSells("pharaoh-drop", "tank")).isFalse();
+        assertThat(BonusService.themeSells("zombie-war", "meltdown")).as("Locker Raid").isTrue();
+        assertThat(BonusService.themeSells("zombie-war", "tank")).isFalse();
         assertThat(BonusService.themeSells("old-theme", "heavy")).isFalse();
         for (List<String> powers : BonusService.THEME_POWERS.values()) {
             assertThat(BonusService.POWERS).containsAll(powers);

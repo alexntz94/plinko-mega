@@ -302,6 +302,38 @@ function animatedBlast(layer: Container, kind: BlastKind, x: number, y: number, 
   return true;
 }
 
+/** A theme's blood splatters (Zombie War): stamped where a blast goes off, and over the screen on a big win. */
+let splatters: Texture[] = [];
+export function setSplatters(textures: Texture[]): void {
+  splatters = textures;
+}
+let liveSplats = 0;
+const MAX_SPLATS = 24;
+
+/**
+ * A blood splatter on `layer` at (x, y), `size` across, turned at random: it hits fast, then slowly runs (stretching
+ * down) and fades away after `stay` seconds. Returns false when the theme has none.
+ */
+export function splatter(layer: Container, x: number, y: number, size: number, stay = 2.5, drip = 0.12): boolean {
+  if (!splatters.length || calm) return false;
+  if (liveSplats >= MAX_SPLATS) return true;
+  liveSplats++;
+  const s = new Sprite({ texture: splatters[Math.floor(Math.random() * splatters.length)], anchor: 0.5 });
+  s.position.set(x, y);
+  s.rotation = Math.random() * Math.PI * 2;
+  const scale = size / Math.max(1, s.texture.width);
+  s.scale.set(scale * 0.4);
+  s.alpha = 0.95;
+  layer.addChild(s);
+  gsap.timeline({ onComplete: () => { if (!s.destroyed) s.destroy(); liveSplats = Math.max(0, liveSplats - 1); } })
+    .to(s.scale, { x: scale, y: scale, duration: 0.12, ease: 'power3.out' }, 0)
+    // the blood runs: it slides down a little and stretches as it goes
+    .to(s, { y: y + size * drip, duration: stay, ease: 'power1.in' }, 0.12)
+    .to(s.scale, { y: scale * (1 + drip * 1.5), duration: stay, ease: 'power1.in' }, 0.12)
+    .to(s, { alpha: 0, duration: 0.8, ease: 'power1.in' }, stay - 0.5);
+  return true;
+}
+
 /** A theme's photo explosion (a fireball, a ground dust ring, a smoke plume), or null: blasts are drawn in code. */
 let blastArt: { fire: Texture; dust: Texture; smoke: Texture } | null = null;
 export function setBlastArt(art: { fire: Texture; dust: Texture; smoke: Texture } | null): void {

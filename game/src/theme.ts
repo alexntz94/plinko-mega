@@ -30,8 +30,9 @@ export interface BoardStyle {
  * thick ink outlines; `ink` and `panel` give its colours). */
 export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: string }
 /** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills); lagoon:
- * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh';
+ * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight);
+ * zombie: a grenade (explosions and blood: splatters left on the board, big wins splashing the screen) */
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -104,7 +105,9 @@ export interface ChestArt {
   doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number;
     /** a phone's shorter walls, drawn with finished ends (each its doorways' middles), their doorways' width; the
      *  doorways' top and bottom as the long wall's */
-    phone: { wall: string; arches: number[] }[] | null; phoneArchWidth: number } | null;
+    phone: { wall: string; arches: number[] }[] | null; phoneArchWidth: number;
+    /** how far apart the phone's walls stand (a share of a wall's height) */
+    phoneGap: number } | null;
 }
 /**
  * A character standing beside the board (Pharaoh's Drop): the body, the head and the arm with the staff laid over it,
@@ -134,6 +137,8 @@ export interface Theme {
     rects: { left: Rect4; centre: Rect4; right: Rect4 };
     /** on a wide screen too, the controls in a bar of their own under the board (bigger), not in its console strip */
     bar: boolean;
+    /** on a tall screen, where the controls start: this far down the tall frame picture (its 1x pixels) */
+    phoneTop: number;
     /** the plain area inside the readout panel's frame, as shares of the picture [x0, y0, x1, y1] (text stays in it
      *  and only the middle stretches), or null: a thin frame, the picture stretched whole */
     inner: Rect4 | null } | null;
@@ -144,7 +149,9 @@ export interface Theme {
     /** tank assault: the tank (facing right) and a target; null: the power-up isn't shown */
     tank: { body: string; target: string } | null;
     /** per kind, where a still picture's blast point is (fractions of it); else the kind's own */
-    anchors: Partial<Record<BlastName, [number, number]>> } | null;
+    anchors: Partial<Record<BlastName, [number, number]>>;
+    /** blood splatters (seen from above) stamped where a blast goes off and over the screen on a big win; empty: none */
+    splatters: string[] } | null;
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
@@ -232,7 +239,8 @@ function readChests(json: unknown, style: unknown): ChestArt | null {
     && phone.reduce((n, p) => n + p.arches.length, 0) === arches.length;
   const doors = d && arches.length >= 2 && arches.every(a => a) && archWidth && archTop && archBottom && archTop < archBottom
     ? { arches: arches as number[], archWidth, archTop, archBottom,
-      phone: phoneOk ? phone.map(p => ({ wall: p.wall as string, arches: p.arches as number[] })) : null, phoneArchWidth: phoneArchWidth ?? archWidth }
+      phone: phoneOk ? phone.map(p => ({ wall: p.wall as string, arches: p.arches as number[] })) : null, phoneArchWidth: phoneArchWidth ?? archWidth,
+      phoneGap: typeof d?.phoneGap === 'number' && d.phoneGap > 0.3 && d.phoneGap < 1.5 ? d.phoneGap : 0.72 }
     : null;
   return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA }, doors };
 }
@@ -310,7 +318,8 @@ function readBlast(json: unknown): Theme['blast'] {
     const v = an[name];
     if (Array.isArray(v) && v.length === 2 && v.every(n => typeof n === 'number' && n >= 0 && n <= 1)) anchors[name] = [v[0], v[1]];
   }
-  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets), grids, tank, anchors } : null;
+  const splatters = Array.isArray(b.splatters) ? b.splatters.map(v => fileName(v, /\.png$/)).filter((f): f is string => !!f).slice(0, 12) : [];
+  return fire && dust && smoke ? { fire, dust, smoke, kinds: files(b.kinds), sheets: files(b.sheets), grids, tank, anchors, splatters } : null;
 }
 
 export type Rect4 = [number, number, number, number];
@@ -328,7 +337,8 @@ function readConsole(json: unknown): Theme['console'] {
   const i = c.inner;
   const inner = Array.isArray(i) && i.length === 4 && i.every(n => typeof n === 'number' && n >= 0 && n <= 1) && i[0] < i[2] && i[1] < i[3]
     ? i as Rect4 : null;
-  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects, inner, bar: c.bar === true } : null;
+  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects, inner, bar: c.bar === true,
+    phoneTop: typeof c.phoneTop === 'number' && c.phoneTop > 100 && c.phoneTop < 1000 ? c.phoneTop : 418 } : null;
 }
 
 function readBoard(json: unknown): BoardStyle {
@@ -345,7 +355,7 @@ function readBoard(json: unknown): BoardStyle {
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' ? b.fx : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' ? b.fx : 'standard',
   };
 }
 

@@ -34,7 +34,7 @@ export interface ChestPick {
   plank: number; span: [number, number];
   tokens: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
   doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number;
-    phone: { wall: Texture; arches: number[] }[] | null; phoneArchWidth: number } | null;
+    phone: { wall: Texture; arches: number[] }[] | null; phoneArchWidth: number; phoneGap: number } | null;
 }
 
 /** A chest on the shelf: the prize it holds (the segment's index), the slot it stands in now. */
@@ -137,10 +137,12 @@ export class FortuneWheel extends Container {
 
   /** The wheel at (x, y) = the disc's centre, radius r; only the part above y + r * 0.12 shows. */
   /** How wide a chest pick's shelf may be (what is on screen across), and whether the screen is tall (two shelves). */
-  setRoom(width: number, tall = false): void {
+  setRoom(width: number, tall = false, height = Infinity): void {
     this.room = width;
     this.tall = tall;
+    this.tallRoom = height;
   }
+  private tallRoom = Infinity;
   private room = Infinity;
   private tall = false;
 
@@ -768,9 +770,11 @@ export class FortuneWheel extends Container {
     if (this.tall && doors.phone) {
       // a phone: the shorter walls drawn for it, one under the other, the first (the widest) as wide as the screen
       const first = doors.phone[0].wall;
-      const w = this.room * 1.12, h = w * first.height / first.width;
+      // (taller walls need more room between them: the screen's height may make them narrower)
+      const fit = this.tallRoom / ((doors.phoneGap + 0.95) * first.height / first.width);
+      const w = Math.min(this.room * 1.12, fit), h = w * first.height / first.width;
       const archH = (doors.archBottom - doors.archTop) * h;
-      const gap = h * 0.72;
+      const gap = h * doors.phoneGap;
       const top = (doors.archBottom - 0.5) * h - (doors.phone.length - 1) * gap / 2;
       let next = 0;
       const rows = doors.phone.map((p, k) => {

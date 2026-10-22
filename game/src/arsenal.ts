@@ -179,7 +179,8 @@ export class ArsenalPanel extends Container {
       // the card's art has a riveted rim: everything stays inside its dark panel, `inset` in from each side (a thick
       // frame: inside its plain middle)
       const box = this.inner ? area : null;
-      const inset = box ? 10 : Math.max(26, w * 0.065);
+      // (a thick frame's inside narrows where its ends curve: the text keeps clear of them)
+      const inset = box ? 14 + (box.x1 - box.x0) * 0.035 : Math.max(26, w * 0.065);
       const x0 = (box?.x0 ?? -w / 2) + inset, x1 = (box?.x1 ?? w / 2) - inset;
       const y0 = box?.y0 ?? -h / 2, ih = (box?.y1 ?? h / 2) - y0, cy = y0 + ih / 2;
       const span = box ? ih / 2 : h / 2;   // half the height there is for text

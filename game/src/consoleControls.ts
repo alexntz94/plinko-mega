@@ -59,7 +59,7 @@ class Key extends Container {
   enabled = true;
 
   constructor(private readonly square: Texture, text: string, size: number, colour: string, private readonly onTap: () => void,
-              private readonly wide: Texture | null = null) {
+              private readonly wide: Texture | null = null, private readonly inner: [number, number, number, number] | null = null) {
     super();
     this.art = new Sprite({ texture: square, anchor: 0.5 });
     this.text = label(text, size, 'center', { fill: colour, stroke: { color: '#000000', width: Math.max(2, size * 0.14), join: 'round' } });
@@ -83,8 +83,11 @@ class Key extends Container {
     this.art.width = w;
     this.art.height = h;
     this.hitArea = new Rectangle(-w / 2, -h / 2, w, h);
-    this.text.style.fontSize = Math.round(Math.min(h * 0.42, 26));
-    fit(this.text, w * 0.8);
+    // a wide key with a thick frame (its ends carved): the label stays in the plain middle
+    const framed = this.inner && this.art.texture === this.wide;
+    const room = framed ? (this.inner![2] - this.inner![0]) * w * 0.86 : w * 0.8;
+    this.text.style.fontSize = Math.round(Math.min(h * (framed ? 0.4 : 0.42), 26));
+    fit(this.text, room);
   }
 
   setEnabled(enabled: boolean): void {
@@ -179,7 +182,7 @@ export class ConsoleControls extends Container {
     this.panelInner = art.panelInner ?? null;
     this.back = art.back ? new Sprite({ texture: art.back, anchor: 0.5 }) : null;
     if (this.back) this.addChild(this.back);
-    const key = (text: string, onTap: () => void) => new Key(art.key, text, 18, look.text, onTap, art.panel);
+    const key = (text: string, onTap: () => void) => new Key(art.key, text, 18, look.text, onTap, art.panel, art.panelInner);
     this.drop = new Key(art.drop, 'DROP', 44, '#f3ecd6', () => actions.play());
     this.betMinus = key('−', () => actions.bet(false));
     this.betPlus = key('+', () => actions.bet(true));

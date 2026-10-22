@@ -62,7 +62,8 @@ function chestPick(theme: Theme, tex: (file: string) => Texture): ChestPick | nu
   if (!art) return null;
   const t = art.tokens;
   return { closed: tex(art.closed), open: tex(art.open), goldClosed: tex(art.goldClosed), goldOpen: tex(art.goldOpen),
-    shelf: tex(art.shelf), glow: tex(art.glow), burst: tex(art.burst), plank: art.plank, span: art.span, doors: art.doors,
+    shelf: tex(art.shelf), glow: tex(art.glow), burst: tex(art.burst), plank: art.plank, span: art.span,
+    doors: art.doors ? { ...art.doors, phone: art.doors.phone?.map(p => ({ wall: tex(p.wall), arches: p.arches })) ?? null } : null,
     tokens: { plain: tex(t.plain), MINI: tex(t.MINI), MAJOR: tex(t.MAJOR), MEGA: tex(t.MEGA) } };
 }
 

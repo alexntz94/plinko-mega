@@ -101,7 +101,10 @@ export interface ChestArt {
   tokens: { plain: string; MINI: string; MAJOR: string; MEGA: string };
   /** doors in a wall instead of chests on a shelf (the "shelf" is the wall): each doorway's middle and the width they
    *  all have (shares of the wall's width), their top and bottom (shares of its height); the door that closes each */
-  doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number } | null;
+  doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number;
+    /** a phone's shorter walls, drawn with finished ends (each its doorways' middles), their doorways' width; the
+     *  doorways' top and bottom as the long wall's */
+    phone: { wall: string; arches: number[] }[] | null; phoneArchWidth: number } | null;
 }
 /**
  * A character standing beside the board (Pharaoh's Drop): the body, the head and the arm with the staff laid over it,
@@ -222,8 +225,15 @@ function readChests(json: unknown, style: unknown): ChestArt | null {
   const d = (c.doors ?? null) as Record<string, unknown> | null;
   const arches = Array.isArray(d?.arches) ? (d!.arches as unknown[]).map(share) : [];
   const [archWidth, archTop, archBottom] = [d?.archWidth, d?.archTop, d?.archBottom].map(share);
+  const phoneJson = Array.isArray(d?.phone) ? (d!.phone as Record<string, unknown>[]) : [];
+  const phone = phoneJson.map(p => ({ wall: png(p?.wall), arches: Array.isArray(p?.arches) ? (p.arches as unknown[]).map(share) : [] }));
+  const phoneArchWidth = share(d?.phoneArchWidth);
+  const phoneOk = phone.length >= 2 && phoneArchWidth && phone.every(p => p.wall && p.arches.length && p.arches.every(a => a))
+    && phone.reduce((n, p) => n + p.arches.length, 0) === arches.length;
   const doors = d && arches.length >= 2 && arches.every(a => a) && archWidth && archTop && archBottom && archTop < archBottom
-    ? { arches: arches as number[], archWidth, archTop, archBottom } : null;
+    ? { arches: arches as number[], archWidth, archTop, archBottom,
+      phone: phoneOk ? phone.map(p => ({ wall: p.wall as string, arches: p.arches as number[] })) : null, phoneArchWidth: phoneArchWidth ?? archWidth }
+    : null;
   return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA }, doors };
 }
 

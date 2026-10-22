@@ -167,7 +167,27 @@
         ],
         "archWidth": 0.1004,
         "archTop": 0.3953,
-        "archBottom": 0.7781
+        "archBottom": 0.7781,
+        "phone": [
+          {
+            "wall": "tomb_wall_4.png",
+            "arches": [
+              0.2085,
+              0.4004,
+              0.5913,
+              0.7773
+            ]
+          },
+          {
+            "wall": "tomb_wall_3.png",
+            "arches": [
+              0.3076,
+              0.4985,
+              0.6841
+            ]
+          }
+        ],
+        "phoneArchWidth": 0.1533
       }
     }
   },

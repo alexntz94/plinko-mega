@@ -33,7 +33,8 @@ export interface ChestPick {
   closed: Texture; open: Texture; goldClosed: Texture; goldOpen: Texture; shelf: Texture; glow: Texture; burst: Texture;
   plank: number; span: [number, number];
   tokens: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
-  doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number } | null;
+  doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number;
+    phone: { wall: Texture; arches: number[] }[] | null; phoneArchWidth: number } | null;
 }
 
 /** A chest on the shelf: the prize it holds (the segment's index), the slot it stands in now. */
@@ -762,8 +763,22 @@ export class FortuneWheel extends Container {
    * stand on. One wall; on a phone two (4 doors above, the rest below), each doorway twice as wide.
    */
   private doorGeometry(): { w: number; h: number; doorW: number; archH: number;
-    rows: { doors: number[]; x0: number; x1: number; y: number }[] } {
+    rows: { doors: number[]; x0: number; x1: number; y: number; wall?: Texture; arches?: number[] }[] } {
     const art = this.art.chests!, doors = art.doors!, n = doors.arches.length;
+    if (this.tall && doors.phone) {
+      // a phone: the shorter walls drawn for it, one under the other, the first (the widest) as wide as the screen
+      const first = doors.phone[0].wall;
+      const w = this.room * 1.12, h = w * first.height / first.width;
+      const archH = (doors.archBottom - doors.archTop) * h;
+      const gap = h * 0.72;
+      const top = (doors.archBottom - 0.5) * h - (doors.phone.length - 1) * gap / 2;
+      let next = 0;
+      const rows = doors.phone.map((p, k) => {
+        const run = p.arches.map(() => next++);
+        return { doors: run, x0: 0, x1: 1, y: top + k * gap, wall: p.wall, arches: p.arches };
+      });
+      return { w, h, doorW: doors.phoneArchWidth * w, archH, rows };
+    }
     const margin = doors.archWidth * 0.6;
     const runs = this.tall ? [[...Array(Math.ceil(n / 2)).keys()], [...Array(n).keys()].slice(Math.ceil(n / 2))] : [[...Array(n).keys()]];
     const span = (run: number[]) => doors.arches[run[run.length - 1]] - doors.arches[run[0]] + 2 * margin;
@@ -788,6 +803,16 @@ export class FortuneWheel extends Container {
     const tex = art.shelf;
     this.chestSlots = [];
     for (const row of rows) {
+      if (row.wall && row.arches) {
+        // a wall drawn for the phone, whole
+        const wall = new Sprite({ texture: row.wall, anchor: { x: 0.5, y: doors.archBottom } });
+        wall.width = w;
+        wall.height = h;
+        wall.y = row.y;
+        this.disc.addChild(wall);
+        row.doors.forEach((d, k) => { this.chestSlots[d] = { x: (row.arches![k] - 0.5) * w, y: row.y }; });
+        continue;
+      }
       // the part of the wall with this row's doorways, centred
       const fw = tex.frame.width, fh = tex.frame.height;
       const part = new Texture({ source: tex.source, frame: new Rectangle(tex.frame.x + row.x0 * fw, tex.frame.y, (row.x1 - row.x0) * fw, fh) });

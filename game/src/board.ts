@@ -592,7 +592,11 @@ export class Board extends Container {
   }
 
   /** Places the frame and the board for the current orientation (same rules as the original game). */
-  layout(view: Viewport, place: { x: number; y: number; fit: number; room?: { w: number; h: number } } | null = null): void {
+  /**
+   * place.bare: draw the tall frame (the board without its console strip) on a wide screen too, for a theme whose
+   * controls are in a bar of their own under it.
+   */
+  layout(view: Viewport, place: { x: number; y: number; fit: number; room?: { w: number; h: number }; bare?: boolean } | null = null): void {
     const { w, h } = this.contentSize();
     // on wide phones the top and bottom of the stage are cut off: keep the pegs, the slots and the status line inside
     const visibleH = view.stageH - 2 * view.offsetY;
@@ -603,7 +607,8 @@ export class Board extends Container {
     const fit = this.fitNow;
     if (fit) {
       // a frame drawn for this board: the whole frame fits the room, and the pegs sit where the frame shows them
-      const picture = view.landscape ? this.frame : this.framePortrait;
+      const wide = view.landscape && !place?.bare;
+      const picture = wide ? this.frame : this.framePortrait;
       const shown = view.landscape ? 1 : this.style.portraitSpan;
       const unitsW = picture.texture.width * shown / (fit.spacing / PEG_SPACING), unitsH = picture.texture.height / (fit.spacing / PEG_SPACING);
       const room = place?.room ?? (view.landscape ? { w: view.stageW * 0.54, h: visibleH * 0.84 } : { w: view.stageW - 12, h: visibleH * 0.5 });
@@ -617,8 +622,8 @@ export class Board extends Container {
         frame.scale.set(frameScale);
         frame.position.set(fx, fy);
       }
-      this.frame.visible = view.landscape;
-      this.framePortrait.visible = !view.landscape;
+      this.frame.visible = wide;
+      this.framePortrait.visible = !wide;
       // the picture's point (fit.x, fit.y) is the pegs' top centre
       const ox = fx + (fit.x - picture.texture.width / 2) * frameScale;
       const oy = fy + (fit.y - picture.texture.height / 2) * frameScale;

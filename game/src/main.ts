@@ -59,7 +59,9 @@ function themeExtras(theme: Theme): string[] {
  * background, logo (and its neon layers), board frame, game-over plate and exit screen of the shape not on screen.
  */
 function otherOrientation(theme: Theme, landscape: boolean): string[] {
-  const other = landscape ? ['background_p.png', 'logo_p.png', 'item_plinko_p.png', 'item_result_p.png']
+  // (a theme whose wide screen shows the tall board too, its controls in a bar under it, needs that one at once)
+  const tallBoard = theme.console?.bar === true;
+  const other = landscape ? ['background_p.png', 'logo_p.png', ...(tallBoard ? [] : ['item_plinko_p.png']), 'item_result_p.png']
     : ['background.png', 'logo.png', 'item_plinko.png', 'item_result.png'];
   const exit = theme.landscapeExitFromPortrait ? [] : [landscape ? 'item_exit_p.png' : 'item_exit.png'];
   return [...other, ...exit, ...neonLayers(theme).map(([wide, tall]) => (landscape ? tall : wide))];

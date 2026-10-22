@@ -129,6 +129,8 @@ export interface Theme {
   console: { drop: string; panel: string; key: string; back: string | null;
     /** where the controls go on the board's console, in the frame picture's 1x pixels: [x0, y0, x1, y1] each */
     rects: { left: Rect4; centre: Rect4; right: Rect4 };
+    /** on a wide screen too, the controls in a bar of their own under the board (bigger), not in its console strip */
+    bar: boolean;
     /** the plain area inside the readout panel's frame, as shares of the picture [x0, y0, x1, y1] (text stays in it
      *  and only the middle stretches), or null: a thin frame, the picture stretched whole */
     inner: Rect4 | null } | null;
@@ -316,7 +318,7 @@ function readConsole(json: unknown): Theme['console'] {
   const i = c.inner;
   const inner = Array.isArray(i) && i.length === 4 && i.every(n => typeof n === 'number' && n >= 0 && n <= 1) && i[0] < i[2] && i[1] < i[3]
     ? i as Rect4 : null;
-  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects, inner } : null;
+  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects, inner, bar: c.bar === true } : null;
 }
 
 function readBoard(json: unknown): BoardStyle {

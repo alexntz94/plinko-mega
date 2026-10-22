@@ -124,10 +124,10 @@ class Readout extends Container {
       // a thick frame: the title and the value both inside its plain middle
       const { x0, x1, y0, y1 } = area, ih = y1 - y0;
       this.room = (x1 - x0) * 0.92;
-      this.title.style.fontSize = Math.round(ih * 0.4);
-      this.title.y = y0 + ih * 0.24;
-      this.value.style.fontSize = Math.round(ih * 0.64);
-      this.value.y = y0 + ih * 0.67;
+      this.title.style.fontSize = Math.round(ih * 0.42);
+      this.title.y = y0 + ih * 0.22;
+      this.value.style.fontSize = Math.round(ih * 0.72);
+      this.value.y = y0 + ih * 0.68;
       this.title.x = this.value.x = (x0 + x1) / 2;
       fit(this.title, this.room);
     } else {
@@ -176,6 +176,7 @@ export class ConsoleControls extends Container {
   constructor(art: ConsoleArt, private readonly look: ConsoleLook, actions: ConsoleActions, quickBets: number[],
               format: (value: number) => string) {
     super();
+    this.panelInner = art.panelInner ?? null;
     this.back = art.back ? new Sprite({ texture: art.back, anchor: 0.5 }) : null;
     if (this.back) this.addChild(this.back);
     const key = (text: string, onTap: () => void) => new Key(art.key, text, 18, look.text, onTap, art.panel);
@@ -266,20 +267,69 @@ export class ConsoleControls extends Container {
     this.drop.base = 1;
   }
 
+  /**
+   * Wide, in a bar of its own (box: where it goes): on a plate, two rows left of a big DROP: credits | win | bet | balls,
+   * then the risks | rows | the small keys.
+   */
+  layoutBar(view: Viewport, box: Rectangle): void {
+    for (const k of this.quick) k.visible = false;
+    for (const k of [this.rowsDown, this.rowsShown, this.rowsUp]) k.visible = false;
+    this.rowsKey.visible = true;
+    this.bumpKey.visible = false;
+    if (this.back) {
+      this.back.visible = true;
+      this.back.position.set(box.x + box.width / 2, box.y + box.height / 2);
+      this.back.width = box.width + 24;
+      this.back.height = box.height + 16;
+    }
+    const pad = box.height * 0.08;
+    const dropW = box.height * 1.05;
+    const x0 = box.x + pad, w = box.width - dropW - pad * 3;
+    const rowH = (box.height - pad * 3) / 2;
+    const y1 = box.y + pad + rowH / 2, y2 = y1 + rowH + pad;
+    // credits and win a little narrower than bet and balls, whose − and + keys share their room
+    const part = w / 4, cw = w * 0.22, bw = w * 0.28;
+    this.credits.position.set(x0 + cw * 0.5, y1); this.credits.size(cw * 0.96, rowH);
+    this.win.position.set(x0 + cw * 1.5, y1); this.win.size(cw * 0.96, rowH);
+    this.row(this.betMinus, this.bet, this.betPlus, x0 + cw * 2, bw * 0.98, y1, rowH);
+    this.row(this.ballsMinus, this.balls, this.ballsPlus, x0 + cw * 2 + bw, bw * 0.98, y1, rowH);
+    this.spread(this.risks, x0, part * 1.5, y2, rowH * 0.86);
+    this.spread([this.rowsKey, this.auto, this.turboKey, this.arsenalKey], x0 + part * 1.55, w - part * 1.55, y2, rowH * 0.86);
+    const cx = box.x + box.width - pad - dropW / 2;
+    this.drop.position.set(cx, box.y + box.height / 2);
+    const ratio = this.drop.art.texture.width / this.drop.art.texture.height;
+    if (this.roundDrop()) {
+      this.drop.size(dropW * ratio, dropW);
+      this.dropText = 0.44;
+      this.drop.text.style.fontSize = Math.round(dropW * 0.2);
+    } else {
+      this.drop.size(dropW * 1.6, dropW * 0.7);
+      this.dropText = 0.7;
+      this.drop.text.style.fontSize = Math.round(dropW * 0.3);
+    }
+    fit(this.drop.text, this.drop.art.width * this.dropText);
+    this.drop.base = 1;
+    void view;
+  }
+
   /** Wide: BET and quick bets on the left panel, DROP on the centre plate, balls, risk and keys on the right panel. */
   private place(r: ConsoleRects): void {
     const { left, centre, right, credits } = r;
     for (const k of this.quick) k.visible = false;
     for (const k of [this.rowsDown, this.rowsShown, this.rowsUp]) k.visible = true;
     this.rowsKey.visible = false;
-    const rowH = left.height * 0.42;
-    this.row(this.betMinus, this.bet, this.betPlus, left.x, left.width, left.y + left.height * 0.27, rowH);
-    this.row(this.rowsDown, this.rowsShown, this.rowsUp, left.x, left.width, left.y + left.height * 0.76, rowH * 0.85);
-    this.row(this.ballsMinus, this.balls, this.ballsPlus, right.x, right.width * 0.62, right.y + right.height * 0.27, rowH);
-    this.spread(this.risks, right.x, right.width * 0.62, right.y + right.height * 0.76, rowH * 0.85);
-    this.bumpKey.visible = true;
-    this.spreadKeys([this.auto, this.turboKey, this.arsenalKey, this.bumpKey], right.x + right.width * 0.64, right.width * 0.36,
-      right.y + right.height * 0.5, rowH * 0.5, true);
+    // a thick-framed panel art (its text in a smaller inside) gets the panel's whole height for its two rows
+    const framed = !!this.panelInner;
+    const rowH = left.height * (framed ? 0.5 : 0.42);
+    const top = framed ? 0.25 : 0.27, bottom = framed ? 0.75 : 0.76, second = framed ? 0.96 : 0.85;
+    this.row(this.betMinus, this.bet, this.betPlus, left.x, left.width, left.y + left.height * top, rowH);
+    this.row(this.rowsDown, this.rowsShown, this.rowsUp, left.x, left.width, left.y + left.height * bottom, rowH * second);
+    this.row(this.ballsMinus, this.balls, this.ballsPlus, right.x, right.width * 0.62, right.y + right.height * top, rowH);
+    this.spread(this.risks, right.x, right.width * 0.62, right.y + right.height * bottom, rowH * second);
+    // the small keys in a column (three bigger ones when the panel art is framed: no BUMP)
+    this.bumpKey.visible = !framed;
+    const small = framed ? [this.auto, this.turboKey, this.arsenalKey] : [this.auto, this.turboKey, this.arsenalKey, this.bumpKey];
+    this.spreadKeys(small, right.x + right.width * 0.64, right.width * 0.36, right.y + right.height * 0.5, rowH * (framed ? 0.62 : 0.5), true);
     this.drop.position.set(centre.x + centre.width / 2, centre.y + centre.height / 2);
     this.drop.size(centre.width * 1.04, centre.height * 1.1);
     // a round key's label stays inside its glass (about half its width); a wide plate's fills it
@@ -327,6 +377,8 @@ export class ConsoleControls extends Container {
     this.bet.set(perBall);
     this.quick.forEach((k, i) => k.setLit(perBall.replace(/[^0-9.]/g, '') === String(this.quickValues[i].toFixed(2)), this.look));
   }
+  /** The readout panel art's plain inside, when its frame is thick (see ConsoleArt). */
+  private readonly panelInner: [number, number, number, number] | null;
   /** How much of the DROP key's width its label may take. */
   private dropText = 0.7;
   /** Whether the DROP key is round (Reactor Drop's RELEASE) rather than a wide plate. */

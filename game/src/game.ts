@@ -128,6 +128,8 @@ export class Game extends Container {
   private readonly meltdown: CoreMeltdown | null = null;
   /** Steam from the station's vents, behind the board (Reactor Drop). */
   private readonly vents = new Container();
+  /** the controls in a bar of their own under the board on a wide screen too (theme console.bar) */
+  private readonly consoleBar: boolean;
   /** a character beside the board (Pharaoh's Drop's pharaoh), or null */
   private readonly character: Character | null;
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
@@ -198,6 +200,7 @@ export class Game extends Container {
       ok: tex('button_confirm.png'), no: tex('button_cancel.png') }, theme.landscapeExitFromPortrait,
     () => { this.closeExit(); this.go('menu'); }, () => this.closeExit());
     this.consoleRects = theme.console?.rects ?? null;
+    this.consoleBar = theme.console?.bar === true;
     const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
     this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}) };
     this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}) };
@@ -366,6 +369,10 @@ export class Game extends Container {
       const a = at(x0, y0), b = at(x1, y1);
       return new Rectangle(a.x, a.y, b.x - a.x, b.y - a.y);
     };
+    if (view.landscape && this.consoleBar) {
+      bar.layoutBar(view, this.barBox(view));
+      return;
+    }
     if (view.landscape) {
       const w = Math.min(260, view.stageW * 0.2);
       const r = this.consoleRects;
@@ -400,6 +407,14 @@ export class Game extends Container {
     gsap.delayedCall(1.5, puff);
   }
 
+  /** A wide screen's control bar (a theme with console.bar): along the bottom, under the board, left of the character. */
+  private barBox(view: Viewport): Rectangle {
+    const visibleW = view.stageW - 2 * view.offsetX, visibleH = view.stageH - 2 * view.offsetY;
+    const h = Math.min(150, visibleH * 0.19);
+    const w = Math.min(this.character ? visibleW * 0.76 : visibleW * 0.9, h * 9);
+    return new Rectangle(this.boardX(view) - w / 2, view.offsetY + visibleH - h - 10, w, h);
+  }
+
   /** Where a console board's middle is across: the middle of the screen, or left of the character beside it. */
   private boardX(view: Viewport): number {
     return this.character && view.landscape ? view.offsetX + (view.stageW - 2 * view.offsetX) * 0.41 : view.stageW / 2;
@@ -414,13 +429,15 @@ export class Game extends Container {
       // board on top (tall)
       const visibleW = view.stageW - 2 * view.offsetX;
       if (this.character) {
-        if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.98, visibleH * 0.78);
+        if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.95, visibleH * 0.76);
         // a phone: he steps in at the left for his big moments only
         else this.character.place(view.offsetX + visibleW * 0.3, view.offsetY + visibleH * 0.66, visibleH * 0.5, true);
       }
+      // with its own control bar: the board above it, without its console strip
+      const barH = this.consoleBar && view.landscape ? this.barBox(view).height + 16 : 0;
       this.board.layout(view, view.landscape
-        ? { x: this.boardX(view), y: view.offsetY + visibleH * 0.52, fit: 1,
-          room: { w: this.character ? visibleW * 0.74 : view.stageW * 0.78, h: visibleH * 0.94 } }
+        ? { x: this.boardX(view), y: view.offsetY + (visibleH - barH) * 0.5 + 4, fit: 1, bare: this.consoleBar,
+          room: { w: this.character ? visibleW * 0.74 : view.stageW * 0.78, h: (visibleH - barH) * 0.94 } }
         : { x: view.stageW / 2, y: view.offsetY + 100 + visibleH * 0.25, fit: 1, room: { w: view.stageW - 2 * view.offsetX - 8, h: visibleH * 0.5 } });
       return;
     }

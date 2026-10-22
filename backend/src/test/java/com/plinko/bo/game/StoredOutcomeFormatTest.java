@@ -30,7 +30,7 @@ class StoredOutcomeFormatTest {
             "4    | 1     | path:15;mega:1.00@2",
             "4    | 1     | path:15;megaball:0",
             "4    | 1     | path:15;power:heavy",
-            "4    | 1     | path:15;decoys:0@3",
+            "4    | 1     | path:15;decoys:0@3/4/5",
             "4    | 1     | path:15;decoys:1@3/4",
             "4    | 1     | path:15;megaball:0x2;megaball:0x3",
             "4    | 1     | path:15;jackpot:1",
@@ -49,6 +49,8 @@ class StoredOutcomeFormatTest {
         assertThat(bought.power()).isEqualTo("cluster");
         assertThat(bought.powerPrice()).isEqualByComparingTo("2.05");
         assertThat(bought.decoys()).containsExactly(java.util.List.of(3, 5));
+        // a pearl pair keeps one landing of two: one decoy a ball
+        assertThat(RoundWin.parse("4", "1.1", "path:15;power:pairx1.4;decoys:0@3").decoys()).containsExactly(java.util.List.of(3));
         assertThat(outcome.slots()).containsExactly(4, 0);
         assertThat(outcome.paths()).containsExactly(15, 0);
         assertThat(outcome.gateBoost()).isEqualByComparingTo("2");

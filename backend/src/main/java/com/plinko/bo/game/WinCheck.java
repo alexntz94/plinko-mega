@@ -229,12 +229,15 @@ public class WinCheck {
         if (outcome.gateBoost() != null && outcome.gateBoost().compareTo(BigDecimal.ONE) <= 0) {
             return "C5: gates boost " + outcome.gateBoost() + " is not above 1";
         }
-        // heavy shells: every ball is a MEGA BALL; cluster shells: every ball has its two decoys, each on the board
+        // heavy shells: every ball is a MEGA BALL; cluster shells (a pair): every ball has its two decoys (one), each on
+        // the board
         if ("heavy".equals(outcome.power()) && outcome.megaBalls().size() != outcome.slots().size()) {
             return "C5: heavy shells, but " + outcome.megaBalls().size() + " of " + outcome.slots().size() + " balls were MEGA BALLs";
         }
-        if ("cluster".equals(outcome.power()) != !outcome.decoys().isEmpty()
-                || ("cluster".equals(outcome.power()) && outcome.decoys().size() != outcome.slots().size())) {
+        int landings = com.plinko.bo.bonus.BonusService.landings(outcome.power());
+        if ((landings > 1) != !outcome.decoys().isEmpty()
+                || (landings > 1 && (outcome.decoys().size() != outcome.slots().size()
+                        || outcome.decoys().stream().anyMatch(d -> d.size() != landings - 1)))) {
             return "C5: cluster decoys do not match the balls";
         }
         for (List<Integer> pair : outcome.decoys()) {

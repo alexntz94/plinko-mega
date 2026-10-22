@@ -230,8 +230,8 @@ class MegaRtpTest {
                     meter = new RoundDraw.MeterBefore(r.chargesAfter(), r.potAfter(), "r" + round);
                     if ("heavy".equals(power)) {
                         assertThat(r.megaBalls()).hasSize(BALLS);
-                    } else if ("cluster".equals(power)) {
-                        assertThat(r.decoys()).hasSize(BALLS);
+                    } else if (BonusService.landings(power) > 1) {
+                        assertThat(r.decoys()).hasSize(BALLS).allSatisfy(d -> assertThat(d).hasSize(BonusService.landings(power) - 1));
                     }
                 }
                 double owed = meter.pot().doubleValue() * BonusService.expected(MEGA.megaWheel()).doubleValue() / (rounds * cost.doubleValue());

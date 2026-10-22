@@ -7,7 +7,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-/** Each theme sells its own power-ups, and Reactor Drop's rules pay what they say. */
+/** Each theme sells its own power-ups, and Reactor Drop's and Lagoon Drop's rules pay what they say. */
 class ThemePowersTest {
 
     @Test
@@ -17,10 +17,24 @@ class ThemePowersTest {
         assertThat(BonusService.themeSells("reactor-drop", "meltdown")).isTrue();
         assertThat(BonusService.themeSells("reactor-drop", "heavy")).as("Overcharge").isTrue();
         assertThat(BonusService.themeSells("reactor-drop", "cluster")).isFalse();
+        assertThat(BonusService.themeSells("lagoon-drop", "pair")).isTrue();
+        assertThat(BonusService.themeSells("lagoon-drop", "heavy")).as("Sunburst Surge").isTrue();
+        assertThat(BonusService.themeSells("lagoon-drop", "magnet-left")).as("Crosscurrent").isTrue();
+        assertThat(BonusService.themeSells("lagoon-drop", "meltdown")).as("Volcano Vault").isTrue();
+        assertThat(BonusService.themeSells("lagoon-drop", "chain")).isFalse();
+        assertThat(BonusService.themeSells("reactor-drop", "pair")).isFalse();
         assertThat(BonusService.themeSells("old-theme", "heavy")).isFalse();
         for (List<String> powers : BonusService.THEME_POWERS.values()) {
             assertThat(BonusService.POWERS).containsAll(powers);
         }
+    }
+
+    @Test
+    void aPearlPairLandsTwiceAndAClusterThreeTimes() {
+        assertThat(BonusService.landings("pair")).isEqualTo(2);
+        assertThat(BonusService.landings("cluster")).isEqualTo(3);
+        assertThat(BonusService.landings("heavy")).isEqualTo(1);
+        assertThat(BonusService.landings(null)).isEqualTo(1);
     }
 
     @Test

@@ -406,12 +406,21 @@ public class BonusService {
 
     /** The power-ups a round can be bought with. */
     public static final java.util.List<String> POWERS = java.util.List.of("heavy", "cluster", "strike-left", "strike-centre", "strike-right",
-            "crates", "missile", "night", "tank", "chain", "magnet-left", "magnet-right", "meltdown");
+            "crates", "missile", "night", "tank", "chain", "magnet-left", "magnet-right", "meltdown", "pair");
 
-    /** The power-ups each theme sells (Reactor Drop's Overcharge is heavy under its own name). */
+    /**
+     * The power-ups each theme sells (Reactor Drop's Overcharge and Lagoon Drop's Sunburst Surge are heavy under their
+     * own names; Lagoon Drop's Crosscurrent is the magnet, its Volcano Vault the meltdown).
+     */
     public static final java.util.Map<String, java.util.List<String>> THEME_POWERS = java.util.Map.of(
             "bombs-away", java.util.List.of("heavy", "cluster", "strike-left", "strike-centre", "strike-right", "crates", "missile", "night", "tank"),
-            "reactor-drop", java.util.List.of("heavy", "chain", "magnet-left", "magnet-right", "meltdown"));
+            "reactor-drop", java.util.List.of("heavy", "chain", "magnet-left", "magnet-right", "meltdown"),
+            "lagoon-drop", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"));
+
+    /** How many times a ball with this power-up lands, keeping its best landing: cluster 3, pair 2, else 1. */
+    public static int landings(String power) {
+        return "cluster".equals(power) ? 3 : "pair".equals(power) ? 2 : 1;
+    }
 
     /** Whether a theme sells this power-up (a theme not listed sells none). */
     public static boolean themeSells(String theme, String power) {
@@ -578,8 +587,8 @@ public class BonusService {
     /**
      * What a ball with this power-up costs, as a multiple of the bet, on this table: what the power-up's ball is worth
      * over what a plain ball is worth, rounded up to the cent (so a bought round returns at most the target RTP). heavy:
-     * the MEGA BALL is certain; cluster: the ball lands three times and is paid on the landing with the best prize (the
-     * prize positions ordered by multiplier, then by position), so its position is the best of three draws.
+     * the MEGA BALL is certain; cluster (pair): the ball lands three (two) times and is paid on the landing with the best
+     * prize (the prize positions ordered by multiplier, then by position), so its position is the best of the draws.
      */
     public static BigDecimal powerPrice(BonusSettings bonus, OddsTable table, String power) {
         int n = table.prizes().size();
@@ -597,13 +606,14 @@ public class BonusService {
             for (int i = 0; i < n; i++) {
                 powered += p[i] * heavy[i];
             }
-        } else if ("cluster".equals(power)) {
+        } else if (landings(power) > 1) {
             Integer[] order = clusterOrder(table);
+            int draws = landings(power);
             double below = 0;
             for (int k = 0; k < n; k++) {
                 int i = order[k];
                 double upTo = below + p[i];
-                powered += (Math.pow(upTo, 3) - Math.pow(below, 3)) * plain[i];
+                powered += (Math.pow(upTo, draws) - Math.pow(below, draws)) * plain[i];
                 below = upTo;
             }
         } else if (targetCount(power) > 0) {
@@ -638,7 +648,7 @@ public class BonusService {
         return BigDecimal.valueOf(powered / normal).setScale(2, RoundingMode.CEILING);
     }
 
-    /** The prize positions from the worst to the best landing for a cluster shell: by prize, then by position. */
+    /** The prize positions from the worst to the best landing for a cluster shell (or pair): by prize, then by position. */
     public static Integer[] clusterOrder(OddsTable table) {
         Integer[] order = new Integer[table.prizes().size()];
         for (int i = 0; i < order.length; i++) {

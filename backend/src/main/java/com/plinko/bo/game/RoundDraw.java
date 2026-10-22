@@ -101,13 +101,15 @@ final class RoundDraw {
     }
 
     /**
-     * power: heavy makes every ball a MEGA BALL; cluster lands every ball three times (each slot drawn from the table)
-     * and keeps the landing with the best prize, the other two are decoys (drawn for the game to show, paying nothing).
+     * power: heavy makes every ball a MEGA BALL; cluster (pair) lands every ball three (two) times (each slot drawn from
+     * the table) and keeps the landing with the best prize, the others are decoys (drawn for the game to show, paying
+     * nothing).
      */
     static Result draw(OddsTable table, BonusSettings bonusSettings, BigDecimal bet, int balls, MeterBefore meterBefore,
                        BigDecimal maxWin, Dice dice, Power power) {
         boolean heavy = power != null && "heavy".equals(power.name());
-        boolean cluster = power != null && "cluster".equals(power.name());
+        int landings = BonusService.landings(power == null ? null : power.name());
+        boolean cluster = landings > 1;
         List<List<Integer>> decoys = new ArrayList<>();
         Integer[] rank = cluster ? clusterRank(table) : null;
         BonusSettings.Meter meterSettings = bonusSettings.meterOn() ? bonusSettings.meter() : null;
@@ -141,17 +143,21 @@ final class RoundDraw {
         for (int ball = 0; ball < balls; ball++) {
             int slot = dice.slot(table, BonusService.leftChance(power == null ? null : power.name()));
             if (cluster) {
-                // three landings; the best prize is the ball's, the others are decoys
-                int[] landed = {slot, dice.slot(table), dice.slot(table)};
+                // three (two) landings; the best prize is the ball's, the others are decoys
+                int[] landed = new int[landings];
+                landed[0] = slot;
+                for (int k = 1; k < landings; k++) {
+                    landed[k] = dice.slot(table);
+                }
                 int best = 0;
-                for (int k = 1; k < 3; k++) {
+                for (int k = 1; k < landings; k++) {
                     if (rank[PlinkoBoard.prizeIndexOfSlot(table.rows(), landed[k])] > rank[PlinkoBoard.prizeIndexOfSlot(table.rows(), landed[best])]) {
                         best = k;
                     }
                 }
                 slot = landed[best];
                 List<Integer> others = new ArrayList<>();
-                for (int k = 0; k < 3; k++) {
+                for (int k = 0; k < landings; k++) {
                     if (k != best) {
                         others.add(landed[k]);
                     }

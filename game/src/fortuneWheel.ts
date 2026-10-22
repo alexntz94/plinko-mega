@@ -20,6 +20,8 @@ export interface PhotoRevolver {
 
 /** A tesla ring's textures (theme wheel.tesla): an energy cell per kind of prize, the coil's plasma, a win's flash. */
 export interface TeslaRing {
+  /** a bolt hopping round the cells, or the tide filling the sockets (see theme TeslaArt) */
+  motion: 'bolt' | 'tide';
   cells: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
   orb: Texture; flash: Texture;
   /** the ring's own pictures and their measured geometry, or null: drawn in code */
@@ -27,7 +29,9 @@ export interface TeslaRing {
 }
 
 /** A cell of the tesla ring: where it sits round the coil (the first at the top), what lights up, its own scale. */
-interface TeslaNode { x: number; y: number; cell: Sprite; halo: Graphics; base: number }
+interface TeslaNode { x: number; y: number; cell: Sprite; halo: Graphics; base: number;
+  /** the tide ring's water welling up in the socket (scale 0: dry, 1: full) */
+  water: Graphics }
 
 const random = (min: number, max: number) => min + Math.random() * (max - min);
 const RAINBOW = ['#ff3b3b', '#ff9a1b', '#ffe14a', '#4ade5a', '#2ec4ff', '#8a5bff', '#ff4fd8'];
@@ -189,7 +193,9 @@ export class FortuneWheel extends Container {
     fit(this.jackpotAmount, this.radius * 0.9);
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
-    if (this.tesla(segments)) await this.teslaTurn(segments, index);
+    const ring = this.tesla(segments);
+    if (ring?.motion === 'tide') await this.tideTurn(segments, index);
+    else if (ring) await this.teslaTurn(segments, index);
     else await this.turnDisc(segments, index);
     const segment = segments[index];
     this.jackpotName.text = segment.name ? `${segment.name} JACKPOT` : options.title;
@@ -296,6 +302,92 @@ export class FortuneWheel extends Container {
     gsap.fromTo(node.cell.scale, { x: node.base * 1.35, y: node.base * 1.35 }, { x: node.base, y: node.base, duration: 0.35, ease: 'back.out(3)', overwrite: true });
   }
 
+  /**
+   * The tide ring: water runs round the ring from socket to socket, each one welling up as the tide reaches it and
+   * draining behind it, fast at first, then slower and slower (a marimba note a socket), and stops on the prize: its
+   * socket fills to the brim and overflows in a splash. A tap hurries it.
+   */
+  private async tideTurn(segments: Segment[], index: number): Promise<void> {
+    const n = this.nodes.length;
+    if (n !== segments.length) return;
+    const loops = calm ? 0 : this.hurried ? 1 : 2 + Math.floor(Math.random() * 2);
+    const from = this.lit % n;
+    const hops = loops * n + (((index - from) % n) + n) % n;
+    this.nodes.forEach(node => { node.halo.alpha = 0; gsap.to(node.water.scale, { x: 0, y: 0, duration: 0.2, overwrite: true }); });
+    let at = -1;
+    const hop = { k: 0 };
+    const show = () => {
+      const k = Math.min(Math.floor(hop.k), hops);
+      if (k !== at) {
+        at = k;
+        const node = this.nodes[(from + k) % n];
+        // the tide reaches this socket: it wells up; the one it left drains as the water runs on
+        gsap.to(node.water.scale, { x: 1, y: 1, duration: 0.14, ease: 'back.out(2)', overwrite: true });
+        if (k > 0) {
+          const left = this.nodes[(from + k - 1) % n];
+          gsap.to(left.water.scale, { x: 0, y: 0, duration: 0.35, ease: 'power1.in', overwrite: true });
+          this.onTick?.();
+        }
+      }
+      // the stream between the socket it left and the one it is filling, thinning as it goes
+      const left = this.nodes[(from + Math.max(0, k - 1)) % n], to = this.nodes[(from + k) % n];
+      this.drawStream(left, to, k > 0 ? Math.min(1, hop.k - k + 0.4) : 0);
+    };
+    show();
+    await new Promise<void>(resolve => {
+      const spin = gsap.timeline({ onComplete: resolve });
+      this.spin = spin;
+      spin.to(hop, { k: hops + 0.999, duration: calm ? 0.8 : this.hurried ? 1.3 : random(2.2, 2.9), ease: 'power3.out', onUpdate: show });
+    });
+    this.bolt.clear();
+    this.lit = index;
+    const node = this.nodes[index];
+    // it overflows: the socket brims over, a splash out of it, ripples running out
+    gsap.timeline()
+      .to(node.water.scale, { x: 1.25, y: 1.25, duration: 0.18, ease: 'power2.out', overwrite: true })
+      .to(node.water.scale, { x: 1, y: 1, duration: 0.3, ease: 'power1.inOut' });
+    node.halo.alpha = 1;
+    if (!calm) {
+      kindBlast(this.burst, 'impact', node.x, node.y + this.radius * 0.12, this.radius * 0.9);
+      this.ripple(node, 1);
+    }
+    gsap.fromTo(node.cell.scale, { x: node.base * 1.25, y: node.base * 1.25 }, { x: node.base, y: node.base, duration: 0.4, ease: 'back.out(3)', overwrite: true });
+  }
+
+  /** The water running round the ring from one socket to the next: a curving turquoise stream with a white crest. */
+  private drawStream(a: TeslaNode, b: TeslaNode, weight: number): void {
+    this.bolt.clear();
+    if (weight <= 0) return;
+    const r = this.radius;
+    const colour = this.gold ? '#ffd76a' : this.style.title;
+    const a0 = Math.atan2(a.y, a.x), d0 = Math.hypot(a.x, a.y);
+    let a1 = Math.atan2(b.y, b.x);
+    const d1 = Math.hypot(b.x, b.y);
+    while (a1 < a0) a1 += Math.PI * 2;   // always clockwise, the way the tide runs
+    for (const [width, c, alpha] of [[r * 0.1, colour, 0.3], [r * 0.045, colour, 0.8], [r * 0.015, '#ffffff', 0.9]] as const) {
+      for (let k = 0; k <= 12; k++) {
+        const t = k / 12, ang = a0 + (a1 - a0) * t, d = d0 + (d1 - d0) * t + Math.sin(t * Math.PI * 3 + this.chase * 8) * r * 0.015;
+        if (k === 0) this.bolt.moveTo(Math.cos(ang) * d, Math.sin(ang) * d);
+        else this.bolt.lineTo(Math.cos(ang) * d, Math.sin(ang) * d);
+      }
+      this.bolt.stroke({ color: c, width: width * weight, alpha, cap: 'round', join: 'round' });
+    }
+    this.chase += 0.016;
+  }
+
+  /** Rings of water running out from a socket (strength 0.5: an idle ripple; 1: an overflow). */
+  private ripple(node: TeslaNode, strength: number): void {
+    const size = node.cell.width;
+    for (let k = 0; k < (strength >= 1 ? 3 : 1); k++) {
+      const ring = new Graphics().circle(0, 0, size * 0.42).stroke({ color: '#ffffff', width: size * 0.05, alpha: 0.8 });
+      ring.position.set(node.x, node.y);
+      this.burst.addChild(ring);
+      gsap.timeline({ delay: k * 0.15, onComplete: () => ring.destroy() })
+        .fromTo(ring.scale, { x: 0.6, y: 0.6 }, { x: 1 + strength * 0.9, y: 1 + strength * 0.9, duration: 0.7, ease: 'power2.out' }, 0)
+        .fromTo(ring, { alpha: strength }, { alpha: 0, duration: 0.7, ease: 'power1.in' }, 0);
+    }
+  }
+
   /** The bolt from the coil to (x, y): a glow, a core and a white-hot middle, jagged differently every frame. */
   private drawBolt(x: number, y: number, weight: number): void {
     this.bolt.clear();
@@ -319,11 +411,17 @@ export class FortuneWheel extends Container {
     if (calm || this.spin?.isActive()) return;
     const dt = Math.min(deltaMs, 50) / 1000;
     this.chase += dt;
-    if (this.orb) this.orb.alpha = 0.75 + 0.25 * Math.sin(this.chase * 3);
+    const tide = this.tesla()?.motion === 'tide';
+    // the coil's plasma breathes; the tide's pool in the middle turns slowly
+    if (this.orb) {
+      this.orb.alpha = tide ? 0.45 + 0.15 * Math.sin(this.chase * 1.5) : 0.75 + 0.25 * Math.sin(this.chase * 3);
+      if (tide) this.orb.rotation += dt * 0.3;
+    }
     this.idleSpark -= dt;
     if (this.idleSpark > 0 || !this.visible) return;
     this.idleSpark = random(1.2, 2.6);
     const node = this.nodes[Math.floor(Math.random() * this.nodes.length)];
+    if (tide) { this.ripple(node, 0.5); return; }
     const zap = { w: 0.6 };
     let frames = 0;
     gsap.to(zap, { w: 0, duration: 0.22, ease: 'power1.in', onUpdate: () => {
@@ -404,8 +502,15 @@ export class FortuneWheel extends Container {
           fill: segment.name ? '#ffd76a' : '#fff6dc', stroke: { color: '#000000', width: size * 0.065, join: 'round' } } });
       words.position.set(x, y);
       if (words.width > size * 0.8) words.scale.set(size * 0.8 / words.width);
-      this.disc.addChild(halo, cell, words);
-      return { x, y, cell, halo, base: cell.scale.y };
+      // the tide's water in the socket, over the token but under its prize (still readable through it)
+      const water = new Graphics()
+        .circle(0, 0, size * 0.4).fill({ color: glow, alpha: 0.55 })
+        .circle(0, 0, size * 0.3).fill({ color: '#ffffff', alpha: 0.18 })
+        .circle(0, 0, size * 0.4).stroke({ color: '#ffffff', width: size * 0.04, alpha: 0.7 });
+      water.position.set(x, y);
+      water.scale.set(0);
+      this.disc.addChild(halo, cell, water, words);
+      return { x, y, cell, halo, base: cell.scale.y, water };
     });
   }
 

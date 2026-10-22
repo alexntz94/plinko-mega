@@ -29,10 +29,16 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
      * win; missile: the outer slots pay x3; night: big prizes x3, small ones less; tank: 5 targets after the balls.
      * Reactor Drop's: chain: a ball also wins half of each neighbouring slot's prize; magnet: the balls are pulled to a
      * chosen half (70%), whose slots pay x1.5; meltdown: one payout of x0.5 to x20 of the round's bet after the balls.
-     * (Reactor Drop's Overcharge is heavy.)
+     * (Reactor Drop's Overcharge is heavy.) Lagoon Drop's: pair: every ball splits into two and pays the better
+     * landing (its Sunburst Surge is heavy, Crosscurrent the magnet, Volcano Vault the meltdown).
      */
     public record Arsenal(boolean heavy, boolean cluster, boolean airstrike, boolean crates, boolean missile, boolean night, boolean tank,
-                          boolean chain, boolean magnet, boolean meltdown) {
+                          boolean chain, boolean magnet, boolean meltdown, boolean pair) {
+        public Arsenal(boolean heavy, boolean cluster, boolean airstrike, boolean crates, boolean missile, boolean night, boolean tank,
+                       boolean chain, boolean magnet, boolean meltdown) {
+            this(heavy, cluster, airstrike, crates, missile, night, tank, chain, magnet, meltdown, false);
+        }
+
         public Arsenal(boolean heavy, boolean cluster) {
             this(heavy, cluster, false, false, false, false, false);
         }
@@ -61,6 +67,7 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
             case "chain" -> arsenal.chain();
             case "magnet-left", "magnet-right" -> arsenal.magnet();
             case "meltdown" -> arsenal.meltdown();
+            case "pair" -> arsenal.pair();
             default -> false;
         };
     }
@@ -116,13 +123,13 @@ public record BonusSettings(Meter meter, Gates gates, Wheel wheel, Wheel megaWhe
             new Gates(false, new BigDecimal("1.5")),
             new Wheel(false, wheel(
                     "1", "66", "2", "22", "3", "7.5", "5", "4", "MINI:50", "0.35", "MAJOR:100", "0.12", "MEGA:500", "0.03")),
-            GOLD_WHEEL, MEGA_BALL, new Arsenal(false, false, false, false, false, false, false, false, false, false));
+            GOLD_WHEEL, MEGA_BALL, new Arsenal(false, false, false, false, false, false, false, false, false, false, false));
 
     /** The starting point before an admin has saved anything: the wheel, MEGA BALLs and the meter's MEGA SPIN on (no gates). */
     public static final BonusSettings MEGA = new BonusSettings(
             new Meter(true, OFF.meter().charges(), OFF.meter().minMultiplier(), OFF.meter().potShare()),
             new Gates(false, OFF.gates().boost()), new Wheel(true, OFF.wheel().segments()), new Wheel(true, OFF.megaWheel().segments()),
-            new MegaBall(true, MEGA_BALL.chance(), MEGA_BALL.multipliers()), new Arsenal(true, true, true, true, true, true, true, true, true, true));
+            new MegaBall(true, MEGA_BALL.chance(), MEGA_BALL.multipliers()), new Arsenal(true, true, true, true, true, true, true, true, true, true, true));
 
     /** Segments from pairs of ("[NAME:]multiplier", "weight"). */
     private static List<Segment> wheel(String... pairs) {

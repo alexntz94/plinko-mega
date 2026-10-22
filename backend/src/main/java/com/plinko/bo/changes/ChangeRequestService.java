@@ -299,7 +299,8 @@ public class ChangeRequestService {
                 + ", airstrike " + onOff(settings.arsenal().airstrike()) + ", crates " + onOff(settings.arsenal().crates())
                 + ", missile " + onOff(settings.arsenal().missile()) + ", night " + onOff(settings.arsenal().night())
                 + ", tank " + onOff(settings.arsenal().tank()) + ", chain " + onOff(settings.arsenal().chain())
-                + ", magnet " + onOff(settings.arsenal().magnet()) + ", meltdown " + onOff(settings.arsenal().meltdown());
+                + ", magnet " + onOff(settings.arsenal().magnet()) + ", meltdown " + onOff(settings.arsenal().meltdown())
+                + ", pearl pair " + onOff(settings.arsenal().pair());
         return meter + "; " + gates + "; " + wheel + "; " + megaBall + "; " + arsenal;
     }
 

@@ -31,10 +31,20 @@ const REACTOR_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'CORE MELTDOWN', text: 'The reactor overloads after the drop: x0.5 to x20', ready: true },
 ];
 
+/** Lagoon Drop's boosters (Sunburst Surge is the server's heavy, Crosscurrent the magnet, Volcano Vault the meltdown). */
+const LAGOON_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'SUNBURST SURGE', text: 'Every pearl is sun-charged: x2 to x10', ready: true },
+  { id: 'pair', name: 'PEARL PAIR', text: 'Each pearl splits in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'CROSSCURRENT', text: '70% of pearls drift to your side: its bays pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'VOLCANO VAULT', text: 'The volcano erupts after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
   'reactor-drop': { title: 'BOOST', hint: 'Charge your next release', cards: REACTOR_CARDS },
+  'lagoon-drop': { title: 'BOOSTERS', hint: 'Bless your next pearl', cards: LAGOON_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite; lit: Graphics; price: Text;

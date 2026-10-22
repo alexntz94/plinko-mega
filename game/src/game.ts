@@ -51,17 +51,21 @@ function teslaRing(theme: Theme, tex: (file: string) => Texture): TeslaRing | nu
   const art = theme.wheel.tesla;
   if (!art) return null;
   const c = art.cells;
-  return { orb: tex(art.orb), flash: tex(art.flash), cells: { plain: tex(c.plain), MINI: tex(c.MINI), MAJOR: tex(c.MAJOR), MEGA: tex(c.MEGA) },
+  return { motion: art.motion, orb: tex(art.orb), flash: tex(art.flash), cells: { plain: tex(c.plain), MINI: tex(c.MINI), MAJOR: tex(c.MAJOR), MEGA: tex(c.MEGA) },
     plate: art.plate ? { plate: tex(art.plate.plate), coil: tex(art.plate.coil), spec: art.plate } : null };
 }
 
 /** The power-ups' short names, for the status line and the ARSENAL key. */
 const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER', 'strike-left': 'STRIKE L', 'strike-centre': 'STRIKE C',
   'strike-right': 'STRIKE R', crates: 'CRATES', missile: 'MISSILE', night: 'NIGHT', tank: 'TANK',
-  chain: 'CHAIN', 'magnet-left': 'MAGNET L', 'magnet-right': 'MAGNET R', meltdown: 'MELTDOWN' };
+  chain: 'CHAIN', 'magnet-left': 'MAGNET L', 'magnet-right': 'MAGNET R', meltdown: 'MELTDOWN', pair: 'PEARL PAIR' };
+/** Lagoon Drop's names for the power-ups it sells (Sunburst Surge is heavy, Crosscurrent the magnet, Volcano Vault the
+ *  meltdown). */
+const LAGOON_NAMES: Record<string, string> = { heavy: 'SUNBURST', 'magnet-left': 'CURRENT L', 'magnet-right': 'CURRENT R', meltdown: 'VOLCANO' };
+const LAGOON_STAMPS: Record<string, string> = { 'magnet-left': 'CROSSCURRENT', 'magnet-right': 'CROSSCURRENT', meltdown: 'VOLCANO VAULT', pair: 'PEARL PAIR' };
 /** Every power-up the arsenal can sell. */
 const POWER_IDS = ['heavy', 'cluster', 'strike-left', 'strike-centre', 'strike-right', 'crates', 'missile', 'night', 'tank',
-  'chain', 'magnet-left', 'magnet-right', 'meltdown'];
+  'chain', 'magnet-left', 'magnet-right', 'meltdown', 'pair'];
 /** What a bought round is announced as. */
 const POWER_STAMPS: Record<string, string> = { cluster: 'CLUSTER SHELLS', 'strike-left': 'AIRSTRIKE x2', 'strike-centre': 'AIRSTRIKE x2',
   'strike-right': 'AIRSTRIKE x2', crates: 'CHAIN REACTION', missile: 'MISSILE STRIKE x3', night: 'NIGHT RAID', tank: 'TANK ASSAULT',
@@ -111,6 +115,7 @@ export class Game extends Container {
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
+  private readonly powerStamps: Record<string, string>;
   /** where the controls go on the board's console (the theme's frame picture) */
   private readonly consoleRects: NonNullable<Theme['console']>['rects'] | null;
   private readonly ticker: WinTicker;
@@ -175,9 +180,10 @@ export class Game extends Container {
       ok: tex('button_confirm.png'), no: tex('button_cancel.png') }, theme.landscapeExitFromPortrait,
     () => { this.closeExit(); this.go('menu'); }, () => this.closeExit());
     this.consoleRects = theme.console?.rects ?? null;
-    const reactor = theme.board.fx === 'reactor';
-    this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : 'HEAVY SHELLS';
+    const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon';
+    this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : 'HEAVY SHELLS';
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
     this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text],
@@ -192,7 +198,7 @@ export class Game extends Container {
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex),
-        words: theme.board.fx === 'reactor' ? ['SURGE!', 'OVERLOAD!'] : ['BOOM!', 'KABOOM!'] });
+        words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla;
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
@@ -245,8 +251,10 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (theme.board.fx === 'reactor') {
-      this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim });
+    if (reactor || lagoon) {
+      // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
+      this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
+        title: lagoon ? 'VOLCANO HEAT' : 'CORE PRESSURE' });
       this.table.addChild(this.meltdown);
     }
     if (theme.blast?.tank) {
@@ -698,7 +706,7 @@ export class Game extends Container {
     // a round bought with a power-up is announced once; then its MEGA BALLs are quiet (one of many)
     const heavy = round.power === 'heavy';
     if (heavy) { this.board.stamp(`${this.heavyName} x${count}`); sound('huge'); this.screen.flash(0.35); }
-    if (round.power && POWER_STAMPS[round.power]) { this.board.stamp(POWER_STAMPS[round.power]); sound('huge'); }
+    if (round.power && this.powerStamps[round.power]) { this.board.stamp(this.powerStamps[round.power]); sound('huge'); }
     // a power-up by slot: the boosted prizes and their targets (the night) for this round
     if (round.slotFactors?.length) this.board.setPower(round.power ?? null, round.slotFactors);
     const crateOf = new Map((round.crates ?? []).map(c => [c.ball, c.multiplier]));
@@ -747,7 +755,7 @@ export class Game extends Container {
           this.bar.setPlaying(true, this.holding, this.ballsLeft);
         },
       }, round.paths?.[i] ?? null, mega, { holes: before, smash, quiet: heavy, crate: crateOf.get(i) }));
-      // cluster shells: the two decoys fall with it and fizzle in their own slots
+      // cluster shells (a pearl pair): the two decoys (the one) fall with it and fizzle in their own slots
       for (const decoy of round.decoys?.[i] ?? []) {
         drops.push(this.board.dropBall(decoy, {}, null, 1, { decoy: true }));
       }

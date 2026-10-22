@@ -19,7 +19,8 @@ import java.util.List;
  * <li>{@code layout:<index>}: which of the board's gate layouts the round used (see {@code MegaBoard.layouts});</li>
  * <li>{@code power:<name>x<price>}: a power-up bought for the round (heavy, cluster) and what a ball cost with it (x
  *     the bet): the round's total bet is bet x balls x price, rounded up to the cent;</li>
- * <li>{@code decoys:<ball>@<slot>/<slot>,...}: for a cluster shell, the two landings each ball did not keep;</li>
+ * <li>{@code decoys:<ball>@<slot>/<slot>,...}: for a cluster shell, the two landings each ball did not keep (for a
+ * pair, the one);</li>
  * <li>{@code crate:<ball>x<multiplier>,...}: chain reaction: balls that hit an ammo crate and what it multiplied by;</li>
  * <li>{@code tank:<multiplier>,...}: tank assault: what each target paid, x the round's plain bet (bet x balls);</li>
  * <li>{@code meltdown:<multiplier>}: core meltdown: what it paid, x the round's plain bet;</li>
@@ -127,7 +128,7 @@ public final class RoundWin {
         }
 
         public Text decoys(int ball, List<Integer> slots) {
-            decoys.add(ball + "@" + slots.get(0) + "/" + slots.get(1));
+            decoys.add(ball + "@" + slots.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining("/")));
             return this;
         }
 
@@ -318,10 +319,10 @@ public final class RoundWin {
                         for (String entry : value.split(",", -1)) {
                             String[] ballAndSlots = entry.split("@", -1);
                             String[] slots2 = ballAndSlots.length == 2 ? ballAndSlots[1].split("/", -1) : new String[0];
-                            if (slots2.length != 2 || Integer.parseInt(ballAndSlots[0]) != decoys.size()) {
+                            if (slots2.length < 1 || slots2.length > 2 || Integer.parseInt(ballAndSlots[0]) != decoys.size()) {
                                 throw new IllegalArgumentException("decoys: " + entry);
                             }
-                            decoys.add(List.of(Integer.parseInt(slots2[0]), Integer.parseInt(slots2[1])));
+                            decoys.add(java.util.Arrays.stream(slots2).map(Integer::parseInt).toList());
                         }
                     }
                     case "megaball" -> {

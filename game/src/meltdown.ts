@@ -19,7 +19,7 @@ export class CoreMeltdown extends Container {
   private readonly gauge = new Container();
   private area = { cx: 400, cy: 300, size: 300 };
 
-  constructor(private readonly look: { gold: string; text: string; rim: string }) {
+  constructor(private readonly look: { gold: string; text: string; rim: string; title?: string }) {
     super();
     this.addChild(this.dim, this.gauge);
     this.visible = false;
@@ -66,7 +66,7 @@ export class CoreMeltdown extends Container {
       this.gauge.addChild(t);
       marks.push(t);
     }
-    const title = label('CORE PRESSURE', Math.round(r * 0.12), 'center', { fill: this.look.gold, stroke: { color: '#000000', width: 4 } });
+    const title = label(this.look.title ?? 'CORE PRESSURE', Math.round(r * 0.12), 'center', { fill: this.look.gold, stroke: { color: '#000000', width: 4 } });
     title.anchor.set(0.5, 0.5);
     title.y = r * 0.55;
     // the needle (a copper hub in the middle)

@@ -1,0 +1,326 @@
+{
+  "name": "Lagoon Drop",
+  "title": "Lagoon Drop · Plinko",
+  "background": "#0f5f63",
+  "accent": "#f5b642",
+  "text": "#fff8e6",
+  "playText": "#3a1e0c",
+  "retina": true,
+  "font": {
+    "family": "Lilita One",
+    "file": "lilita-one.woff2",
+    "weight": "400"
+  },
+  "board": {
+    "fx": "lagoon",
+    "peg": "item_peg.png",
+    "pegFlash": "#fff3b0",
+    "trail": "#18c9c2",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#f4dca6",
+        "text": "#3a1e0c"
+      },
+      {
+        "face": "#18c9c2",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#247849",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#f5b642",
+        "text": "#3a1e0c"
+      },
+      {
+        "face": "#ef735f",
+        "text": "#ffffff"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 0.7567,
+        "x": 384,
+        "y": 86.23,
+        "spacing": 41.326,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.7361,
+        "x": 384,
+        "y": 89.6,
+        "spacing": 37.896,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.72,
+        "x": 384,
+        "y": 92.32,
+        "spacing": 34.972,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.7069,
+        "x": 384,
+        "y": 94.56,
+        "spacing": 32.456,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.6962,
+        "x": 384,
+        "y": 96.43,
+        "spacing": 30.27,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.6872,
+        "x": 384,
+        "y": 98.02,
+        "spacing": 28.356,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.6795,
+        "x": 384,
+        "y": 99.38,
+        "spacing": 26.665,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.8
+  },
+  "wheel": {
+    "faces": [
+      "#18c9c2",
+      "#f4dca6",
+      "#247849",
+      "#f5b642",
+      "#ef735f",
+      "#0f5f63"
+    ],
+    "text": [
+      "#ffffff",
+      "#3a1e0c",
+      "#ffffff",
+      "#3a1e0c",
+      "#ffffff",
+      "#ffffff"
+    ],
+    "rim": "#f5b642",
+    "ink": "#3a1e0c",
+    "title": "#18c9c2",
+    "gold": {
+      "faces": [
+        "#f5b642",
+        "#fff3b0",
+        "#ef735f",
+        "#f4dca6"
+      ],
+      "text": [
+        "#3a1e0c",
+        "#3a1e0c",
+        "#ffffff",
+        "#3a1e0c"
+      ],
+      "rim": "#f5b642"
+    },
+    "style": "tide",
+    "tesla": {
+      "cells": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "orb": "vfx_ripple.png",
+      "flash": "vfx_splash.png",
+      "plate": "tide_plate.png",
+      "coil": "tide_centre.png",
+      "centre": [
+        0.499,
+        0.4971
+      ],
+      "radius": 0.4971,
+      "sockets": [
+        [
+          0.4985,
+          0.1382
+        ],
+        [
+          0.7627,
+          0.2734
+        ],
+        [
+          0.8423,
+          0.5679
+        ],
+        [
+          0.646,
+          0.7886
+        ],
+        [
+          0.3521,
+          0.7886
+        ],
+        [
+          0.1538,
+          0.5688
+        ],
+        [
+          0.2354,
+          0.2734
+        ]
+      ],
+      "socket": 0.1885,
+      "well": [
+        0.4976,
+        0.4751
+      ],
+      "wellRadius": 0.1323,
+      "coilRadius": 0.5,
+      "dome": 0.45
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#18c9c2",
+      "#ffffff",
+      "#f5b642"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#3a1e0c",
+    "panel": "#0f5f63"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        60,
+        404,
+        312,
+        486
+      ],
+      "centre": [
+        347,
+        398,
+        421,
+        472
+      ],
+      "right": [
+        456,
+        404,
+        708,
+        486
+      ]
+    }
+  },
+  "blast": {
+    "fire": "vfx_surge.png",
+    "dust": "vfx_ripple.png",
+    "smoke": "vfx_mist.png",
+    "kinds": {
+      "small": "vfx_splash.png",
+      "impact": "vfx_splash.png",
+      "heavy": "vfx_surge.png",
+      "napalm": "vfx_ripple.png",
+      "mushroom": "vfx_eruption.png",
+      "fireball": "vfx_surge.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.6
+      ],
+      "impact": [
+        0.5,
+        0.62
+      ],
+      "heavy": [
+        0.5,
+        0.62
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.82
+      ],
+      "fireball": [
+        0.5,
+        0.6
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_splash.png",
+      "heavy": "anim_surge.png",
+      "mushroom": "anim_eruption.png",
+      "arc": "anim_current.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    }
+  },
+  "music": "music.mp3"
+}

@@ -94,7 +94,7 @@ public class BonusAdminController {
                           @RequestParam(required = false) Boolean cratesOn, @RequestParam(required = false) Boolean missileOn,
                           @RequestParam(required = false) Boolean nightOn, @RequestParam(required = false) Boolean tankOn,
                           @RequestParam(required = false) Boolean chainOn, @RequestParam(required = false) Boolean magnetOn,
-                          @RequestParam(required = false) Boolean meltdownOn,
+                          @RequestParam(required = false) Boolean meltdownOn, @RequestParam(required = false) Boolean pairOn,
                           Principal principal, RedirectAttributes redirect) {
         try {
             // a form without the gates', wheels' or MEGA BALL's fields keeps the ones in force
@@ -112,7 +112,8 @@ public class BonusAdminController {
                             new BigDecimal(meterShare.trim())), gates, wheel, gold, megaBall,
                     arsenalShown == null ? current.arsenal() : new BonusSettings.Arsenal(Boolean.TRUE.equals(heavyOn), Boolean.TRUE.equals(clusterOn),
                             Boolean.TRUE.equals(airstrikeOn), Boolean.TRUE.equals(cratesOn), Boolean.TRUE.equals(missileOn), Boolean.TRUE.equals(nightOn),
-                            Boolean.TRUE.equals(tankOn), Boolean.TRUE.equals(chainOn), Boolean.TRUE.equals(magnetOn), Boolean.TRUE.equals(meltdownOn)));
+                            Boolean.TRUE.equals(tankOn), Boolean.TRUE.equals(chainOn), Boolean.TRUE.equals(magnetOn), Boolean.TRUE.equals(meltdownOn),
+                            Boolean.TRUE.equals(pairOn)));
             long id = changes.proposeBonus(next, principal.getName());
             redirect.addFlashAttribute("message", "Change #" + id + " proposed. It takes effect after another admin approves it.");
         } catch (NumberFormatException e) {

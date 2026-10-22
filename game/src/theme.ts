@@ -29,8 +29,9 @@ export interface BoardStyle {
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
 export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: string }
-/** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills) */
-export type ThemeFx = 'standard' | 'war' | 'reactor';
+/** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills); lagoon:
+ * a pearl (splashes of water, petals, a volcano for the top wins) */
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -67,6 +68,9 @@ export interface RevolverArt {
  * and stops on the prize. Its pictures: a cell per kind of prize, the plasma in the coil, the flash of a win.
  */
 export interface TeslaArt {
+  /** how it picks: a bolt from the coil hops round the cells (style "tesla"), or the tide fills the sockets one by one
+   *  round the ring until the last one overflows (style "tide") */
+  motion: 'bolt' | 'tide';
   cells: { plain: string; MINI: string; MAJOR: string; MEGA: string };
   orb: string; flash: string;
   /** optional pictures of the ring (its sockets measured, see TeslaPlate); else it is drawn in code */
@@ -174,13 +178,13 @@ function readRevolverArt(json: unknown): RevolverArt | null {
 
 function readTesla(json: unknown, style: unknown): TeslaArt | null {
   const t = (json ?? null) as Record<string, unknown> | null;
-  if (style !== 'tesla' || !t) return null;
+  if ((style !== 'tesla' && style !== 'tide') || !t) return null;
   const png = (v: unknown) => fileName(v, /\.png$/);
   const c = (t.cells ?? {}) as Record<string, unknown>;
   const parts = [png(c.plain), png(c.MINI), png(c.MAJOR), png(c.MEGA), png(t.orb), png(t.flash)];
   if (parts.some(p => !p)) return null;
   const [plain, MINI, MAJOR, MEGA, orb, flash] = parts as string[];
-  return { cells: { plain, MINI, MAJOR, MEGA }, orb, flash, plate: readTeslaPlate(t) };
+  return { motion: style === 'tide' ? 'tide' : 'bolt', cells: { plain, MINI, MAJOR, MEGA }, orb, flash, plate: readTeslaPlate(t) };
 }
 
 function readTeslaPlate(t: Record<string, unknown>): TeslaPlate | null {
@@ -262,7 +266,7 @@ function readBoard(json: unknown): BoardStyle {
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
-    fx: b.fx === 'war' || b.fx === 'reactor' ? b.fx : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' ? b.fx : 'standard',
   };
 }
 

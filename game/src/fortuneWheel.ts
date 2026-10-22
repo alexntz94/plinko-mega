@@ -2,7 +2,7 @@
 // the SPINS counter above it. A ball in a SPIN slot turns it (the server has already decided the segment); a full meter
 // turns it gold for a MEGA SPIN. A win ends in a golden burst with the amount counting up.
 
-import { BlurFilter, Container, FillGradient, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { AnimatedSprite, BlurFilter, Container, FillGradient, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { label, textQuality, typeface, fit } from './ui';
 import { Particles, calm, kindBlast, photoBlast, shake } from './effects';
@@ -27,6 +27,16 @@ export interface TeslaRing {
   /** the ring's own pictures and their measured geometry, or null: drawn in code */
   plate: { plate: Texture; coil: Texture; spec: TeslaPlate } | null;
 }
+
+/** A chest pick's textures (theme wheel.chests): see ChestArt. */
+export interface ChestPick {
+  closed: Texture; open: Texture; goldClosed: Texture; goldOpen: Texture; shelf: Texture; glow: Texture; burst: Texture;
+  plank: number; span: [number, number];
+  tokens: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
+}
+
+/** A chest on the shelf: the prize it holds (the segment's index), the slot it stands in now. */
+interface ChestView { chest: Sprite; glow: Sprite; token: Container; slot: number; segment: number }
 
 /** A cell of the tesla ring: where it sits round the coil (the first at the top), what lights up, its own scale. */
 interface TeslaNode { x: number; y: number; cell: Sprite; halo: Graphics; base: number;
@@ -73,6 +83,13 @@ export class FortuneWheel extends Container {
   private readonly bolt = new Graphics();
   private orb: Sprite | null = null;
   private idleSpark = 1;
+  /** The chest pick: its chests, where the slots are on the shelf, the line they stand on, a chest's size, the one open. */
+  private chests: ChestView[] = [];
+  private chestSlots: number[] = [];
+  private chestFeet = 0;
+  private chestSize = 0;
+  private chestShelf = 0;
+  private chestOpen: ChestView | null = null;
   private get words(): [string, string] {
     return this.art.words ?? ['BOOM!', 'KABOOM!'];
   }
@@ -86,6 +103,7 @@ export class FortuneWheel extends Container {
               private readonly format: (value: number) => string, private readonly panel = '#2a1747',
               private readonly art: { bezel: Texture | null; glass: Texture | null; explode?: boolean; photo?: PhotoRevolver | null;
                 tesla?: TeslaRing | null;
+                chests?: ChestPick | null;
                 /** what a win shouts: [a win, a jackpot] */
                 words?: [string, string] } = { bezel: null, glass: null }) {
     super();
@@ -107,6 +125,12 @@ export class FortuneWheel extends Container {
   }
 
   /** The wheel at (x, y) = the disc's centre, radius r; only the part above y + r * 0.12 shows. */
+  /** How wide a chest pick's shelf may be (what is on screen across). */
+  setRoom(width: number): void {
+    this.room = width;
+  }
+  private room = Infinity;
+
   place(x: number, y: number, r: number): void {
     this.radius = r;
     this.position.set(x, y);
@@ -125,7 +149,12 @@ export class FortuneWheel extends Container {
 
   /** A revolver from pictures or a tesla ring: shown whole over the board (not the top half of a wheel). */
   private get popsUp(): boolean {
-    return !!(this.art.photo || this.art.tesla);
+    return !!(this.art.photo || this.art.tesla || this.art.chests);
+  }
+
+  /** The chest pick, when the theme has one. */
+  private chestPick(segments = this.segments): ChestPick | null {
+    return this.art.chests && segments.length >= 2 ? this.art.chests : null;
   }
 
   /** The tesla ring, when the theme has one. */
@@ -143,6 +172,7 @@ export class FortuneWheel extends Container {
   /** Every frame: the marquee lights chase round the rim, and the glow breathes. */
   update(deltaMs: number): void {
     if (this.nodes.length) { this.teslaIdle(deltaMs); return; }
+    if (this.chests.length) { this.chestIdle(deltaMs); return; }
     if (calm || this.lights.children.length === 0) return;
     this.chase += Math.min(deltaMs, 50) / 1000 * this.chaseSpeed;
     const n = this.lights.children.length;
@@ -158,6 +188,7 @@ export class FortuneWheel extends Container {
   /** The segments of the normal wheel. */
   setWheel(segments: Segment[]): void {
     this.segments = segments;
+    if (this.art.chests) this.drawHeader();   // the bar sits over the chests, whose size depends on how many there are
     if (!this.gold) this.draw();
     this.cycleJackpots();
   }
@@ -194,7 +225,8 @@ export class FortuneWheel extends Container {
     fit(this.jackpotName, this.radius * 0.38);
     fit(this.spinsText, this.radius * 0.38);
     const ring = this.tesla(segments);
-    if (ring?.motion === 'tide') await this.tideTurn(segments, index);
+    if (this.chestPick(segments)) await this.chestTurn(segments, index);
+    else if (ring?.motion === 'tide') await this.tideTurn(segments, index);
     else if (ring) await this.teslaTurn(segments, index);
     else await this.turnDisc(segments, index);
     const segment = segments[index];
@@ -514,6 +546,182 @@ export class FortuneWheel extends Container {
     });
   }
 
+  /**
+   * The chest pick: a chest per prize on the shelf (wood; gold for a MEGA SPIN), its prize token hidden inside, and a
+   * glow behind each for when it is picked. The shelf's plank is the line the chests stand on.
+   */
+  private drawChests(r: number, segments: Segment[], art: ChestPick): void {
+    const w = Math.min(r * 6.2, this.room), h = w * art.shelf.height / art.shelf.width;
+    const shelf = new Sprite({ texture: art.shelf, anchor: { x: 0.5, y: art.plank } });
+    shelf.width = w;
+    shelf.height = h;
+    const feet = h * 0.1;
+    shelf.y = feet;
+    const x0 = (art.span[0] - 0.5) * w, x1 = (art.span[1] - 0.5) * w;
+    const slot = (x1 - x0) / segments.length;
+    const size = slot * 1.1;   // the chest picture (its body is 300 of its 320 pixels): the chests nearly touch
+    this.chestSlots = segments.map((_, i) => x0 + slot * (i + 0.5));
+    this.chestFeet = feet;
+    this.chestShelf = h;
+    this.chestSize = size;
+    this.disc.addChild(shelf);
+    const glows = new Container(), bodies = new Container(), tokens = new Container();
+    this.disc.addChild(glows, bodies, tokens);
+    this.chests = segments.map((segment, i) => {
+      const glow = new Sprite({ texture: art.glow, anchor: 0.5 });
+      glow.width = glow.height = size * 1.7;
+      glow.blendMode = 'add';
+      glow.alpha = 0;
+      const chest = new Sprite({ texture: this.gold ? art.goldClosed : art.closed, anchor: { x: 0.5, y: 310 / 320 } });
+      chest.width = chest.height = size;
+      const kind = segment.name === 'MINI' || segment.name === 'MAJOR' || segment.name === 'MEGA' ? segment.name : 'plain';
+      const token = new Container();
+      const coin = new Sprite({ texture: art.tokens[kind], anchor: 0.5 });
+      coin.width = coin.height = size * 0.66;
+      const words = new Text({ text: segmentText(segment), anchor: 0.5, resolution: textQuality(),
+        style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: Math.round(size * (segment.name ? 0.15 : 0.18)),
+          fill: segment.name ? '#ffd76a' : '#fff6dc', stroke: { color: '#000000', width: size * 0.04, join: 'round' } } });
+      if (words.width > size * 0.56) words.scale.set(size * 0.56 / words.width);
+      token.addChild(coin, words);
+      token.alpha = 0;
+      const x = this.chestSlots[i];
+      glow.position.set(x, feet - size * 0.4);
+      chest.position.set(x, feet);
+      token.position.set(x, feet - size * 0.45);
+      glows.addChild(glow);
+      bodies.addChild(chest);
+      tokens.addChild(token);
+      return { chest, glow, token, slot: i, segment: i };
+    });
+  }
+
+  /** How far above the shelf's plank the prize bar goes: over the tokens risen out of the chests. */
+  private chestHeader(): number {
+    const art = this.art.chests!, n = Math.max(this.segments.length, 2);
+    const w = Math.min(this.radius * 6.2, this.room);
+    const size = w * (art.span[1] - art.span[0]) / n * 1.1;
+    return size * 1.9 + this.radius * 0.34 - w * art.shelf.height / art.shelf.width * 0.1;
+  }
+
+  /** Where a chest at `slot` stands. */
+  private placeChest(view: ChestView, x: number): void {
+    view.chest.x = x;
+    view.glow.x = x;
+    view.token.x = x;
+  }
+
+  /**
+   * The chest pick: the chests open to show what each holds, the prizes drop in and the lids shut, the chests shuffle
+   * (a note a swap), the one holding the prize glows and rattles, bursts open, and its token rises out; the others then
+   * open faintly to show what they held. A tap hurries it.
+   */
+  private async chestTurn(segments: Segment[], index: number): Promise<void> {
+    const art = this.art.chests!;
+    const n = this.chests.length;
+    if (n !== segments.length) return;
+    const size = this.chestSize, feet = this.chestFeet;
+    const closed = this.gold ? art.goldClosed : art.closed, open = this.gold ? art.goldOpen : art.open;
+    const up = feet - size * 1.05, inside = feet - size * 0.45;
+    const tl = gsap.timeline();
+    this.spin = tl;
+    // the last pick shut, every token back inside
+    for (const view of this.chests) {
+      view.chest.texture = closed;
+      view.chest.alpha = 1;
+      view.glow.alpha = 0;
+      gsap.killTweensOf([view.token, view.token.scale]);
+      view.token.alpha = 0;
+      view.token.y = inside;
+      view.token.scale.set(1);
+    }
+    // what each holds: lids up, the tokens show above them, then sink back in and the lids shut
+    if (!calm && !this.hurried) {
+      tl.call(() => { for (const v of this.chests) v.chest.texture = open; this.onTick?.(); });
+      for (const v of this.chests) {
+        tl.to(v.token, { alpha: 1, y: up + size * 0.12, duration: 0.25, ease: 'back.out(2)' }, '<');
+      }
+      tl.to({}, { duration: 0.7 });
+      for (const v of this.chests) {
+        tl.to(v.token, { alpha: 0, y: inside, duration: 0.2, ease: 'power2.in' }, '<');
+      }
+      tl.call(() => { for (const v of this.chests) v.chest.texture = closed; this.onTick?.(); });
+      tl.to({}, { duration: 0.15 });
+    }
+    // the shuffle: pairs of chests swap places, one hopping over the other, quicker and quicker, then slower again
+    const swaps = calm ? 0 : this.hurried ? 3 : 6 + Math.floor(Math.random() * 3);
+    const where = this.chests.map(v => v.slot);   // the slot each chest ends up in, as the swaps are planned
+    for (let s = 0; s < swaps; s++) {
+      const a = Math.floor(Math.random() * n);
+      let b = Math.floor(Math.random() * (n - 1));
+      if (b >= a) b++;
+      const va = this.chests[where.indexOf(a)], vb = this.chests[where.indexOf(b)];
+      where[where.indexOf(a)] = -1;
+      where[where.indexOf(b)] = a;
+      where[where.indexOf(-1)] = b;
+      const xa = this.chestSlots[a], xb = this.chestSlots[b];
+      const pace = 0.2 + 0.1 * Math.abs(s - swaps / 2) / Math.max(1, swaps / 2);
+      const hopA = { x: xa }, hopB = { x: xb };
+      tl.call(() => this.onTick?.());
+      tl.to(hopA, { x: xb, duration: pace, ease: 'power1.inOut', onUpdate: () => this.placeChest(va, hopA.x) });
+      tl.to(hopB, { x: xa, duration: pace, ease: 'power1.inOut', onUpdate: () => this.placeChest(vb, hopB.x) }, '<');
+      // the one going over hops up and lands
+      tl.to(va.chest, { y: feet - size * 0.3, duration: pace / 2, ease: 'power2.out', yoyo: true, repeat: 1 }, '<');
+    }
+    this.chests.forEach((v, i) => { v.slot = where[i]; });
+    // the pick: the chest holding the prize glows and rattles
+    const pick = this.chests.find(v => v.segment === index)!;
+    tl.to(pick.glow, { alpha: 1, duration: 0.25 });
+    tl.to(pick.chest, { rotation: 0.06, duration: 0.05, yoyo: true, repeat: calm ? 1 : 7, ease: 'sine.inOut' }, '<');
+    tl.set(pick.chest, { rotation: 0 });
+    await new Promise<void>(resolve => tl.eventCallback('onComplete', () => resolve()));
+    // it bursts open: the lid flies up, light pours out, the token rises
+    pick.chest.texture = open;
+    this.chestOpen = pick;
+    this.onTick?.();
+    if (!calm) this.chestBurst(art, pick.chest.x, feet - size * 0.5, size * 1.8);
+    gsap.timeline()
+      .to(pick.token, { alpha: 1, y: up, duration: 0.35, ease: 'back.out(2)' }, 0)
+      .fromTo(pick.token.scale, { x: 0.5, y: 0.5 }, { x: 1.25, y: 1.25, duration: 0.35, ease: 'back.out(2)' }, 0);
+    gsap.to(pick.glow.scale, { x: pick.glow.scale.x * 1.2, y: pick.glow.scale.y * 1.2, duration: 0.6, yoyo: true, repeat: 1 });
+    // the others show what they held, faintly
+    for (const v of this.chests) {
+      if (v === pick) continue;
+      gsap.delayedCall(calm ? 0 : 0.5, () => {
+        v.chest.texture = open;
+        v.chest.alpha = 0.55;
+        gsap.to(v.token, { alpha: 0.6, y: up + size * 0.2, duration: 0.25 });
+        gsap.to(v.token.scale, { x: 0.8, y: 0.8, duration: 0.25 });
+      });
+    }
+  }
+
+  /** Light and sparkles bursting out of an opening chest (the theme's 4x4 sheet). */
+  private chestBurst(art: ChestPick, x: number, y: number, width: number): void {
+    const cols = 4, w = art.burst.frame.width / cols, h = art.burst.frame.height / cols;
+    const frames = Array.from({ length: 16 }, (_, i) => new Texture({ source: art.burst.source,
+      frame: new Rectangle(art.burst.frame.x + (i % cols) * w, art.burst.frame.y + Math.floor(i / cols) * h, w, h) }));
+    const burst = new AnimatedSprite({ textures: frames, anchor: { x: 0.5, y: 0.75 }, autoUpdate: true });
+    burst.scale.set(width / w);
+    burst.position.set(x, y + width * 0.2);
+    burst.blendMode = 'add';
+    burst.loop = false;
+    burst.animationSpeed = 16 / (0.9 * 60);
+    burst.onComplete = () => { if (!burst.destroyed) burst.destroy(); };
+    this.burst.addChild(burst);
+    burst.play();
+  }
+
+  /** Between picks a chest now and then rattles its lid. */
+  private chestIdle(deltaMs: number): void {
+    if (calm || this.spin?.isActive() || !this.visible) return;
+    this.idleSpark -= Math.min(deltaMs, 50) / 1000;
+    if (this.idleSpark > 0) return;
+    this.idleSpark = random(1.8, 3.5);
+    const view = this.chests[Math.floor(Math.random() * this.chests.length)];
+    if (view === this.chestOpen) return;
+    gsap.to(view.chest, { rotation: 0.05, duration: 0.06, yoyo: true, repeat: 3, ease: 'sine.inOut', onComplete: () => { view.chest.rotation = 0; } });
+  }
+
   /** Where a win bursts out of the wheel, on the screen. */
   winPoint(): { x: number; y: number } {
     return this.toGlobal({ x: 0, y: -this.radius * 0.45 });
@@ -544,16 +752,18 @@ export class FortuneWheel extends Container {
     flash.filters = [new BlurFilter({ strength: 24 })];
     flash.blendMode = 'add';
     const amount = goldText(this.format(0), big ? r * 0.42 : r * 0.34);
-    const ring = this.tesla();
-    amount.y = ring ? 0 : -r * 0.32;   // over the tesla ring's coil
+    const ring = this.tesla(), opened = this.chestPick() ? this.chestOpen : null;
+    // over the tesla ring's coil; over the chests
+    amount.y = ring ? 0 : opened ? this.chestFeet + this.chestShelf * 0.75 : -r * 0.32;   // (under the shelf)
     // a war theme blows up instead of the golden rays
     const explodes = this.art.explode && !calm;
     if (explodes) this.explode(big);
     const photo = this.photo();
-    const lit = ring ? this.nodes[this.lit % this.nodes.length] ?? null : null;
-    if ((photo || ring) && !calm) {
+    const lit = ring ? this.nodes[this.lit % this.nodes.length] ?? null
+      : opened ? { x: opened.chest.x, y: this.chestFeet - this.chestSize * 0.6 } : null;
+    if ((photo || ring || opened) && !calm) {
       // the shot: a muzzle flash out of the chamber under the hammer, or a plasma flash out of the cell that won
-      const flash = new Sprite({ texture: (photo ?? ring)!.flash, anchor: 0.5 });
+      const flash = new Sprite({ texture: photo?.flash ?? ring?.flash ?? this.art.chests!.glow, anchor: 0.5 });
       flash.blendMode = 'add';
       flash.position.set(lit?.x ?? 0, lit?.y ?? -r * 0.7);
       this.burst.addChild(flash);
@@ -596,13 +806,18 @@ export class FortuneWheel extends Container {
     // soft edges drawn in (rings of falling opacity), not blurred: cheap on a phone
     // the theme's explosion over the wheel: a mushroom cloud for a jackpot, a fireball for a win; else the photo blast
     // on a tesla ring a win blows on its cell (a jackpot still over the whole ring)
-    const cell = this.tesla() && !big ? this.nodes[this.lit % this.nodes.length] ?? null : null;
+    // (a chest's blast, even a jackpot's, comes out of the chest that opened)
+    const opened = this.chestPick() ? this.chestOpen : null;
+    const cell = this.tesla() && !big ? this.nodes[this.lit % this.nodes.length] ?? null
+      : opened ? { x: opened.chest.x, y: this.chestFeet - this.chestSize * 0.5 } : null;
     const bx = cell?.x ?? 0, by = cell?.y ?? y;
-    if (kindBlast(this.burst, big ? 'mushroom' : 'heavy', bx, big ? r * 0.55 : by, r * (big ? 3.2 : cell ? 1.8 : 2.4))
+    if (kindBlast(this.burst, big ? 'mushroom' : 'heavy', bx, big ? (opened ? this.chestFeet : r * 0.55) : by,
+        r * (big ? (opened ? 2.2 : 3.2) : cell ? 1.8 : 2.4))
         || photoBlast(this.burst, bx, by, r * (big ? 2.2 : 1.6))) {
       this.sparks.burst(bx, by, ['#ffd76a', '#ff8a1a', '#fff3b0'], big ? 40 : 22, big ? 850 : 600, 500);
       const word = goldText(big ? this.words[1] : this.words[0], r * (big ? 0.34 : 0.26));
-      word.position.set(cell ? 0 : bx, cell ? -r * 1.25 : by - r * 0.55);
+      if (opened) word.position.set(Math.max(-r * 1.6, Math.min(r * 1.6, bx)), this.chestFeet - this.chestSize * 1.7);   // over the chest
+      else word.position.set(cell ? 0 : bx, cell ? -r * 1.25 : by - r * 0.55);
       this.burst.addChild(word);
       gsap.timeline()
         .fromTo(word.scale, { x: 2.6, y: 2.6 }, { x: 1, y: 1, duration: 0.2, ease: 'power3.in' }, 0)
@@ -693,7 +908,7 @@ export class FortuneWheel extends Container {
     const texts: Container[] = [this.jackpotName, this.jackpotAmount, this.spinsText];
     this.header.removeChildren().forEach(child => { if (!texts.includes(child)) child.destroy(); });
     // the photo revolver's header goes over its hammer (the bonus meter steps aside while it shows)
-    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.28 : this.art.tesla ? -r * 1.5 : -r * 1.42;
+    const w = r * 2.3, h = r * 0.34, y = this.art.photo ? -r * 2.28 : this.art.tesla ? -r * 1.5 : this.art.chests ? -this.chestHeader() : -r * 1.42;
     const bar = new Graphics()
       .roundRect(-w / 2, y + 3, w, h, h * 0.3).fill({ color: '#000000', alpha: 0.5 })
       .roundRect(-w / 2, y, w, h, h * 0.3).fill(shade(mix(this.panel, '#ffffff', 0.08), mix(this.panel, '#000000', 0.6))).stroke({ color: this.style.title, width: 3 })
@@ -719,11 +934,14 @@ export class FortuneWheel extends Container {
     // with the theme's bezel the disc is smaller, so the whole wheel keeps its size
     this.nodes = [];
     this.orb = null;
+    this.chests = [];
+    this.chestOpen = null;
+    const chest = this.chestPick(segments);
     this.bolt.clear();
     const ring = this.tesla(segments);
-    const r = this.art.bezel && !ring ? this.radius * 0.84 : this.radius;
+    const r = this.art.bezel && !ring && !chest ? this.radius * 0.84 : this.radius;
     const look = this.gold ? this.style.gold : this.style;
-    this.glow.visible = !this.style.revolver && !ring;   // no coloured glow round a revolver
+    this.glow.visible = !this.style.revolver && !ring && !chest;   // no coloured glow round a revolver
     this.glow.clear().circle(0, 0, r * 1.32).fill({ color: this.gold ? '#ffd76a' : this.style.title, alpha: 0.18 });
     this.rainbow.clear();
     RAINBOW.forEach((colour, i) => {
@@ -735,8 +953,8 @@ export class FortuneWheel extends Container {
     // the bezel: the theme's drawing, or a plain ring
     const bulbRadius = this.art.bezel ? r * 178 / 160 : r * 1.165;
     const photo = this.photo(segments);
-    if (photo || ring) {
-      // the dial frame (with its hammer) is the bezel; the tesla ring has its own rim
+    if (photo || ring || chest) {
+      // the dial frame (with its hammer) is the bezel; the tesla ring has its own rim; the chests stand on a shelf
     } else if (this.art.bezel) {
       const bezel = new Sprite({ texture: this.art.bezel, anchor: 0.5 });
       bezel.width = bezel.height = r * 440 / 160;
@@ -754,17 +972,18 @@ export class FortuneWheel extends Container {
       bulb.position.set(Math.cos(a) * bulbRadius, Math.sin(a) * bulbRadius);
       this.lights.addChild(bulb);
     }
-    this.lights.visible = !photo && !ring;
-    if (photo) this.drawPhoto(r, segments, photo);
+    this.lights.visible = !photo && !ring && !chest;
+    if (chest) this.drawChests(r, segments, chest);
+    else if (photo) this.drawPhoto(r, segments, photo);
     else if (ring) this.drawTesla(r, segments, ring);
     else if (this.style.revolver) this.drawRevolver(r, step, segments);
     else this.drawWedges(r, step, segments, look);
-    if (this.art.glass && !photo && !ring) {
+    if (this.art.glass && !photo && !ring && !chest) {
       const glass = new Sprite({ texture: this.art.glass, anchor: 0.5 });
       glass.width = glass.height = r * 440 / 160;
       this.cover.addChildAt(glass, 0);
     }
-    if (this.style.revolver || photo || ring) {
+    if (this.style.revolver || photo || ring || chest) {
       // the cylinder's own centre: the ejector star (drawn with it)
     } else if (this.hub) {
       const hub = new Sprite({ texture: this.hub, anchor: 0.5 });
@@ -773,8 +992,8 @@ export class FortuneWheel extends Container {
     } else {
       this.disc.addChild(new Graphics().circle(0, 0, r * 0.28).fill(look.rim).stroke({ color: this.style.ink, width: 4 }));
     }
-    if (photo || ring) {
-      // the hammer on the dial points at the chamber that wins; on the tesla ring, the bolt
+    if (photo || ring || chest) {
+      // the hammer on the dial points at the chamber that wins; on the tesla ring, the bolt; the chest that opens
     } else if (this.finger) {
       const finger = new Sprite({ texture: this.finger, anchor: { x: 0.5, y: 0.9 } });
       finger.scale.set(r * (this.art.bezel ? 0.42 : 0.3) / Math.max(finger.texture.height, 1));

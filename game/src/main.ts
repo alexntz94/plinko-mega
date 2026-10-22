@@ -27,6 +27,11 @@ const IMAGES = [
 
 const SLOT_ART = [0, 1, 2, 3, 4].map(tier => `item_slot_${tier}.png`);
 
+/** A chest pick's pictures. */
+function chestFiles(c: NonNullable<Theme['wheel']['chests']>): string[] {
+  return [c.closed, c.open, c.goldClosed, c.goldOpen, c.shelf, c.glow, c.burst, ...Object.values(c.tokens)];
+}
+
 /** The images only some themes have: pegs, drawn slots, a neon logo's layers, the wheel's hub and pointer, the gate. */
 function themeExtras(theme: Theme): string[] {
   return [
@@ -39,6 +44,7 @@ function themeExtras(theme: Theme): string[] {
       ...Object.values(theme.wheel.revolverArt.cartridges)] : []),
     ...(theme.wheel.tesla ? [theme.wheel.tesla.orb, theme.wheel.tesla.flash, ...Object.values(theme.wheel.tesla.cells),
       ...(theme.wheel.tesla.plate ? [theme.wheel.tesla.plate.plate, theme.wheel.tesla.plate.coil] : [])] : []),
+    ...(theme.wheel.chests ? chestFiles(theme.wheel.chests) : []),
     ...(theme.wheel.spinMark ? [theme.wheel.spinMark] : []),
     ...(theme.blast ? [theme.blast.fire, theme.blast.dust, theme.blast.smoke, ...Object.values(theme.blast.kinds),
       ...Object.values(theme.blast.sheets), ...(theme.blast.tank ? [theme.blast.tank.body, theme.blast.tank.target] : [])] : []),

@@ -135,7 +135,7 @@
       ],
       "rim": "#f5b642"
     },
-    "style": "tide",
+    "style": "chests",
     "tesla": {
       "cells": {
         "plain": "token_plain.png",
@@ -190,6 +190,26 @@
       "wellRadius": 0.1323,
       "coilRadius": 0.5,
       "dome": 0.45
+    },
+    "chests": {
+      "closed": "chest_closed.png",
+      "open": "chest_open.png",
+      "goldClosed": "chest_gold_closed.png",
+      "goldOpen": "chest_gold_open.png",
+      "shelf": "chest_shelf.png",
+      "glow": "chest_glow.png",
+      "burst": "anim_chest.png",
+      "plank": 0.505,
+      "span": [
+        0.163,
+        0.84
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      }
     }
   },
   "ambient": {

@@ -49,6 +49,8 @@ export interface WheelStyle extends WheelLook { ink: string; title: string; gold
   revolverArt: RevolverArt | null;
   /** a tesla ring instead of a wheel (see TeslaArt): nothing turns, a bolt hops round the prizes; null: not one */
   tesla: TeslaArt | null;
+  /** a treasure-chest pick instead of a wheel (style "chests", see ChestArt); null: not one */
+  chests: ChestArt | null;
   /** a small picture marking the SPIN slots, or null */
   spinMark: string | null }
 /**
@@ -86,6 +88,17 @@ export interface TeslaPlate {
   plate: string; coil: string;
   centre: [number, number]; radius: number; sockets: [number, number][]; socket: number;
   well: [number, number]; wellRadius: number; coilRadius: number; dome: number;
+}
+/**
+ * The chest pick: a chest per prize on a shelf; they shuffle, one opens and its prize token rises out. The chests (wood,
+ * and gold for a MEGA SPIN; each standing on its picture's bottom edge, the same width), the shelf with where its
+ * plank is (a share of its height) and the stretch of it clear of ornaments (shares of its width), a glow behind the
+ * chest that opens, its opening burst (a 4x4 sheet), and a token per kind of prize.
+ */
+export interface ChestArt {
+  closed: string; open: string; goldClosed: string; goldOpen: string; shelf: string; glow: string; burst: string;
+  plank: number; span: [number, number];
+  tokens: { plain: string; MINI: string; MAJOR: string; MEGA: string };
 }
 export interface Theme {
   id: string;
@@ -177,6 +190,19 @@ function readRevolverArt(json: unknown): RevolverArt | null {
   const [cylinder, dial, flash, plain, MINI, MAJOR, MEGA] = parts as string[];
   return { cylinder, dial, flash, cartridges: { plain, MINI, MAJOR, MEGA }, centre, radius, chambers: chambers as [number, number][],
     chamberRadius, opening, openingRadius };
+}
+
+function readChests(json: unknown, style: unknown): ChestArt | null {
+  const c = (json ?? null) as Record<string, unknown> | null;
+  if (style !== 'chests' || !c) return null;
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const t = (c.tokens ?? {}) as Record<string, unknown>;
+  const parts = [c.closed, c.open, c.goldClosed, c.goldOpen, c.shelf, c.glow, c.burst, t.plain, t.MINI, t.MAJOR, t.MEGA].map(png);
+  const share = (v: unknown) => (typeof v === 'number' && v > 0 && v < 1 ? v : null);
+  const plank = share(c.plank), span = Array.isArray(c.span) ? c.span.map(share) : [];
+  if (parts.some(p => !p) || !plank || span.length !== 2 || !span[0] || !span[1] || span[0] >= span[1]) return null;
+  const [closed, open, goldClosed, goldOpen, shelf, glow, burst, plain, MINI, MAJOR, MEGA] = parts as string[];
+  return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA } };
 }
 
 function readTesla(json: unknown, style: unknown): TeslaArt | null {
@@ -300,6 +326,7 @@ function readWheel(json: unknown, board: BoardStyle, accent: string, text: strin
     revolver: w.style === 'revolver',
     revolverArt: readRevolverArt(w.revolverArt),
     tesla: readTesla(w.tesla, w.style),
+    chests: readChests(w.chests, w.style),
     spinMark: fileName(w.spinMark, /\.png$/),
   };
 }

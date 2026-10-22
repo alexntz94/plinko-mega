@@ -5,7 +5,7 @@ import { HistoryPanel } from './historyPanel';
 import { ResponsiblePlay } from './responsible';
 import { Board, smashedPegs, type Landing, type PegHit } from './board';
 import { BigWin, BlastShower, CoinShower, winLevel, type Shower } from './effects';
-import { FortuneWheel, type PhotoRevolver, type TeslaRing } from './fortuneWheel';
+import { FortuneWheel, type ChestPick, type PhotoRevolver, type TeslaRing } from './fortuneWheel';
 import { MegaControls } from './megaControls';
 import { ConsoleControls } from './consoleControls';
 import { ArsenalPanel, ARSENALS } from './arsenal';
@@ -55,6 +55,16 @@ function teslaRing(theme: Theme, tex: (file: string) => Texture): TeslaRing | nu
     plate: art.plate ? { plate: tex(art.plate.plate), coil: tex(art.plate.coil), spec: art.plate } : null };
 }
 
+/** The theme's chest pick's textures, or null. */
+function chestPick(theme: Theme, tex: (file: string) => Texture): ChestPick | null {
+  const art = theme.wheel.chests;
+  if (!art) return null;
+  const t = art.tokens;
+  return { closed: tex(art.closed), open: tex(art.open), goldClosed: tex(art.goldClosed), goldOpen: tex(art.goldOpen),
+    shelf: tex(art.shelf), glow: tex(art.glow), burst: tex(art.burst), plank: art.plank, span: art.span,
+    tokens: { plain: tex(t.plain), MINI: tex(t.MINI), MAJOR: tex(t.MAJOR), MEGA: tex(t.MEGA) } };
+}
+
 /** The power-ups' short names, for the status line and the ARSENAL key. */
 const POWER_NAMES: Record<string, string> = { heavy: 'HEAVY', cluster: 'CLUSTER', 'strike-left': 'STRIKE L', 'strike-centre': 'STRIKE C',
   'strike-right': 'STRIKE R', crates: 'CRATES', missile: 'MISSILE', night: 'NIGHT', tank: 'TANK',
@@ -102,7 +112,7 @@ export class Game extends Container {
   private readonly shower: Shower;
   /** The fortune wheel under the board, and the control bar. */
   private readonly wheel: FortuneWheel;
-  /** the theme's wheel is a tesla ring (shorter than a revolver, so it is drawn bigger) */
+  /** the theme's wheel is a tesla ring or a chest pick (shorter than a revolver, so it is drawn bigger) */
   private readonly ring: boolean;
   private readonly bar: MegaControls | ConsoleControls;
   /** the power-up armed for the next round (heavy, cluster), and the ARSENAL panel it is picked on */
@@ -197,9 +207,9 @@ export class Game extends Container {
     this.wheel = new FortuneWheel(theme.wheel, theme.wheel.hub ? tex(theme.wheel.hub) : null, theme.wheel.pointer ? tex(theme.wheel.pointer) : null,
       value => this.money(value), theme.ui.panel,
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
-        explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex),
+        explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex),
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : ['BOOM!', 'KABOOM!'] });
-    this.ring = !!theme.wheel.tesla;
+    this.ring = !!theme.wheel.tesla || !!theme.wheel.chests;
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
       // coins out of the wheel on every win, a storm for a jackpot or a MEGA SPIN
@@ -297,6 +307,8 @@ export class Game extends Container {
     // the board with the wheel right under it, as one column; portrait: the bar below them, landscape: beside them
     const visibleH = view.stageH - 2 * view.offsetY;
     const boardX = this.bar instanceof ConsoleControls ? view.stageW / 2 : view.stageW * 0.32;
+    // a chest pick's shelf may take most of what is on screen across
+    this.wheel.setRoom(Math.min(view.stageW - 2 * view.offsetX - 24, view.landscape ? visibleH * 1.25 : Infinity));
     if (view.landscape) {
       // over the middle of the board, clear of the console (a photo revolver's dial is about 3.5 radii tall)
       // a tesla ring is only about 2.7 radii tall, so it can be bigger

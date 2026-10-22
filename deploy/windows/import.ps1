@@ -32,7 +32,8 @@ foreach ($file in Get-ChildItem 'migration\secrets' -File) {
 }
 
 Write-Host 'Loading the database...'
-docker volume rm plinko-mega_db-data *> $null
+# through cmd: on a new machine there is no volume yet, and Windows PowerShell stops on docker's "no such volume"
+cmd /c 'docker volume rm plinko-mega_db-data >nul 2>&1'
 docker volume create plinko-mega_db-data | Out-Null
 docker run --rm -v plinko-mega_db-data:/var/lib/mysql -v "${root}\migration:/m:ro" alpine:3.20 `
     sh -c 'tar -xzpf /m/db-data.tar.gz -C /var/lib/mysql && chown -R 999:999 /var/lib/mysql'

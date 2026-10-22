@@ -17,7 +17,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml ps
 Write-Host ''
 Write-Host 'Waiting for the tunnel...'
 for ($i = 0; $i -lt 20; $i++) {
-    $log = docker compose -f docker-compose.yml -f docker-compose.demo.yml logs cloudflared 2>&1 | Out-String
+    $log = cmd /c 'docker compose -f docker-compose.yml -f docker-compose.demo.yml logs cloudflared 2>&1' | Out-String   # through cmd: Windows PowerShell stops on anything docker writes to stderr
     if ($log -match 'Registered tunnel connection') { break }
     Start-Sleep -Seconds 3
 }

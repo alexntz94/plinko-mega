@@ -3,13 +3,45 @@
 // still falling, and STOP during autoplay), the balls, the risk and the small keys (autoplay, turbo, bump) on the right;
 // credits and the round's win on a plate of their own. On a tall screen the console's parts sit under the board.
 
-import { Container, Rectangle, Sprite, Text, type Texture } from 'pixi.js';
+import { Container, NineSliceSprite, Rectangle, Sprite, Text, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { label, fit } from './ui';
 import type { MegaActions } from './megaControls';
 
-export interface ConsoleArt { drop: Texture; panel: Texture; key: Texture; back?: Texture | null }
+/** panelInner: the plain area inside the readout panel's frame (shares of the picture), when its frame is thick */
+export interface ConsoleArt { drop: Texture; panel: Texture; key: Texture; back?: Texture | null; panelInner?: [number, number, number, number] | null }
+
+export type PanelArea = { x0: number; x1: number; y0: number; y1: number };
+
+/**
+ * A panel picture and how to size it to w by h: stretched whole, or, with its frame's inner area known, only its middle
+ * stretched (the frame's ends scaled with the height, so they keep their shape). size() gives where the plain inner
+ * area is then, centred on the panel.
+ */
+export function framedPanel(texture: Texture, inner: [number, number, number, number] | null | undefined): {
+  art: Sprite | NineSliceSprite; size: (w: number, h: number) => PanelArea } {
+  if (!inner) {
+    const art = new Sprite({ texture, anchor: 0.5 });
+    return { art, size: (w, h) => {
+      art.width = w;
+      art.height = h;
+      return { x0: -w / 2, x1: w / 2, y0: -h / 2, y1: h / 2 };
+    } };
+  }
+  const [ix0, iy0, ix1, iy1] = inner;
+  const left = texture.width * ix0, right = texture.width * (1 - ix1);
+  const art = new NineSliceSprite({ texture, leftWidth: left, rightWidth: right, topHeight: 0, bottomHeight: 0, anchor: 0.5 });
+  return { art, size: (w, h) => {
+    // drawn at the picture's own height and scaled: the ends keep their shape (narrower, if the panel is too short)
+    const s = Math.min(h / texture.height, w / (left + right + 1));
+    art.scale.set(1);
+    art.width = w / s;
+    art.height = h / s;
+    art.scale.set(s);
+    return { x0: -w / 2 + left * s, x1: w / 2 - right * s, y0: -h / 2 + h * iy0, y1: -h / 2 + h * iy1 };
+  } };
+}
 export interface ConsoleLook { gold: string; text: string; ink: string }
 export interface ConsoleActions extends MegaActions {
   /** a quick bet: this bet per ball */
@@ -68,13 +100,17 @@ class Key extends Container {
 
 /** A panel with a title and a value on it (not pressable). */
 class Readout extends Container {
-  readonly art: Sprite;
+  readonly art: Sprite | NineSliceSprite;
   readonly title: Text;
   readonly value: Text;
+  private readonly sizer: (w: number, h: number) => PanelArea;
+  private readonly framed: boolean;
+  private room = 100;
 
-  constructor(texture: Texture, title: string, look: ConsoleLook) {
+  constructor(texture: Texture, title: string, look: ConsoleLook, inner?: [number, number, number, number] | null) {
     super();
-    this.art = new Sprite({ texture, anchor: 0.5 });
+    ({ art: this.art, size: this.sizer } = framedPanel(texture, inner));
+    this.framed = !!inner;
     this.title = label(title, 12, 'center', { fill: look.text });
     this.title.anchor.set(0.5, 0.5);
     this.value = label('', 24, 'center', { fill: look.gold, stroke: { color: '#000000', width: 3, join: 'round' } });
@@ -83,18 +119,30 @@ class Readout extends Container {
   }
 
   size(w: number, h: number): void {
-    this.art.width = w;
-    this.art.height = h;
-    this.title.style.fontSize = Math.round(h * 0.2);
-    this.title.y = -h * 0.2;
-    this.value.style.fontSize = Math.round(h * 0.36);
-    this.value.y = h * 0.14;
+    const area = this.sizer(w, h);
+    if (this.framed) {
+      // a thick frame: the title and the value both inside its plain middle
+      const { x0, x1, y0, y1 } = area, ih = y1 - y0;
+      this.room = (x1 - x0) * 0.92;
+      this.title.style.fontSize = Math.round(ih * 0.34);
+      this.title.y = y0 + ih * 0.26;
+      this.value.style.fontSize = Math.round(ih * 0.56);
+      this.value.y = y0 + ih * 0.66;
+      this.title.x = this.value.x = (x0 + x1) / 2;
+      fit(this.title, this.room);
+    } else {
+      this.room = w * 0.82;
+      this.title.style.fontSize = Math.round(h * 0.2);
+      this.title.y = -h * 0.2;
+      this.value.style.fontSize = Math.round(h * 0.36);
+      this.value.y = h * 0.14;
+    }
     this.set(this.value.text);
   }
 
   set(text: string): void {
     this.value.text = text;
-    fit(this.value, this.art.width * 0.82);
+    fit(this.value, this.room);
   }
 }
 
@@ -134,12 +182,12 @@ export class ConsoleControls extends Container {
     this.drop = new Key(art.drop, 'DROP', 44, '#f3ecd6', () => actions.play());
     this.betMinus = key('−', () => actions.bet(false));
     this.betPlus = key('+', () => actions.bet(true));
-    this.bet = new Readout(art.panel, 'BET PER BALL', look);
+    this.bet = new Readout(art.panel, 'BET PER BALL', look, art.panelInner);
     this.quickValues = quickBets;
     for (const value of quickBets) this.quick.push(key(format(value).replace(/\.00$/, ''), () => actions.pickBet(value)));
     this.ballsMinus = key('−', () => actions.balls(-1));
     this.ballsPlus = key('+', () => actions.balls(1));
-    this.balls = new Readout(art.panel, 'BALLS', look);
+    this.balls = new Readout(art.panel, 'BALLS', look, art.panelInner);
     this.risks = ['LOW', 'MED', 'HIGH'].map((name, i) => key(name, () => actions.risk(i - this.riskIndex)));
     this.auto = key('AUTO', () => actions.auto());
     this.turboKey = key('TURBO', () => { this.turbo = !this.turbo; this.turboKey.setLit(this.turbo, look); actions.turbo(this.turbo); });
@@ -150,9 +198,9 @@ export class ConsoleControls extends Container {
     // wide screens: ROWS ◀ 8 ▶ under the bet
     this.rowsDown = key('◀', () => actions.rows(-1));
     this.rowsUp = key('▶', () => actions.rows(1));
-    this.rowsShown = new Readout(art.panel, 'ROWS', look);
-    this.credits = new Readout(art.panel, 'CREDITS', look);
-    this.win = new Readout(art.panel, 'WIN', look);
+    this.rowsShown = new Readout(art.panel, 'ROWS', look, art.panelInner);
+    this.credits = new Readout(art.panel, 'CREDITS', look, art.panelInner);
+    this.win = new Readout(art.panel, 'WIN', look, art.panelInner);
     this.addChild(this.credits, this.win, this.betMinus, this.bet, this.betPlus, ...this.quick, this.ballsMinus, this.balls, this.ballsPlus,
       ...this.risks, this.auto, this.turboKey, this.rowsKey, this.bumpKey, this.arsenalKey, this.rowsDown, this.rowsShown, this.rowsUp, this.drop);
     this.bumpKey.setEnabled(false);

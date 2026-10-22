@@ -102,7 +102,10 @@ export interface Theme {
   /** a console under the board for the controls (its art: the DROP plate, a readout panel, a key), or null */
   console: { drop: string; panel: string; key: string; back: string | null;
     /** where the controls go on the board's console, in the frame picture's 1x pixels: [x0, y0, x1, y1] each */
-    rects: { left: Rect4; centre: Rect4; right: Rect4 } } | null;
+    rects: { left: Rect4; centre: Rect4; right: Rect4 };
+    /** the plain area inside the readout panel's frame, as shares of the picture [x0, y0, x1, y1] (text stays in it
+     *  and only the middle stretches), or null: a thin frame, the picture stretched whole */
+    inner: Rect4 | null } | null;
   /** a photo explosion (fireball, ground dust ring, smoke plume) for every blast, or null: drawn in code */
   blast: { fire: string; dust: string; smoke: string; kinds: Partial<Record<BlastName, string>>;
     /** animated explosions: per kind, a sprite sheet (a square grid of frames, `grids` per kind, 4 when not given) */
@@ -249,7 +252,10 @@ function readConsole(json: unknown): Theme['console'] {
   const rect = (v: unknown, fallback: Rect4): Rect4 =>
     Array.isArray(v) && v.length === 4 && v.every(n => typeof n === 'number' && Number.isFinite(n)) ? v as Rect4 : fallback;
   const rects = { left: rect(r.left, CONSOLE_RECTS.left), centre: rect(r.centre, CONSOLE_RECTS.centre), right: rect(r.right, CONSOLE_RECTS.right) };
-  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects } : null;
+  const i = c.inner;
+  const inner = Array.isArray(i) && i.length === 4 && i.every(n => typeof n === 'number' && n >= 0 && n <= 1) && i[0] < i[2] && i[1] < i[3]
+    ? i as Rect4 : null;
+  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects, inner } : null;
 }
 
 function readBoard(json: unknown): BoardStyle {

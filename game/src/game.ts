@@ -236,7 +236,7 @@ export class Game extends Container {
     };
     this.bar = theme.console
       ? new ConsoleControls({ drop: tex(theme.console.drop), panel: tex(theme.console.panel), key: tex(theme.console.key),
-        back: theme.console.back ? tex(theme.console.back) : null },
+        back: theme.console.back ? tex(theme.console.back) : null, panelInner: theme.console.inner },
         { gold: theme.wheel.title, text: theme.text, ink: theme.wheel.ink }, actions, quickBets(this.ladder, defaultBet), value => this.money(value))
       : new MegaControls({ gold: theme.wheel.title, ink: theme.wheel.ink, panel: theme.ui.panel, text: theme.text }, actions);
     this.ticker = new WinTicker(theme.wheel.title);
@@ -247,7 +247,8 @@ export class Game extends Container {
     if (theme.board.fx === 'reactor' && theme.blast) this.ventSteam(tex(theme.blast.smoke));
     if (theme.console && config.mega?.powers && Object.keys(config.mega.powers).length) {
       const set = ARSENALS[theme.id] ?? ARSENALS['bombs-away'];
-      this.arsenal = new ArsenalPanel(tex(theme.console.panel), { gold: theme.wheel.title, text: theme.text }, id => this.arm(id), set);
+      this.arsenal = new ArsenalPanel(tex(theme.console.panel), { gold: theme.wheel.title, text: theme.text }, id => this.arm(id), set,
+        theme.console.inner);
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }

@@ -68,7 +68,7 @@ const NEON_CARDS: ArsenalCard[] = [
   { id: 'pair', name: 'TWIN POP', text: 'Each ball splits in 2 - the better landing pays', ready: true },
   { id: 'magnet', name: 'SIDE MAGNET', text: '70% of balls pulled to your side: its bays pay x1.5', ready: true,
     zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
-  { id: 'meltdown', name: 'LUCKY DRAW', text: 'Mochi turns the gacha after the drop: x0.5 to x20', ready: true },
+  { id: 'meltdown', name: 'LUCKY DRAW', text: 'The gacha turns after the drop: x0.5 to x20', ready: true },
 ];
 
 /** Each theme's power-ups and what the panel (and its console key) is called. */

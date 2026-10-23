@@ -914,9 +914,10 @@ export class FortuneWheel extends Container {
     if (holder !== pick) {
       [pick.token, holder.token] = [holder.token, pick.token];
       [pick.segment, holder.segment] = [holder.segment, pick.segment];
-      const px = pick.token.x;
-      pick.token.x = holder.token.x;
-      holder.token.x = px;
+      // (on a phone the two doors may be on different walls: the tokens change rows too)
+      const px = pick.token.x, py = pick.token.y;
+      pick.token.position.set(holder.token.x, holder.token.y);
+      holder.token.position.set(px, py);
     }
     // the picked door glows and shakes, then grinds down into the floor
     const archH = pick.archH ?? this.chestSize * 1.6;

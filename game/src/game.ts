@@ -1,4 +1,4 @@
-import { Container, Rectangle, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Rectangle, Sprite, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { errorText, formatAmount, playRound, resumeSession, type ApiError, type HistoryEntry, type MeterInfo, type Round, type Session } from './api';
 import { HistoryPanel } from './historyPanel';
@@ -126,6 +126,8 @@ type Page = 'menu' | 'game' | 'result';
 export class Game extends Container {
   private readonly menu: Menu;
   private readonly table = new Container();
+  /** A phone's pick bonus (chests, doors, the gacha): the screen behind it darkened, so it stands on its own. */
+  private readonly pickShade = new Graphics();
   private readonly board: Board;
   private readonly exitDialog: ExitDialog;
   private readonly result: ResultScreen;
@@ -371,7 +373,7 @@ export class Game extends Container {
     }
     // a chest pick's two shelves stand in the screen's upper middle
     else if (this.bar instanceof ConsoleControls) this.wheel.place(view.stageW / 2,
-      view.offsetY + (this.gacha ? visibleH * 0.42 : this.tombRaid ? visibleH * 0.42 : this.chestPick ? visibleH * 0.3 : 150 + visibleH * 0.19),
+      view.offsetY + (this.gacha ? visibleH * 0.42 : this.tombRaid ? visibleH * 0.5 : this.chestPick ? visibleH * 0.3 : 150 + visibleH * 0.19),
       this.gacha ? Math.min(140, visibleH * 0.2, (view.stageW - 2 * view.offsetX) * 0.42) : Math.min(108, view.stageW * 0.25));
     else this.wheel.place(view.stageW / 2, view.stageH * 0.36, Math.min(175, visibleH * 0.19));
     if (this.bar instanceof ConsoleControls) {
@@ -1078,7 +1080,13 @@ export class Game extends Container {
     // a chest pick on a phone stands over the console too: the console steps back under it
     const over = (this.chestPick || this.gacha) && !!this.view && !this.view.landscape;
     this.table.setChildIndex(this.wheel, this.table.getChildIndex(over ? this.bar : this.board) + (over ? 0 : 1));
-    if (over) gsap.to(this.bar, { alpha: 0.25, duration: 0.25 });
+    if (over && this.view) {
+      // the board and the console fade right out under a dark shade, and the bonus stands over it alone
+      this.pickShade.clear().rect(0, 0, this.view.stageW, this.view.stageH).fill('#000000');
+      this.table.addChildAt(this.pickShade, this.table.getChildIndex(this.wheel));
+      gsap.fromTo(this.pickShade, { alpha: 0 }, { alpha: 0.72, duration: 0.25 });
+      gsap.to([this.bar, this.board], { alpha: 0, duration: 0.25 });
+    }
     gsap.fromTo(this.wheel, { alpha: 0 }, { alpha: 1, duration: 0.2 });
     await new Promise<void>(resolve => gsap.fromTo(this.wheel.scale, { x: 0.4, y: 0.4 }, { x: 1, y: 1, duration: 0.35, ease: 'back.out(1.8)', onComplete: resolve }));
   }
@@ -1086,6 +1094,7 @@ export class Game extends Container {
   /** ...and goes away again when they are done. */
   private async hideWheel(): Promise<void> {
     gsap.to([this.board, this.meter, this.ticker, this.bar], { alpha: 1, duration: 0.25 });
+    if (this.pickShade.parent) gsap.to(this.pickShade, { alpha: 0, duration: 0.25, onComplete: () => { this.pickShade.removeFromParent(); } });
     this.character?.setAway(false);
     await new Promise<void>(resolve => gsap.to(this.wheel, { alpha: 0, duration: 0.25, onComplete: resolve }));
     this.wheel.visible = false;

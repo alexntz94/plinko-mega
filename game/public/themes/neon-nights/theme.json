@@ -308,29 +308,5 @@
       ]
     }
   },
-  "character": {
-    "body": "cat_body.png",
-    "head": "cat_head.png",
-    "arm": "cat_paw.png",
-    "eyes": "cat_eyes.png",
-    "cheer": "cat_cheer.png",
-    "point": "cat_point.png",
-    "cheerScale": 1.0,
-    "neck": [
-      0.507,
-      0.456
-    ],
-    "shoulder": [
-      0.83,
-      0.573
-    ],
-    "feet": [
-      0.5,
-      0.932
-    ],
-    "swing": 0.22,
-    "swingSpeed": 4.5,
-    "height": 0.6
-  },
   "music": "music.mp3"
 }

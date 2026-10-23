@@ -1,7 +1,7 @@
 {
   "name": "Shurda Plinko",
   "title": "Shurda Plinko",
-  "background": "#1f8fc2",
+  "background": "#e8b77a",
   "accent": "#f0388c",
   "text": "#fff6e0",
   "playText": "#fff6e0",
@@ -43,63 +43,64 @@
     ],
     "fit": {
       "8": {
-        "rowGap": 1.0011,
+        "rowGap": 0.7113,
         "x": 384,
-        "y": 89.83,
-        "spacing": 36.129,
+        "y": 100.4,
+        "spacing": 48.641,
         "frame": "item_plinko.png",
         "framePortrait": "item_plinko_p.png"
       },
       "9": {
-        "rowGap": 0.8931,
+        "rowGap": 0.6912,
         "x": 384,
-        "y": 93.73,
-        "spacing": 36.129,
+        "y": 104.14,
+        "spacing": 44.654,
         "frame": "item_plinko_r9.png",
         "framePortrait": "item_plinko_r9_p.png"
       },
       "10": {
-        "rowGap": 0.8061,
+        "rowGap": 0.6754,
         "x": 384,
-        "y": 96.88,
-        "spacing": 36.129,
+        "y": 107.14,
+        "spacing": 41.247,
         "frame": "item_plinko_r10.png",
         "framePortrait": "item_plinko_r10_p.png"
       },
       "11": {
-        "rowGap": 0.7345,
+        "rowGap": 0.6627,
         "x": 384,
-        "y": 99.46,
-        "spacing": 36.129,
+        "y": 109.62,
+        "spacing": 38.307,
         "frame": "item_plinko_r11.png",
         "framePortrait": "item_plinko_r11_p.png"
       },
       "12": {
-        "rowGap": 0.7109,
+        "rowGap": 0.6522,
         "x": 384,
-        "y": 101.62,
-        "spacing": 34.286,
+        "y": 111.68,
+        "spacing": 35.749,
         "frame": "item_plinko_r12.png",
         "framePortrait": "item_plinko_r12_p.png"
       },
       "13": {
-        "rowGap": 0.7059,
+        "rowGap": 0.6434,
         "x": 384,
-        "y": 103.46,
-        "spacing": 31.927,
+        "y": 113.44,
+        "spacing": 33.505,
         "frame": "item_plinko_r13.png",
         "framePortrait": "item_plinko_r13_p.png"
       },
       "14": {
-        "rowGap": 0.7016,
+        "rowGap": 0.636,
         "x": 384,
-        "y": 105.04,
-        "spacing": 29.871,
+        "y": 114.95,
+        "spacing": 31.521,
         "frame": "item_plinko_r14.png",
         "framePortrait": "item_plinko_r14_p.png"
       }
     },
-    "portraitSpan": 0.86
+    "portraitSpan": 0.62,
+    "statusStroke": "#14324e"
   },
   "wheel": {
     "faces": [
@@ -138,17 +139,17 @@
     },
     "style": "chests",
     "chests": {
-      "closed": "sock_plain.png",
-      "open": "sock_empty.png",
-      "goldClosed": "sock_mega.png",
-      "goldOpen": "sock_empty.png",
-      "shelf": "washing_line.png",
+      "closed": "sock_ball_plain.png",
+      "open": "sock_ball_empty.png",
+      "goldClosed": "sock_ball_mega.png",
+      "goldOpen": "sock_ball_empty.png",
+      "shelf": "sock_drawer.png",
       "glow": "sock_glow.png",
       "burst": "anim_pop.png",
-      "plank": 0.3242,
+      "plank": 0.488,
       "span": [
-        0.1237,
-        0.8763
+        0.091,
+        0.908
       ],
       "tokens": {
         "plain": "token_plain.png",
@@ -156,16 +157,7 @@
         "MAJOR": "token_major.png",
         "MEGA": "token_mega.png"
       },
-      "socks": {
-        "peg": "line_peg.png",
-        "sag": 0.039,
-        "kinds": {
-          "plain": "sock_plain.png",
-          "MINI": "sock_mini.png",
-          "MAJOR": "sock_major.png",
-          "MEGA": "sock_mega.png"
-        }
-      }
+      "pick": "PICK A SOCK!"
     }
   },
   "ambient": {
@@ -232,10 +224,10 @@
       ]
     },
     "inner": [
-      0.067,
-      0.2,
-      0.931,
-      0.794
+      0.023,
+      0.061,
+      0.977,
+      0.939
     ],
     "bar": true,
     "phoneTop": 486
@@ -333,9 +325,10 @@
     "height": 0.62,
     "dust": false,
     "phone": [
-      0.85,
-      0.33,
-      0.17
-    ]
+      0.8,
+      0.47,
+      0.36
+    ],
+    "phoneBehind": true
   }
 }

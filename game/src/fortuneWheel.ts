@@ -37,6 +37,7 @@ export interface ChestPick {
     phone: { wall: Texture; arches: number[] }[] | null; phoneArchWidth: number; phoneGap: number } | null;
   jars: { top: number; kinds: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture } } | null;
   socks: { peg: Texture; sag: number; kinds: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture } } | null;
+  pick: string | null;
 }
 
 /** A gacha machine's textures (theme wheel.gacha), and its measured geometry (see GachaArt). */
@@ -1191,7 +1192,8 @@ export class FortuneWheel extends Container {
   private chooseChest(): Promise<ChestView> {
     const said = this.jackpotAmount.text;
     const doors = !!this.art.chests?.doors;
-    this.jackpotAmount.text = doors ? 'PICK A DOOR!' : this.art.chests?.jars ? 'PICK A JAR!' : this.hangs ? 'PICK A SOCK!' : 'PICK A CHEST!';
+    this.jackpotAmount.text = doors ? 'PICK A DOOR!' : this.art.chests?.jars ? 'PICK A JAR!' : this.hangs ? 'PICK A SOCK!'
+      : this.art.chests?.pick ?? 'PICK A CHEST!';
     fit(this.jackpotAmount, this.radius * 0.9);
     const size = this.chestSize;
     // chests bob; doors in a wall glow in turn instead

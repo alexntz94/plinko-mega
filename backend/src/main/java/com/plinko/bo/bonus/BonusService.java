@@ -413,7 +413,7 @@ public class BonusService {
      * own names; Lagoon Drop's Crosscurrent is the magnet, its Volcano Vault the meltdown; Pharaoh's Drop's Scarab
      * Fortune, Twin Serpents, Sirocco Draft and Tomb Raid, and Zombie War's Mega Charge, Split Fuse, Horde Rush and Locker
      * Raid, and Neon Nights' Golden Gacha, Twin Pop, Side Magnet and Lucky Draw, and Candy Factory's Golden Glaze, Double
-     * Dip, Candy Current and Sugar Rush, and Shurda Plinko's Golden Sock, Pair of Socks, Beach Breeze and Laundry Day, are
+     * Dip, Candy Current and Sugar Rush, and Shurda Plinko's Golden Sock, Pair of Socks, Drawer Breeze and Laundry Day, are
      * heavy, pair, the magnet and the meltdown).
      */
     public static final java.util.Map<String, java.util.List<String>> THEME_POWERS = java.util.Map.of(

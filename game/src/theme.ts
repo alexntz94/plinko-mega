@@ -25,6 +25,8 @@ export interface BoardStyle {
   /** how much of a tall frame picture's width has to show on a phone (its middle; the rest is empty or ornament
    *  that may run off the screen) */
   portraitSpan: number;
+  /** an outline round the line above the pegs (PLAYING...), for a board standing on a light wall; null: none */
+  statusStroke: string | null;
 }
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
@@ -119,6 +121,8 @@ export interface ChestArt {
    *  the rope's height in the middle, where it sags lowest, `sag` higher at the posts, both shares of its height): a peg
    *  clipped on above each sock, and a sock per kind of prize, which the picked sock turns into before it drops off */
   socks: { peg: string; sag: number; kinds: { plain: string; MINI: string; MAJOR: string; MEGA: string } } | null;
+  /** what the bar says while the player picks (e.g. PICK A SOCK!); null: the pick's own words (PICK A CHEST! for chests) */
+  pick: string | null;
 }
 /**
  * The gacha machine (Neon Nights): the player turns its crank, a capsule rolls out of the chute, wobbles and pops open
@@ -150,6 +154,8 @@ export interface CharacterArt {
   /** where he stands on a phone (shares of the screen: his middle across, his feet down, his height), in front of the
    *  board; null: the top right corner, his lower half behind the board */
   phone: { x: number; feet: number; height: number } | null;
+  /** on a phone, at his spot but behind the board (leaning out from behind it) instead of in front of it */
+  phoneBehind: boolean;
 }
 export interface Theme {
   id: string;
@@ -203,7 +209,7 @@ export interface Theme {
 }
 
 const DEFAULT_FONT: ThemeFont = { family: 'Azonix', file: null, weight: 'normal' };
-const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1 };
+const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1, statusStroke: null };
 
 // theme.json is our own static file, but only well-formed values are used
 const colour = (value: unknown, fallback: string) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
@@ -285,7 +291,8 @@ function readChests(json: unknown, style: unknown): ChestArt | null {
   const socks = sk && sockFiles.every(f => f)
     ? { peg: sockFiles[0]!, sag, kinds: { plain: sockFiles[1]!, MINI: sockFiles[2]!, MAJOR: sockFiles[3]!, MEGA: sockFiles[4]! } } : null;
   return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA }, doors,
-    jars: doors ? null : jars, socks: doors || jars ? null : socks };
+    jars: doors ? null : jars, socks: doors || jars ? null : socks,
+    pick: typeof c.pick === 'string' && /^[A-Z !]{4,16}$/.test(c.pick) ? c.pick : null };
 }
 
 function readGacha(json: unknown, style: unknown): GachaArt | null {
@@ -330,7 +337,7 @@ function readCharacter(json: unknown): CharacterArt | null {
   const swingSpeed = typeof c.swingSpeed === 'number' && c.swingSpeed > 0 && c.swingSpeed < 20 ? c.swingSpeed : 0.8;
   const height = typeof c.height === 'number' && c.height > 0.3 && c.height < 1 ? c.height : 0.78;
   return { body, head, arm, eyes, cheer, point, cheerScale: scale, neck, shoulder, feet, swing, swingSpeed, height, dust: c.dust !== false,
-    phone: phoneSpot(c.phone) };
+    phone: phoneSpot(c.phone), phoneBehind: c.phoneBehind === true };
 }
 
 function readTesla(json: unknown, style: unknown): TeslaArt | null {
@@ -428,6 +435,7 @@ function readBoard(json: unknown): BoardStyle {
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
+    statusStroke: b.statusStroke === undefined ? null : colour(b.statusStroke, '#000000'),
     fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' ? b.fx : 'standard',
   };
 }

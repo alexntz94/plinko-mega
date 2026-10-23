@@ -77,7 +77,7 @@ function chestPick(theme: Theme, tex: (file: string) => Texture): ChestPick | nu
       MEGA: tex(art.jars.kinds.MEGA) } } : null,
     socks: art.socks ? { peg: tex(art.socks.peg), sag: art.socks.sag, kinds: { plain: tex(art.socks.kinds.plain), MINI: tex(art.socks.kinds.MINI),
       MAJOR: tex(art.socks.kinds.MAJOR), MEGA: tex(art.socks.kinds.MEGA) } } : null,
-    tokens: { plain: tex(t.plain), MINI: tex(t.MINI), MAJOR: tex(t.MAJOR), MEGA: tex(t.MEGA) } };
+    tokens: { plain: tex(t.plain), MINI: tex(t.MINI), MAJOR: tex(t.MAJOR), MEGA: tex(t.MEGA) }, pick: art.pick };
 }
 
 /** Tomb Raid's payouts (x the round's bet): the server's meltdown table, a door each, the first on the left. */
@@ -100,9 +100,9 @@ const NEON_STAMPS: Record<string, string> = { pair: 'TWIN POP', 'magnet-left': '
 /** Candy Factory's: Golden Glaze is heavy, Double Dip the pair, Candy Current the magnet, Sugar Rush the meltdown. */
 const CANDY_NAMES: Record<string, string> = { heavy: 'GLAZE', pair: 'DOUBLE DIP', 'magnet-left': 'CURRENT L', 'magnet-right': 'CURRENT R', meltdown: 'SUGAR RUSH' };
 const CANDY_STAMPS: Record<string, string> = { pair: 'DOUBLE DIP', 'magnet-left': 'CANDY CURRENT', 'magnet-right': 'CANDY CURRENT', meltdown: 'SUGAR RUSH' };
-/** Shurda Plinko's: Golden Sock is heavy, Pair of Socks the pair, Beach Breeze the magnet, Laundry Day the meltdown. */
+/** Shurda Plinko's: Golden Sock is heavy, Pair of Socks the pair, Drawer Breeze the magnet, Laundry Day the meltdown. */
 const SHURDA_NAMES: Record<string, string> = { heavy: 'GOLD SOCK', pair: 'PAIR', 'magnet-left': 'BREEZE L', 'magnet-right': 'BREEZE R', meltdown: 'LAUNDRY' };
-const SHURDA_STAMPS: Record<string, string> = { pair: 'PAIR OF SOCKS', 'magnet-left': 'BEACH BREEZE', 'magnet-right': 'BEACH BREEZE', meltdown: 'LAUNDRY DAY' };
+const SHURDA_STAMPS: Record<string, string> = { pair: 'PAIR OF SOCKS', 'magnet-left': 'DRAWER BREEZE', 'magnet-right': 'DRAWER BREEZE', meltdown: 'LAUNDRY DAY' };
 /** Zombie War's: Mega Charge is heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the meltdown. */
 const ZOMBIE_NAMES: Record<string, string> = { heavy: 'MEGA CHARGE', pair: 'SPLIT FUSE', 'magnet-left': 'HORDE L', 'magnet-right': 'HORDE R', meltdown: 'RAID' };
 const ZOMBIE_STAMPS: Record<string, string> = { pair: 'SPLIT FUSE', 'magnet-left': 'HORDE RUSH', 'magnet-right': 'HORDE RUSH', meltdown: 'LOCKER RAID' };
@@ -174,6 +174,8 @@ export class Game extends Container {
   private readonly characterHeight: number;
   /** his spot on a phone (theme character.phone), or null: the top right corner */
   private readonly characterPhone: { x: number; feet: number; height: number } | null;
+  /** on a phone his spot is behind the board (theme character.phoneBehind) */
+  private readonly characterPhoneBehind: boolean;
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
@@ -318,6 +320,7 @@ export class Game extends Container {
     const c = theme.character;
     this.characterHeight = c?.height ?? 0.76;
     this.characterPhone = c?.phone ?? null;
+    this.characterPhoneBehind = c?.phoneBehind ?? false;
     this.character = c ? new Character({ body: tex(c.body), head: tex(c.head), arm: tex(c.arm), eyes: tex(c.eyes),
       cheer: tex(c.cheer), point: tex(c.point) }, c) : null;
     this.table.addChild(this.ambient, this.vents, ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
@@ -334,7 +337,7 @@ export class Game extends Container {
     if (reactor || lagoon || pharaoh || zombie || neon || candy || shurda) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
-        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : 'CORE PRESSURE' });
+        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : shurda ? 'LAUNDRY DAY' : 'CORE PRESSURE' });
       this.table.addChild(this.meltdown);
     }
     if (theme.blast?.tank) {
@@ -496,13 +499,13 @@ export class Game extends Container {
       const visibleW = view.stageW - 2 * view.offsetX;
       if (this.character) {
         if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.95, visibleH * this.characterHeight);
-        // a phone: where the theme puts him, in front of the board; or in the top right corner, beside the pyramid's
-        // slope, his lower half behind the board
+        // a phone: where the theme puts him, in front of the board (or behind it); or in the top right corner, beside
+        // the pyramid's slope, his lower half behind the board
         else if (this.characterPhone) this.character.place(view.offsetX + visibleW * this.characterPhone.x, view.offsetY + visibleH * this.characterPhone.feet,
           visibleH * this.characterPhone.height);
         else this.character.place(view.offsetX + visibleW * 0.86, view.offsetY + visibleH * 0.5, visibleH * 0.42);
         // (behind the board, or in front of it)
-        const front = !view.landscape && !!this.characterPhone;
+        const front = !view.landscape && !!this.characterPhone && !this.characterPhoneBehind;
         this.table.removeChild(this.character);
         this.table.addChildAt(this.character, this.table.getChildIndex(this.board) + (front ? 1 : 0));
       }

@@ -347,6 +347,7 @@ export class Board extends Container {
       this.pegFlashes.push(flashes);
     }
     this.status.y = -10;
+    if (style.statusStroke) this.status.style.stroke = { color: style.statusStroke, width: 6, join: 'round' };
     gsap.fromTo(this.status, { alpha: 1 }, { alpha: 0.3, duration: 0.3, repeat: -1, yoyo: true, ease: 'none' });
     // (blood splatters lie on the board, under the pegs and the slots)
     this.field.addChildAt(this.splatLayer, 0);

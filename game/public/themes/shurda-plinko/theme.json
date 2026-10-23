@@ -307,5 +307,35 @@
       ]
     }
   },
-  "music": "music.mp3"
+  "music": "music.mp3",
+  "character": {
+    "body": "guy.png",
+    "head": "guy_blank.png",
+    "arm": "guy_blank.png",
+    "eyes": "guy_blank.png",
+    "cheer": "guy.png",
+    "point": "guy.png",
+    "cheerScale": 1.0,
+    "neck": [
+      0.5,
+      0.25
+    ],
+    "shoulder": [
+      0.75,
+      0.35
+    ],
+    "feet": [
+      0.5,
+      0.975
+    ],
+    "swing": 0,
+    "swingSpeed": 1,
+    "height": 0.62,
+    "dust": false,
+    "phone": [
+      0.85,
+      0.33,
+      0.17
+    ]
+  }
 }

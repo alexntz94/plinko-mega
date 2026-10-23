@@ -172,6 +172,8 @@ export class Game extends Container {
   /** a character beside the board (Pharaoh's Drop's pharaoh), or null */
   private readonly character: Character | null;
   private readonly characterHeight: number;
+  /** his spot on a phone (theme character.phone), or null: the top right corner */
+  private readonly characterPhone: { x: number; feet: number; height: number } | null;
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
@@ -315,6 +317,7 @@ export class Game extends Container {
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
     const c = theme.character;
     this.characterHeight = c?.height ?? 0.76;
+    this.characterPhone = c?.phone ?? null;
     this.character = c ? new Character({ body: tex(c.body), head: tex(c.head), arm: tex(c.arm), eyes: tex(c.eyes),
       cheer: tex(c.cheer), point: tex(c.point) }, c) : null;
     this.table.addChild(this.ambient, this.vents, ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
@@ -493,8 +496,15 @@ export class Game extends Container {
       const visibleW = view.stageW - 2 * view.offsetX;
       if (this.character) {
         if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.95, visibleH * this.characterHeight);
-        // a phone: in the top right corner, beside the pyramid's slope, his lower half behind the board
+        // a phone: where the theme puts him, in front of the board; or in the top right corner, beside the pyramid's
+        // slope, his lower half behind the board
+        else if (this.characterPhone) this.character.place(view.offsetX + visibleW * this.characterPhone.x, view.offsetY + visibleH * this.characterPhone.feet,
+          visibleH * this.characterPhone.height);
         else this.character.place(view.offsetX + visibleW * 0.86, view.offsetY + visibleH * 0.5, visibleH * 0.42);
+        // (behind the board, or in front of it)
+        const front = !view.landscape && !!this.characterPhone;
+        this.table.removeChild(this.character);
+        this.table.addChildAt(this.character, this.table.getChildIndex(this.board) + (front ? 1 : 0));
       }
       // with its own control bar: the board above it, without its console strip
       const barH = this.consoleBar && view.landscape ? this.barBox(view).height + 16 : 0;

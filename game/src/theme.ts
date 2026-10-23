@@ -145,6 +145,11 @@ export interface CharacterArt {
   swing: number; swingSpeed: number;
   /** how tall beside the board, as a share of the screen's height (a wide character smaller) */
   height: number;
+  /** gold dust drifting off the top of the arm's picture (the pharaoh's staff); false: none */
+  dust: boolean;
+  /** where he stands on a phone (shares of the screen: his middle across, his feet down, his height), in front of the
+   *  board; null: the top right corner, his lower half behind the board */
+  phone: { x: number; feet: number; height: number } | null;
 }
 export interface Theme {
   id: string;
@@ -303,6 +308,12 @@ function readGacha(json: unknown, style: unknown): GachaArt | null {
   return { machine, crank, open, burst, capsules, tokens, socket, socketRadius, chute, pivot, plateRadius };
 }
 
+/** A character's spot on a phone: [x, feet, height], shares of the screen; null if not given. */
+function phoneSpot(v: unknown): { x: number; feet: number; height: number } | null {
+  if (!Array.isArray(v) || v.length !== 3 || !v.every(n => typeof n === 'number' && n > 0 && n < 1)) return null;
+  return { x: v[0], feet: v[1], height: v[2] };
+}
+
 function readCharacter(json: unknown): CharacterArt | null {
   const c = (json ?? null) as Record<string, unknown> | null;
   if (!c) return null;
@@ -318,7 +329,8 @@ function readCharacter(json: unknown): CharacterArt | null {
   const swing = typeof c.swing === 'number' && c.swing >= 0 && c.swing < 1 ? c.swing : 0.018;
   const swingSpeed = typeof c.swingSpeed === 'number' && c.swingSpeed > 0 && c.swingSpeed < 20 ? c.swingSpeed : 0.8;
   const height = typeof c.height === 'number' && c.height > 0.3 && c.height < 1 ? c.height : 0.78;
-  return { body, head, arm, eyes, cheer, point, cheerScale: scale, neck, shoulder, feet, swing, swingSpeed, height };
+  return { body, head, arm, eyes, cheer, point, cheerScale: scale, neck, shoulder, feet, swing, swingSpeed, height, dust: c.dust !== false,
+    phone: phoneSpot(c.phone) };
 }
 
 function readTesla(json: unknown, style: unknown): TeslaArt | null {

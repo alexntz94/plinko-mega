@@ -80,7 +80,7 @@ export class Character extends Container {
     this.arm.rotation = this.spec.swing * Math.sin(t * this.spec.swingSpeed);
     this.eyes.alpha = watching ? 0.85 + 0.15 * Math.sin(t * 6) : 0.45 + 0.4 * Math.max(0, Math.sin(t * 0.9));
     this.dustIn -= dt;
-    if (this.dustIn <= 0 && this.idle.visible) {
+    if (this.spec.dust && this.dustIn <= 0 && this.idle.visible) {
       this.dustIn = 0.25 + Math.random() * 0.5;
       this.mote();
     }

@@ -35,6 +35,7 @@ export interface ChestPick {
   tokens: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture };
   doors: { arches: number[]; archWidth: number; archTop: number; archBottom: number;
     phone: { wall: Texture; arches: number[] }[] | null; phoneArchWidth: number; phoneGap: number } | null;
+  jars: { top: number; kinds: { plain: Texture; MINI: Texture; MAJOR: Texture; MEGA: Texture } } | null;
 }
 
 /** A gacha machine's textures (theme wheel.gacha), and its measured geometry (see GachaArt). */
@@ -583,27 +584,48 @@ export class FortuneWheel extends Container {
    * The chest pick: a chest per prize on the shelf (wood; gold for a MEGA SPIN), its prize token hidden inside, and a
    * glow behind each for when it is picked. The shelf's plank is the line the chests stand on.
    */
+  /** A jar case's floor line (the lower row's): the case centred on the spinner's middle. */
+  private caseFloor(h: number): number {
+    return this.art.chests!.plank * h - h / 2;
+  }
+
   private drawChests(segments: Segment[], art: ChestPick): void {
     const { w, h, size, gap, perRow } = this.chestGeometry(segments.length);
-    const feet = h * 0.1;
+    // jars: two rows in one case, the upper on a glass shelf
+    const feet = art.jars ? this.caseFloor(h) - gap : h * 0.1;
     // one shelf, or (a tall screen) two: the first half of the chests on the upper one
-    const rows = this.tall ? 2 : 1;
+    const rows = this.tall || art.jars ? 2 : 1;
     const x0 = (art.span[0] - 0.5) * w, x1 = (art.span[1] - 0.5) * w;
     this.chestSlots = [];
+    if (art.jars) {
+      const box = new Sprite({ texture: art.shelf, anchor: { x: 0.5, y: art.plank } });
+      box.width = w;
+      box.height = h;
+      box.y = feet + gap;
+      const t = size * 0.07;
+      const glass = new Graphics()
+        .roundRect(x0 - size * 0.25, feet - t * 0.3, x1 - x0 + size * 0.5, t, t / 2).fill({ color: '#ffffff', alpha: 0.45 })
+        .moveTo(x0 - size * 0.2, feet - t * 0.2).lineTo(x1 + size * 0.2, feet - t * 0.2).stroke({ color: '#ffffff', width: 1.5, alpha: 0.9 })
+        .roundRect(x0 - size * 0.25, feet + t * 0.7, x1 - x0 + size * 0.5, t * 0.6, t / 3).fill({ color: '#d9a7b8', alpha: 0.35 });
+      this.disc.addChild(box, glass);
+    }
     for (let row = 0; row < rows; row++) {
       const y = feet + row * gap;
-      const shelf = new Sprite({ texture: art.shelf, anchor: { x: 0.5, y: art.plank } });
-      shelf.width = w;
-      shelf.height = h;
-      shelf.y = y;
-      this.disc.addChild(shelf);
+      if (!art.jars) {
+        const shelf = new Sprite({ texture: art.shelf, anchor: { x: 0.5, y: art.plank } });
+        shelf.width = w;
+        shelf.height = h;
+        shelf.y = y;
+        this.disc.addChild(shelf);
+      }
       const count = row === 0 ? perRow : segments.length - perRow;
       const slot = (x1 - x0) / perRow;
       for (let i = 0; i < count; i++) this.chestSlots.push({ x: (i - (count - 1) / 2) * slot, y });
     }
     this.chestFeet = feet;
     this.chestLow = feet + (rows - 1) * gap;
-    this.chestBelow = h * 0.75;
+    // (a jar case's win: over its prize chute)
+    this.chestBelow = art.jars ? h * (0.84 - art.plank) : h * 0.75;
     this.chestSize = size;
     const glows = new Container(), bodies = new Container(), tokens = new Container();
     this.disc.addChild(glows, bodies, tokens);
@@ -612,7 +634,8 @@ export class FortuneWheel extends Container {
       glow.width = glow.height = size * 1.7;
       glow.blendMode = 'add';
       glow.alpha = 0;
-      const chest = new Sprite({ texture: this.gold ? art.goldClosed : art.closed, anchor: { x: 0.5, y: 310 / 320 } });
+      // (a jar stands on its picture's foot line)
+      const chest = new Sprite({ texture: this.gold ? art.goldClosed : art.closed, anchor: { x: 0.5, y: art.jars ? 491 / 512 : 310 / 320 } });
       chest.width = chest.height = size;
       const kind = segment.name === 'MINI' || segment.name === 'MAJOR' || segment.name === 'MEGA' ? segment.name : 'plain';
       const token = new Container();
@@ -644,6 +667,15 @@ export class FortuneWheel extends Container {
     const art = this.art.chests!;
     const span = art.span[1] - art.span[0];
     const perRow = this.tall ? Math.ceil(n / 2) : n;
+    if (art.jars) {
+      // the jar case: as wide as there is room (on a phone a little wider than the screen, its pillars running off
+      // it, so the jars are big enough to tap); two rows of jars in its window, the tokens rising out of them inside it
+      const perCase = Math.ceil(n / 2);
+      const w = this.tall ? this.room * 1.3 : Math.min(this.radius * 6.2, this.room);
+      const h = w * art.shelf.height / art.shelf.width;
+      const size = Math.min(w * span / perCase * 0.8, (art.plank - art.jars.top) * h * 0.46);
+      return { w, h, size, gap: size * 1.06, perRow: perCase };
+    }
     const w = this.tall ? this.room * 0.97 / span : Math.min(this.radius * 6.2, this.room);
     const h = w * art.shelf.height / art.shelf.width;
     const size = w * span / perRow * (this.tall ? 0.95 : 1.1);   // the picture's body is 300 of its 320 pixels
@@ -654,6 +686,11 @@ export class FortuneWheel extends Container {
   /** How far above the (upper) shelf's line the prize bar goes: over the tokens risen out of the chests (over the wall). */
   private chestHeader(): number {
     const doors = this.art.chests!.doors;
+    if (this.art.chests!.jars) {
+      // over the case's marquee
+      const { h } = this.chestGeometry(Math.max(this.segments.length, 2));
+      return this.art.chests!.plank * h - this.caseFloor(h) - h * 0.035;
+    }
     if (doors) {
       const { h, rows } = this.doorGeometry();
       return doors.archBottom * h - rows[0].y + this.radius * 0.3;
@@ -744,6 +781,10 @@ export class FortuneWheel extends Container {
       pick.token.y = inside(pick);
       holder.token.y = inside(holder);
     }
+    if (art.jars) {
+      await this.openJar(pick, art.jars, segments);
+      return;
+    }
     // the picked chest glows and rattles
     const rattle = gsap.timeline();
     this.spin = rattle;
@@ -767,6 +808,44 @@ export class FortuneWheel extends Container {
         v.chest.texture = open;
         v.chest.alpha = 0.55;
         gsap.to(v.token, { alpha: 0.6, y: up(v) + size * 0.2, duration: 0.25 });
+        gsap.to(v.token.scale, { x: 0.8, y: 0.8, duration: 0.25 });
+      });
+    }
+  }
+
+  /**
+   * The jar picked: it glows and hops, its candy turns the prize's colour and it wobbles, then the lid pops off in
+   * sprinkles and the token rises out; the others then show what they held, faintly.
+   */
+  private async openJar(pick: ChestView, jars: NonNullable<ChestPick['jars']>, segments: Segment[]): Promise<void> {
+    const art = this.art.chests!, size = this.chestSize;
+    const kindOf = (v: ChestView) => {
+      const name = segments[v.segment]?.name;
+      return name === 'MINI' || name === 'MAJOR' || name === 'MEGA' ? name : 'plain';
+    };
+    const tl = gsap.timeline();
+    this.spin = tl;
+    tl.to(pick.glow, { alpha: 1, duration: 0.25 })
+      .to(pick.chest, { y: pick.feet - size * 0.12, duration: 0.18, yoyo: true, repeat: 1, ease: 'power2.out' }, '<');
+    // its candy shows what it holds, and it wobbles
+    tl.call(() => { pick.chest.texture = jars.kinds[kindOf(pick)]; this.onTick?.(); })
+      .to(pick.chest, { rotation: 0.07, duration: 0.06, yoyo: true, repeat: calm ? 1 : 5, ease: 'sine.inOut' })
+      .set(pick.chest, { rotation: 0 });
+    await new Promise<void>(resolve => tl.eventCallback('onComplete', () => resolve()));
+    // the lid pops off: sprinkles burst out and the token rises
+    pick.chest.texture = art.open;
+    this.chestOpen = pick;
+    this.onTick?.();
+    if (!calm) this.chestBurst(art, pick.chest.x, pick.feet - size * 0.5, size * 2);
+    gsap.timeline()
+      .to(pick.token, { alpha: 1, y: pick.feet - size * 1.05, duration: 0.35, ease: 'back.out(2)' }, 0)
+      .fromTo(pick.token.scale, { x: 0.5, y: 0.5 }, { x: 1.25, y: 1.25, duration: 0.35, ease: 'back.out(2)' }, 0);
+    for (const v of this.chests) {
+      if (v === pick) continue;
+      gsap.delayedCall(calm ? 0 : 0.5, () => {
+        v.chest.texture = jars.kinds[kindOf(v)];
+        v.chest.alpha = 0.6;
+        gsap.to(v.token, { alpha: 0.65, y: v.feet - size * 1.0, duration: 0.25 });
         gsap.to(v.token.scale, { x: 0.8, y: 0.8, duration: 0.25 });
       });
     }
@@ -948,7 +1027,7 @@ export class FortuneWheel extends Container {
   private chooseChest(): Promise<ChestView> {
     const said = this.jackpotAmount.text;
     const doors = !!this.art.chests?.doors;
-    this.jackpotAmount.text = doors ? 'PICK A DOOR!' : 'PICK A CHEST!';
+    this.jackpotAmount.text = doors ? 'PICK A DOOR!' : this.art.chests?.jars ? 'PICK A JAR!' : 'PICK A CHEST!';
     fit(this.jackpotAmount, this.radius * 0.9);
     const size = this.chestSize;
     // chests bob; doors in a wall glow in turn instead

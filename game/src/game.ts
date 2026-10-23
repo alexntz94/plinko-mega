@@ -73,6 +73,8 @@ function chestPick(theme: Theme, tex: (file: string) => Texture): ChestPick | nu
   return { closed: tex(art.closed), open: tex(art.open), goldClosed: tex(art.goldClosed), goldOpen: tex(art.goldOpen),
     shelf: tex(art.shelf), glow: tex(art.glow), burst: tex(art.burst), plank: art.plank, span: art.span,
     doors: art.doors ? { ...art.doors, phone: art.doors.phone?.map(p => ({ wall: tex(p.wall), arches: p.arches })) ?? null } : null,
+    jars: art.jars ? { top: art.jars.top, kinds: { plain: tex(art.jars.kinds.plain), MINI: tex(art.jars.kinds.MINI), MAJOR: tex(art.jars.kinds.MAJOR),
+      MEGA: tex(art.jars.kinds.MEGA) } } : null,
     tokens: { plain: tex(t.plain), MINI: tex(t.MINI), MAJOR: tex(t.MAJOR), MEGA: tex(t.MEGA) } };
 }
 
@@ -93,6 +95,9 @@ const PHARAOH_STAMPS: Record<string, string> = { pair: 'TWIN SERPENTS', 'magnet-
 /** Neon Nights': Golden Gacha is heavy, Twin Pop the pair, Side Magnet the magnet, Lucky Draw the meltdown. */
 const NEON_NAMES: Record<string, string> = { heavy: 'GOLDEN', pair: 'TWIN POP', 'magnet-left': 'MAGNET L', 'magnet-right': 'MAGNET R', meltdown: 'LUCKY DRAW' };
 const NEON_STAMPS: Record<string, string> = { pair: 'TWIN POP', 'magnet-left': 'SIDE MAGNET', 'magnet-right': 'SIDE MAGNET', meltdown: 'LUCKY DRAW' };
+/** Candy Factory's: Golden Glaze is heavy, Double Dip the pair, Candy Current the magnet, Sugar Rush the meltdown. */
+const CANDY_NAMES: Record<string, string> = { heavy: 'GLAZE', pair: 'DOUBLE DIP', 'magnet-left': 'CURRENT L', 'magnet-right': 'CURRENT R', meltdown: 'SUGAR RUSH' };
+const CANDY_STAMPS: Record<string, string> = { pair: 'DOUBLE DIP', 'magnet-left': 'CANDY CURRENT', 'magnet-right': 'CANDY CURRENT', meltdown: 'SUGAR RUSH' };
 /** Zombie War's: Mega Charge is heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the meltdown. */
 const ZOMBIE_NAMES: Record<string, string> = { heavy: 'MEGA CHARGE', pair: 'SPLIT FUSE', 'magnet-left': 'HORDE L', 'magnet-right': 'HORDE R', meltdown: 'RAID' };
 const ZOMBIE_STAMPS: Record<string, string> = { pair: 'SPLIT FUSE', 'magnet-left': 'HORDE RUSH', 'magnet-right': 'HORDE RUSH', meltdown: 'LOCKER RAID' };
@@ -233,11 +238,11 @@ export class Game extends Container {
     this.consoleBar = theme.console?.bar === true;
     this.phoneTop = theme.console?.phoneTop ?? 418;
     const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
-    const zombie = theme.board.fx === 'zombie', neon = theme.board.fx === 'neon';
+    const zombie = theme.board.fx === 'zombie', neon = theme.board.fx === 'neon', candy = theme.board.fx === 'candy';
     this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}),
-      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}) };
-    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : 'HEAVY SHELLS';
+      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : 'HEAVY SHELLS';
     this.bloody = zombie;
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
@@ -254,11 +259,11 @@ export class Game extends Container {
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex), gacha: gachaPick(theme, tex),
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"]
-          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : ['BOOM!', 'KABOOM!'] });
+          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests || !!theme.wheel.gacha;
     this.chestPick = !!theme.wheel.chests;
-    // (the gacha plays it too: the capsule holds the payout)
-    this.tombRaid = !!theme.wheel.chests?.doors || !!theme.wheel.gacha;
+    // (the gacha and the jars play it too: the capsule, the jar, holds the payout)
+    this.tombRaid = !!theme.wheel.chests?.doors || !!theme.wheel.chests?.jars || !!theme.wheel.gacha;
     this.gacha = !!theme.wheel.gacha;
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
@@ -317,7 +322,7 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (reactor || lagoon || pharaoh || zombie || neon) {
+    if (reactor || lagoon || pharaoh || zombie || neon || candy) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
         title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : 'CORE PRESSURE' });
@@ -1082,7 +1087,8 @@ export class Game extends Container {
     this.table.setChildIndex(this.wheel, this.table.getChildIndex(over ? this.bar : this.board) + (over ? 0 : 1));
     if (over && this.view) {
       // the board and the console fade right out under a dark shade, and the bonus stands over it alone
-      this.pickShade.clear().rect(0, 0, this.view.stageW, this.view.stageH).fill('#000000');
+      // (well past the stage's edges: the background runs on beyond it on a screen of another shape)
+      this.pickShade.clear().rect(-this.view.stageW, -this.view.stageH, this.view.stageW * 3, this.view.stageH * 3).fill('#000000');
       this.table.addChildAt(this.pickShade, this.table.getChildIndex(this.wheel));
       gsap.fromTo(this.pickShade, { alpha: 0 }, { alpha: 0.72, duration: 0.25 });
       gsap.to([this.bar, this.board], { alpha: 0, duration: 0.25 });

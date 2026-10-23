@@ -71,6 +71,16 @@ const NEON_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'LUCKY DRAW', text: 'The gacha turns after the drop: x0.5 to x20', ready: true },
 ];
 
+/** Candy Factory's power-ups (Golden Glaze is the server's heavy, Double Dip the pair, Candy Current the magnet, Sugar
+ *  Rush the meltdown). */
+const CANDY_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'GOLDEN GLAZE', text: 'Every gumball turns gold: x2 to x10', ready: true },
+  { id: 'pair', name: 'DOUBLE DIP', text: 'Each gumball splits in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'CANDY CURRENT', text: '70% of gumballs pulled to your side: its bays pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'SUGAR RUSH', text: 'Pick a candy jar after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
@@ -79,6 +89,7 @@ export const ARSENALS: Record<string, { title: string; hint: string; cards: Arse
   'pharaoh-drop': { title: 'RELICS', hint: "Call on the Pharaoh's relics", cards: PHARAOH_CARDS },
   'zombie-war': { title: 'LOADOUT', hint: 'Arm up before the horde hits', cards: ZOMBIE_CARDS },
   'neon-nights': { title: 'POWER-UPS', hint: 'Light up your next drop', cards: NEON_CARDS },
+  'candy-factory': { title: 'TREATS', hint: 'Sweeten your next drop', cards: CANDY_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite | NineSliceSprite; lit: Graphics; price: Text;

@@ -30,7 +30,7 @@ const SLOT_ART = [0, 1, 2, 3, 4].map(tier => `item_slot_${tier}.png`);
 /** A chest pick's pictures. */
 function chestFiles(c: NonNullable<Theme['wheel']['chests']>): string[] {
   return [c.closed, c.open, c.goldClosed, c.goldOpen, c.shelf, c.glow, c.burst, ...Object.values(c.tokens),
-    ...(c.doors?.phone ?? []).map(p => p.wall)];
+    ...(c.doors?.phone ?? []).map(p => p.wall), ...(c.jars ? Object.values(c.jars.kinds) : [])];
 }
 
 /** The images only some themes have: pegs, drawn slots, a neon logo's layers, the wheel's hub and pointer, the gate. */

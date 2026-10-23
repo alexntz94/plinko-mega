@@ -10,7 +10,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** Which themes are on and which is the default (Plinko Mega ships Bombs Away, the default, Reactor Drop, Lagoon
- * Drop, Pharaoh's Drop, Zombie War and Neon Nights). */
+ * Drop, Pharaoh's Drop, Zombie War, Neon Nights and Candy Factory). */
 class ThemeServiceTest {
 
     private static ThemeService with(Map<String, String> values) {
@@ -22,7 +22,7 @@ class ThemeServiceTest {
     @Test
     void aFreshInstallHasEveryThemeOnAndPlaysBombsAway() {
         ThemeService.Themes themes = with(Map.of()).current();
-        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop", "lagoon-drop", "pharaoh-drop", "zombie-war", "neon-nights");
+        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop", "lagoon-drop", "pharaoh-drop", "zombie-war", "neon-nights", "candy-factory");
         assertThat(themes.defaultTheme()).isEqualTo("bombs-away");
         assertThat(with(Map.of()).resolve("old-theme")).isEqualTo("bombs-away");
     }
@@ -31,7 +31,7 @@ class ThemeServiceTest {
     void namesThatAreNotThemesAreIgnored() {
         ThemeService.Themes themes = with(Map.of("game.themes", "old-theme,bombs-away", "game.theme.default", "old-theme")).current();
         // the themes newer than that choice come on too
-        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop", "lagoon-drop", "pharaoh-drop", "zombie-war", "neon-nights");
+        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop", "lagoon-drop", "pharaoh-drop", "zombie-war", "neon-nights", "candy-factory");
         assertThat(themes.defaultTheme()).isEqualTo("bombs-away");
     }
 

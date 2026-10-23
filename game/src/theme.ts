@@ -31,8 +31,9 @@ export interface BoardStyle {
 export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: string }
 /** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills); lagoon:
  * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight);
- * zombie: a grenade (explosions and blood: splatters left on the board, big wins splashing the screen) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon';
+ * zombie: a grenade (explosions and blood: splatters left on the board, big wins splashing the screen); neon: a capsule
+ * ball (neon sparkles); candy: a gumball (sprinkles and wrapped sweets) */
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -110,6 +111,10 @@ export interface ChestArt {
     phone: { wall: string; arches: number[] }[] | null; phoneArchWidth: number;
     /** how far apart the phone's walls stand (a share of a wall's height) */
     phoneGap: number } | null;
+  /** jars in a display case instead of chests on a shelf (Candy Factory; the "shelf" is the case, its plank the case's
+   *  floor): where the case's window starts (a share of its height), and a jar per kind of prize, which the picked jar
+   *  turns into before it pops open */
+  jars: { top: number; kinds: { plain: string; MINI: string; MAJOR: string; MEGA: string } } | null;
 }
 /**
  * The gacha machine (Neon Nights): the player turns its crank, a capsule rolls out of the chute, wobbles and pops open
@@ -260,7 +265,12 @@ function readChests(json: unknown, style: unknown): ChestArt | null {
       phone: phoneOk ? phone.map(p => ({ wall: p.wall as string, arches: p.arches as number[] })) : null, phoneArchWidth: phoneArchWidth ?? archWidth,
       phoneGap: typeof d?.phoneGap === 'number' && d.phoneGap > 0.3 && d.phoneGap < 1.5 ? d.phoneGap : 0.72 }
     : null;
-  return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA }, doors };
+  const k = (c.jars ?? null) as Record<string, unknown> | null;
+  const kj = (k?.kinds ?? {}) as Record<string, unknown>;
+  const kinds = [kj.plain, kj.MINI, kj.MAJOR, kj.MEGA].map(png), top = share(k?.top);
+  const jars = k && kinds.every(f => f) && top ? { top, kinds: { plain: kinds[0]!, MINI: kinds[1]!, MAJOR: kinds[2]!, MEGA: kinds[3]! } } : null;
+  return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA }, doors,
+    jars: doors ? null : jars };
 }
 
 function readGacha(json: unknown, style: unknown): GachaArt | null {
@@ -396,7 +406,7 @@ function readBoard(json: unknown): BoardStyle {
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' ? b.fx : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' ? b.fx : 'standard',
   };
 }
 

@@ -1,0 +1,310 @@
+{
+  "name": "Candy Factory",
+  "title": "Candy Factory · Plinko",
+  "background": "#4a1f2e",
+  "accent": "#f45c9a",
+  "text": "#fff1d2",
+  "playText": "#fff1d2",
+  "retina": true,
+  "logoNeon": 0,
+  "font": {
+    "family": "Bagel Fat One",
+    "file": "bagel-fat-one.woff2",
+    "weight": "400"
+  },
+  "board": {
+    "fx": "candy",
+    "peg": "item_peg.png",
+    "pegFlash": "#ffffff",
+    "trail": "#f45c9a",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#b28ce8",
+        "text": "#3a1430"
+      },
+      {
+        "face": "#79cff0",
+        "text": "#1d2a4a"
+      },
+      {
+        "face": "#8ad9ae",
+        "text": "#1f3d2c"
+      },
+      {
+        "face": "#ffd85a",
+        "text": "#4a2416"
+      },
+      {
+        "face": "#f45c9a",
+        "text": "#ffffff"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 1.0405,
+        "x": 384,
+        "y": 93.08,
+        "spacing": 36.447,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.9282,
+        "x": 384,
+        "y": 97.17,
+        "spacing": 36.447,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.8378,
+        "x": 384,
+        "y": 100.46,
+        "spacing": 36.447,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.8036,
+        "x": 384,
+        "y": 103.17,
+        "spacing": 34.628,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.7969,
+        "x": 384,
+        "y": 105.44,
+        "spacing": 32.069,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.7913,
+        "x": 384,
+        "y": 107.37,
+        "spacing": 29.862,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.7865,
+        "x": 384,
+        "y": 109.03,
+        "spacing": 27.94,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.86
+  },
+  "wheel": {
+    "faces": [
+      "#b28ce8",
+      "#f45c9a",
+      "#8ad9ae",
+      "#79cff0",
+      "#ffd85a",
+      "#4a2416"
+    ],
+    "text": [
+      "#ffffff",
+      "#ffffff",
+      "#1f3d2c",
+      "#1d2a4a",
+      "#4a2416",
+      "#ffffff"
+    ],
+    "rim": "#f45c9a",
+    "ink": "#4a2416",
+    "title": "#ffd85a",
+    "gold": {
+      "faces": [
+        "#ffd85a",
+        "#fff1d2",
+        "#f45c9a",
+        "#8ad9ae"
+      ],
+      "text": [
+        "#4a2416",
+        "#4a2416",
+        "#ffffff",
+        "#1f3d2c"
+      ],
+      "rim": "#ffd85a"
+    },
+    "style": "chests",
+    "chests": {
+      "closed": "jar_plain.png",
+      "open": "jar_open.png",
+      "goldClosed": "jar_mega.png",
+      "goldOpen": "jar_open.png",
+      "shelf": "claw_machine.png",
+      "glow": "jar_glow.png",
+      "burst": "anim_pop.png",
+      "plank": 0.6104,
+      "span": [
+        0.1953,
+        0.8073
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "jars": {
+        "top": 0.1953,
+        "kinds": {
+          "plain": "jar_plain.png",
+          "MINI": "jar_mini.png",
+          "MAJOR": "jar_major.png",
+          "MEGA": "jar_mega.png"
+        }
+      }
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#f45c9a",
+      "#8ad9ae",
+      "#ffd85a",
+      "#79cff0"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#4a2416",
+    "panel": "#5a2a1c"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        62,
+        428,
+        272,
+        482
+      ],
+      "centre": [
+        352,
+        424,
+        416,
+        488
+      ],
+      "right": [
+        496,
+        428,
+        706,
+        482
+      ]
+    },
+    "inner": [
+      0.065,
+      0.171,
+      0.935,
+      0.823
+    ],
+    "bar": true,
+    "phoneTop": 486
+  },
+  "blast": {
+    "fire": "vfx_ring.png",
+    "dust": "vfx_haze.png",
+    "smoke": "vfx_haze.png",
+    "kinds": {
+      "small": "vfx_spark.png",
+      "impact": "vfx_spark.png",
+      "heavy": "vfx_ring.png",
+      "napalm": "vfx_ring.png",
+      "mushroom": "vfx_fountain.png",
+      "fireball": "vfx_glow.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.5
+      ],
+      "impact": [
+        0.5,
+        0.55
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.88
+      ],
+      "fireball": [
+        0.5,
+        0.5
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_spark.png",
+      "heavy": "anim_ring.png",
+      "mushroom": "anim_fountain.png",
+      "arc": "anim_magnet.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    }
+  },
+  "music": "music.mp3"
+}

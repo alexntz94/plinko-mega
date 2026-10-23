@@ -412,8 +412,8 @@ public class BonusService {
      * The power-ups each theme sells (Reactor Drop's Overcharge and Lagoon Drop's Sunburst Surge are heavy under their
      * own names; Lagoon Drop's Crosscurrent is the magnet, its Volcano Vault the meltdown; Pharaoh's Drop's Scarab
      * Fortune, Twin Serpents, Sirocco Draft and Tomb Raid, and Zombie War's Mega Charge, Split Fuse, Horde Rush and Locker
-     * Raid, and Neon Nights' Golden Gacha, Twin Pop, Side Magnet and Lucky Draw, are heavy, pair, the magnet and the
-     * meltdown).
+     * Raid, and Neon Nights' Golden Gacha, Twin Pop, Side Magnet and Lucky Draw, and Candy Factory's Golden Glaze, Double
+     * Dip, Candy Current and Sugar Rush, are heavy, pair, the magnet and the meltdown).
      */
     public static final java.util.Map<String, java.util.List<String>> THEME_POWERS = java.util.Map.of(
             "bombs-away", java.util.List.of("heavy", "cluster", "strike-left", "strike-centre", "strike-right", "crates", "missile", "night", "tank"),
@@ -421,7 +421,8 @@ public class BonusService {
             "lagoon-drop", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
             "pharaoh-drop", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
             "zombie-war", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
-            "neon-nights", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"));
+            "neon-nights", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
+            "candy-factory", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"));
 
     /** How many times a ball with this power-up lands, keeping its best landing: cluster 3, pair 2, else 1. */
     public static int landings(String power) {

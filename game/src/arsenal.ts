@@ -81,6 +81,16 @@ const CANDY_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'SUGAR RUSH', text: 'Pick a candy jar after the drop: x0.5 to x20', ready: true },
 ];
 
+/** Shurda Plinko's power-ups (Golden Sock is the server's heavy, Pair of Socks the pair, Beach Breeze the magnet,
+ *  Laundry Day the meltdown). */
+const SHURDA_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'GOLDEN SOCK', text: 'Every sock ball turns gold: x2 to x10', ready: true },
+  { id: 'pair', name: 'PAIR OF SOCKS', text: 'Each sock ball splits in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'BEACH BREEZE', text: '70% of balls blown to your side: its bays pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'LAUNDRY DAY', text: 'Pick a sock off the line after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
@@ -90,6 +100,7 @@ export const ARSENALS: Record<string, { title: string; hint: string; cards: Arse
   'zombie-war': { title: 'LOADOUT', hint: 'Arm up before the horde hits', cards: ZOMBIE_CARDS },
   'neon-nights': { title: 'POWER-UPS', hint: 'Light up your next drop', cards: NEON_CARDS },
   'candy-factory': { title: 'TREATS', hint: 'Sweeten your next drop', cards: CANDY_CARDS },
+  'shurda-plinko': { title: 'GYM BAG', hint: 'Pump up your next drop', cards: SHURDA_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite | NineSliceSprite; lit: Graphics; price: Text;

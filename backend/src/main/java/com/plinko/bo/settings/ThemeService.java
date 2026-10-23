@@ -26,7 +26,14 @@ public class ThemeService {
         KNOWN.put("zombie-war", "Zombie War");
         KNOWN.put("neon-nights", "Neon Nights");
         KNOWN.put("candy-factory", "Candy Factory");
+        KNOWN.put("shurda-plinko", "Shurda Plinko");
     }
+
+    /**
+     * Themes that start switched off, even on a fresh install or when they first appear: brand themes, shown only once
+     * the brand's owner has agreed (Shurda Plinko uses Shurdalife's logo and character). An admin switches them on.
+     */
+    public static final List<String> STARTS_OFF = List.of("shurda-plinko");
 
     public record Themes(List<String> enabled, String defaultTheme) {
     }
@@ -47,12 +54,12 @@ public class ThemeService {
         String stored = values.get("game.themes");
         List<String> enabled;
         if (stored == null) {
-            enabled = List.copyOf(KNOWN.keySet());
+            enabled = KNOWN.keySet().stream().filter(id -> !STARTS_OFF.contains(id)).toList();
         } else {
             List<String> on = names(stored);
             String known = values.get("game.themes.known");
             List<String> seen = known == null ? on : names(known);
-            enabled = KNOWN.keySet().stream().filter(id -> on.contains(id) || !seen.contains(id)).toList();
+            enabled = KNOWN.keySet().stream().filter(id -> on.contains(id) || (!seen.contains(id) && !STARTS_OFF.contains(id))).toList();
         }
         if (enabled.isEmpty()) {
             enabled = List.of("bombs-away");

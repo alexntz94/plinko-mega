@@ -32,8 +32,8 @@ export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: 
 /** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills); lagoon:
  * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight);
  * zombie: a grenade (explosions and blood: splatters left on the board, big wins splashing the screen); neon: a capsule
- * ball (neon sparkles); candy: a gumball (sprinkles and wrapped sweets) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy';
+ * ball (neon sparkles); candy: a gumball (sprinkles and wrapped sweets); shurda: a sock ball (comic starbursts and confetti) */
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -115,6 +115,10 @@ export interface ChestArt {
    *  floor): where the case's window starts (a share of its height), and a jar per kind of prize, which the picked jar
    *  turns into before it pops open */
   jars: { top: number; kinds: { plain: string; MINI: string; MAJOR: string; MEGA: string } } | null;
+  /** socks hanging from a washing line instead of chests on a shelf (Shurda Plinko; the "shelf" is the line, its plank
+   *  the rope's height in the middle, where it sags lowest, `sag` higher at the posts, both shares of its height): a peg
+   *  clipped on above each sock, and a sock per kind of prize, which the picked sock turns into before it drops off */
+  socks: { peg: string; sag: number; kinds: { plain: string; MINI: string; MAJOR: string; MEGA: string } } | null;
 }
 /**
  * The gacha machine (Neon Nights): the player turns its crank, a capsule rolls out of the chute, wobbles and pops open
@@ -269,8 +273,14 @@ function readChests(json: unknown, style: unknown): ChestArt | null {
   const kj = (k?.kinds ?? {}) as Record<string, unknown>;
   const kinds = [kj.plain, kj.MINI, kj.MAJOR, kj.MEGA].map(png), top = share(k?.top);
   const jars = k && kinds.every(f => f) && top ? { top, kinds: { plain: kinds[0]!, MINI: kinds[1]!, MAJOR: kinds[2]!, MEGA: kinds[3]! } } : null;
+  const sk = (c.socks ?? null) as Record<string, unknown> | null;
+  const skk = (sk?.kinds ?? {}) as Record<string, unknown>;
+  const sockFiles = [sk?.peg, skk.plain, skk.MINI, skk.MAJOR, skk.MEGA].map(png);
+  const sag = typeof sk?.sag === 'number' && sk.sag >= 0 && sk.sag < 0.3 ? sk.sag : 0;
+  const socks = sk && sockFiles.every(f => f)
+    ? { peg: sockFiles[0]!, sag, kinds: { plain: sockFiles[1]!, MINI: sockFiles[2]!, MAJOR: sockFiles[3]!, MEGA: sockFiles[4]! } } : null;
   return { closed, open, goldClosed, goldOpen, shelf, glow, burst, plank, span: [span[0], span[1]], tokens: { plain, MINI, MAJOR, MEGA }, doors,
-    jars: doors ? null : jars };
+    jars: doors ? null : jars, socks: doors || jars ? null : socks };
 }
 
 function readGacha(json: unknown, style: unknown): GachaArt | null {
@@ -406,7 +416,7 @@ function readBoard(json: unknown): BoardStyle {
     slotArt: b.slotArt === true,
     fit: readFit(b.fit),
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' ? b.fx : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' ? b.fx : 'standard',
   };
 }
 

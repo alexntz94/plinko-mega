@@ -33,6 +33,8 @@ class ThemePowersTest {
         assertThat(BonusService.themeSells("candy-factory", "meltdown")).as("Sugar Rush").isTrue();
         assertThat(BonusService.themeSells("candy-factory", "pair")).as("Double Dip").isTrue();
         assertThat(BonusService.themeSells("candy-factory", "tank")).isFalse();
+        assertThat(BonusService.themeSells("shurda-plinko", "meltdown")).as("Laundry Day").isTrue();
+        assertThat(BonusService.themeSells("shurda-plinko", "pair")).as("Pair of Socks").isTrue();
         assertThat(BonusService.themeSells("old-theme", "heavy")).isFalse();
         for (List<String> powers : BonusService.THEME_POWERS.values()) {
             assertThat(BonusService.POWERS).containsAll(powers);

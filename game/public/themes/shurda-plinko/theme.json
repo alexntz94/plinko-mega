@@ -1,0 +1,311 @@
+{
+  "name": "Shurda Plinko",
+  "title": "Shurda Plinko",
+  "background": "#1f8fc2",
+  "accent": "#f0388c",
+  "text": "#fff6e0",
+  "playText": "#fff6e0",
+  "retina": true,
+  "logoNeon": 0,
+  "font": {
+    "family": "Lilita One",
+    "file": "lilita-one.woff2",
+    "weight": "400"
+  },
+  "board": {
+    "fx": "shurda",
+    "peg": "item_peg.png",
+    "pegFlash": "#ffd23f",
+    "trail": "#f0388c",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#fff6e0",
+        "text": "#111111"
+      },
+      {
+        "face": "#7ed957",
+        "text": "#111111"
+      },
+      {
+        "face": "#3db5e6",
+        "text": "#111111"
+      },
+      {
+        "face": "#ffd23f",
+        "text": "#111111"
+      },
+      {
+        "face": "#f0388c",
+        "text": "#ffffff"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 1.0011,
+        "x": 384,
+        "y": 89.83,
+        "spacing": 36.129,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.8931,
+        "x": 384,
+        "y": 93.73,
+        "spacing": 36.129,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.8061,
+        "x": 384,
+        "y": 96.88,
+        "spacing": 36.129,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.7345,
+        "x": 384,
+        "y": 99.46,
+        "spacing": 36.129,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.7109,
+        "x": 384,
+        "y": 101.62,
+        "spacing": 34.286,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.7059,
+        "x": 384,
+        "y": 103.46,
+        "spacing": 31.927,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.7016,
+        "x": 384,
+        "y": 105.04,
+        "spacing": 29.871,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.86
+  },
+  "wheel": {
+    "faces": [
+      "#3db5e6",
+      "#f0388c",
+      "#7ed957",
+      "#ffd23f",
+      "#fff6e0",
+      "#144e69"
+    ],
+    "text": [
+      "#111111",
+      "#ffffff",
+      "#111111",
+      "#111111",
+      "#111111",
+      "#ffffff"
+    ],
+    "rim": "#f0388c",
+    "ink": "#111111",
+    "title": "#ffd23f",
+    "gold": {
+      "faces": [
+        "#ffd23f",
+        "#fff6e0",
+        "#f0388c",
+        "#3db5e6"
+      ],
+      "text": [
+        "#111111",
+        "#111111",
+        "#ffffff",
+        "#111111"
+      ],
+      "rim": "#ffd23f"
+    },
+    "style": "chests",
+    "chests": {
+      "closed": "sock_plain.png",
+      "open": "sock_empty.png",
+      "goldClosed": "sock_mega.png",
+      "goldOpen": "sock_empty.png",
+      "shelf": "washing_line.png",
+      "glow": "sock_glow.png",
+      "burst": "anim_pop.png",
+      "plank": 0.3242,
+      "span": [
+        0.1237,
+        0.8763
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "socks": {
+        "peg": "line_peg.png",
+        "sag": 0.039,
+        "kinds": {
+          "plain": "sock_plain.png",
+          "MINI": "sock_mini.png",
+          "MAJOR": "sock_major.png",
+          "MEGA": "sock_mega.png"
+        }
+      }
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#f0388c",
+      "#ffd23f",
+      "#3db5e6",
+      "#7ed957"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#111111",
+    "panel": "#144e69"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        62,
+        428,
+        272,
+        482
+      ],
+      "centre": [
+        352,
+        424,
+        416,
+        488
+      ],
+      "right": [
+        496,
+        428,
+        706,
+        482
+      ]
+    },
+    "inner": [
+      0.067,
+      0.2,
+      0.931,
+      0.794
+    ],
+    "bar": true,
+    "phoneTop": 486
+  },
+  "blast": {
+    "fire": "vfx_ring.png",
+    "dust": "vfx_haze.png",
+    "smoke": "vfx_haze.png",
+    "kinds": {
+      "small": "vfx_spark.png",
+      "impact": "vfx_spark.png",
+      "heavy": "vfx_ring.png",
+      "napalm": "vfx_ring.png",
+      "mushroom": "vfx_fountain.png",
+      "fireball": "vfx_glow.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.5
+      ],
+      "impact": [
+        0.5,
+        0.55
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.88
+      ],
+      "fireball": [
+        0.5,
+        0.5
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_spark.png",
+      "heavy": "anim_ring.png",
+      "mushroom": "anim_fountain.png",
+      "arc": "anim_magnet.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    }
+  },
+  "music": "music.mp3"
+}

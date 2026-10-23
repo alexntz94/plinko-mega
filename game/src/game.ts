@@ -75,6 +75,8 @@ function chestPick(theme: Theme, tex: (file: string) => Texture): ChestPick | nu
     doors: art.doors ? { ...art.doors, phone: art.doors.phone?.map(p => ({ wall: tex(p.wall), arches: p.arches })) ?? null } : null,
     jars: art.jars ? { top: art.jars.top, kinds: { plain: tex(art.jars.kinds.plain), MINI: tex(art.jars.kinds.MINI), MAJOR: tex(art.jars.kinds.MAJOR),
       MEGA: tex(art.jars.kinds.MEGA) } } : null,
+    socks: art.socks ? { peg: tex(art.socks.peg), sag: art.socks.sag, kinds: { plain: tex(art.socks.kinds.plain), MINI: tex(art.socks.kinds.MINI),
+      MAJOR: tex(art.socks.kinds.MAJOR), MEGA: tex(art.socks.kinds.MEGA) } } : null,
     tokens: { plain: tex(t.plain), MINI: tex(t.MINI), MAJOR: tex(t.MAJOR), MEGA: tex(t.MEGA) } };
 }
 
@@ -98,6 +100,9 @@ const NEON_STAMPS: Record<string, string> = { pair: 'TWIN POP', 'magnet-left': '
 /** Candy Factory's: Golden Glaze is heavy, Double Dip the pair, Candy Current the magnet, Sugar Rush the meltdown. */
 const CANDY_NAMES: Record<string, string> = { heavy: 'GLAZE', pair: 'DOUBLE DIP', 'magnet-left': 'CURRENT L', 'magnet-right': 'CURRENT R', meltdown: 'SUGAR RUSH' };
 const CANDY_STAMPS: Record<string, string> = { pair: 'DOUBLE DIP', 'magnet-left': 'CANDY CURRENT', 'magnet-right': 'CANDY CURRENT', meltdown: 'SUGAR RUSH' };
+/** Shurda Plinko's: Golden Sock is heavy, Pair of Socks the pair, Beach Breeze the magnet, Laundry Day the meltdown. */
+const SHURDA_NAMES: Record<string, string> = { heavy: 'GOLD SOCK', pair: 'PAIR', 'magnet-left': 'BREEZE L', 'magnet-right': 'BREEZE R', meltdown: 'LAUNDRY' };
+const SHURDA_STAMPS: Record<string, string> = { pair: 'PAIR OF SOCKS', 'magnet-left': 'BEACH BREEZE', 'magnet-right': 'BEACH BREEZE', meltdown: 'LAUNDRY DAY' };
 /** Zombie War's: Mega Charge is heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the meltdown. */
 const ZOMBIE_NAMES: Record<string, string> = { heavy: 'MEGA CHARGE', pair: 'SPLIT FUSE', 'magnet-left': 'HORDE L', 'magnet-right': 'HORDE R', meltdown: 'RAID' };
 const ZOMBIE_STAMPS: Record<string, string> = { pair: 'SPLIT FUSE', 'magnet-left': 'HORDE RUSH', 'magnet-right': 'HORDE RUSH', meltdown: 'LOCKER RAID' };
@@ -239,10 +244,11 @@ export class Game extends Container {
     this.phoneTop = theme.console?.phoneTop ?? 418;
     const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
     const zombie = theme.board.fx === 'zombie', neon = theme.board.fx === 'neon', candy = theme.board.fx === 'candy';
+    const shurda = theme.board.fx === 'shurda';
     this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}),
-      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}) };
-    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : 'HEAVY SHELLS';
+      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}), ...(shurda ? SHURDA_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}), ...(shurda ? SHURDA_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : shurda ? 'GOLDEN SOCK' : 'HEAVY SHELLS';
     this.bloody = zombie;
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
@@ -259,11 +265,11 @@ export class Game extends Container {
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex), gacha: gachaPick(theme, tex),
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"]
-          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : ['BOOM!', 'KABOOM!'] });
+          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : shurda ? ['SHURDA!', 'NICE SOCKS!'] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests || !!theme.wheel.gacha;
     this.chestPick = !!theme.wheel.chests;
-    // (the gacha and the jars play it too: the capsule, the jar, holds the payout)
-    this.tombRaid = !!theme.wheel.chests?.doors || !!theme.wheel.chests?.jars || !!theme.wheel.gacha;
+    // (the gacha, the jars and the socks play it too: the capsule, the jar, the sock holds the payout)
+    this.tombRaid = !!theme.wheel.chests?.doors || !!theme.wheel.chests?.jars || !!theme.wheel.chests?.socks || !!theme.wheel.gacha;
     this.gacha = !!theme.wheel.gacha;
     this.wheel.onTick = () => sound('tick', { volume: 0.5 });
     this.wheel.onWin = big => {
@@ -322,7 +328,7 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (reactor || lagoon || pharaoh || zombie || neon || candy) {
+    if (reactor || lagoon || pharaoh || zombie || neon || candy || shurda) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
         title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : 'CORE PRESSURE' });

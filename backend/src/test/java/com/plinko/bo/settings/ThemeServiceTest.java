@@ -10,7 +10,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** Which themes are on and which is the default (Plinko Mega ships Bombs Away, the default, Reactor Drop, Lagoon
- * Drop, Pharaoh's Drop, Zombie War, Neon Nights and Candy Factory). */
+ * Drop, Pharaoh's Drop, Zombie War, Neon Nights and Candy Factory; Shurda Plinko, a brand theme, starts
+ * switched off). */
 class ThemeServiceTest {
 
     private static ThemeService with(Map<String, String> values) {
@@ -42,5 +43,15 @@ class ThemeServiceTest {
         assertThat(themes.validate(List.of("old-theme"), "old-theme")).containsExactly("Unknown theme");
         assertThat(themes.validate(List.of("bombs-away"), "bombs-away")).isEmpty();
         assertThat(themes.validate(List.of("bombs-away", "reactor-drop"), "reactor-drop")).isEmpty();
+    }
+
+    @Test
+    void aBrandThemeStartsOffUntilAnAdminSwitchesItOn() {
+        assertThat(with(Map.of()).current().enabled()).doesNotContain("shurda-plinko");
+        assertThat(with(Map.of()).resolve("shurda-plinko")).isEqualTo("bombs-away");
+        // a choice saved before it existed does not switch it on
+        assertThat(with(Map.of("game.themes", "bombs-away", "game.themes.known", "bombs-away")).current().enabled()).doesNotContain("shurda-plinko");
+        assertThat(with(Map.of("game.themes", "bombs-away,shurda-plinko", "game.themes.known", "bombs-away,shurda-plinko")).current().enabled())
+                .contains("shurda-plinko");
     }
 }

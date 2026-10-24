@@ -7,6 +7,7 @@ import { Board, smashedPegs, type Landing, type PegHit } from './board';
 import { BigWin, BlastShower, CoinShower, splatter, winLevel, type Shower } from './effects';
 import { FortuneWheel, type ChestPick, type GachaPick, type PhotoRevolver, type TeslaRing } from './fortuneWheel';
 import { Character } from './character';
+import { WashingLines } from './washingLines';
 import { MegaControls } from './megaControls';
 import { ConsoleControls } from './consoleControls';
 import { ArsenalPanel, ARSENALS } from './arsenal';
@@ -176,6 +177,12 @@ export class Game extends Container {
   private readonly characterPhone: { x: number; feet: number; height: number } | null;
   /** on a phone his spot is behind the board (theme character.phoneBehind) */
   private readonly characterPhoneBehind: boolean;
+  /** on a wide screen he leans on the control bar: its top this far down his frame (theme character.lean), or null */
+  private readonly characterLean: number | null;
+  /** where his feet are in his frame (shares) */
+  private readonly characterFeet: [number, number];
+  /** washing lines over the wall (theme lines), or null */
+  private readonly lines: WashingLines | null;
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
@@ -321,9 +328,13 @@ export class Game extends Container {
     this.characterHeight = c?.height ?? 0.76;
     this.characterPhone = c?.phone ?? null;
     this.characterPhoneBehind = c?.phoneBehind ?? false;
+    this.characterLean = c?.lean ?? null;
+    this.characterFeet = c?.feet ?? [0.5, 1];
     this.character = c ? new Character({ body: tex(c.body), head: tex(c.head), arm: tex(c.arm), eyes: tex(c.eyes),
-      cheer: tex(c.cheer), point: tex(c.point) }, c) : null;
-    this.table.addChild(this.ambient, this.vents, ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
+      cheer: tex(c.cheer), point: tex(c.point), shrug: c.shrug ? tex(c.shrug) : null,
+      face: c.face ? { idle: tex(c.face.idle), happy: tex(c.face.happy), meh: tex(c.face.meh), pupil: tex(c.face.pupil) } : null }, c) : null;
+    this.lines = theme.lines ? new WashingLines(theme.lines, tex(theme.lines.rope), theme.lines.socks.map(sock => tex(sock.file))) : null;
+    this.table.addChild(this.ambient, ...(this.lines ? [this.lines] : []), this.vents, ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
       this.banner, this.meter, this.bar);
     // Reactor Drop: the station breathes: vent steam drifts up at the sides now and then
     if (theme.board.fx === 'reactor' && theme.blast) this.ventSteam(tex(theme.blast.smoke));
@@ -427,7 +438,8 @@ export class Game extends Container {
       return new Rectangle(a.x, a.y, b.x - a.x, b.y - a.y);
     };
     if (view.landscape && this.consoleBar) {
-      bar.layoutBar(view, this.barBox(view));
+      // a character leaning on it: the bar's strip runs on under him, to the screen's edge
+      bar.layoutBar(view, this.barBox(view), this.leaning(view) ? view.stageW - view.offsetX + 12 : null);
       return;
     }
     if (view.landscape) {
@@ -484,6 +496,11 @@ export class Game extends Container {
     }
   }
 
+  /** On this screen the character leans on the control bar (a wide screen, a theme whose character leans). */
+  private leaning(view: Viewport): boolean {
+    return !!this.character && view.landscape && this.consoleBar && this.characterLean !== null;
+  }
+
   /** Where a console board's middle is across: the middle of the screen, or left of the character beside it. */
   private boardX(view: Viewport): number {
     return this.character && view.landscape ? view.offsetX + (view.stageW - 2 * view.offsetX) * 0.41 : view.stageW / 2;
@@ -497,7 +514,17 @@ export class Game extends Container {
       // the board and its console, centred and as big as the screen allows (wide; with a character, left of him); the
       // board on top (tall)
       const visibleW = view.stageW - 2 * view.offsetX;
-      if (this.character) {
+      this.lines?.layout(view, this.boardX(view));
+      if (this.character && this.leaning(view)) {
+        // leaning on the bar's right end: the underside of his arm on its top, his elbow just inside its end
+        const box = this.barBox(view), c = this.character;
+        const height = visibleH * this.characterHeight, frameH = height * 0.94, frameW = frameH * c.aspect;
+        const left = box.x + box.width - frameW * 0.2;
+        const [fx, fy] = this.characterFeet;
+        c.place(left + frameW * fx, box.y + (fy - (this.characterLean as number)) * frameH, height);
+        this.table.removeChild(c);
+        this.table.addChildAt(c, this.table.getChildIndex(this.board));
+      } else if (this.character) {
         if (view.landscape) this.character.place(view.offsetX + visibleW * 0.885, view.offsetY + visibleH * 0.95, visibleH * this.characterHeight);
         // a phone: where the theme puts him, in front of the board (or behind it); or in the top right corner, beside
         // the pyramid's slope, his lower half behind the board
@@ -840,7 +867,7 @@ export class Game extends Container {
     // a round bought with a power-up is announced once; then its MEGA BALLs are quiet (one of many)
     const heavy = round.power === 'heavy';
     if (heavy) { this.board.stamp(`${this.heavyName} x${count}`); sound('huge'); this.screen.flash(0.35); }
-    if (round.power && this.powerStamps[round.power]) { this.board.stamp(this.powerStamps[round.power]); sound('huge'); this.character?.point(); }
+    if (round.power && this.powerStamps[round.power]) { this.board.stamp(this.powerStamps[round.power]); sound('huge'); this.character?.point(); this.lines?.breeze(); }
     // a power-up by slot: the boosted prizes and their targets (the night) for this round
     if (round.slotFactors?.length) this.board.setPower(round.power ?? null, round.slotFactors);
     const crateOf = new Map((round.crates ?? []).map(c => [c.ball, c.multiplier]));
@@ -872,6 +899,8 @@ export class Game extends Container {
           } else if (multiplier >= 5) this.screen.flash(multiplier >= 10 ? 0.6 : 0.3);
           const win = round.wins?.[i] ?? cents(bet * multiplier);
           land(win);
+          // the character laughs at a ball that paid double or more
+          if (multiplier >= 2 || mega > 1) this.character?.react('happy', multiplier >= 5 || mega > 1 ? 1.6 : 0.9);
           this.board.showAmount(landing.slot, this.money(win), multiplier > 1);
           this.ticker.add(this.money(win), multiplier);
           if (charging.includes(landing.prizeIndex)) { this.meter.charge(); sound('golden', { volume: 0.7 }); }
@@ -982,12 +1011,16 @@ export class Game extends Container {
         this.flashStatus('BETTER LUCK NEXT TIME', 3);
         sound('lose');
       }
+      // less than the bet back: a shrug; the bet or more (short of a big win): a laugh
+      if (round.totalWin < round.totalBet) this.character?.shrug();
+      else if (!winLevel(round.totalWin, round.totalBet)) this.character?.react('happy', 1.4);
     }
     // a round that paid 10x its cost or more gets a celebration (the amount is the server's; tap to skip)
     const level = winLevel(round.totalWin, round.totalBet);
     if (level) sound('bigWin');
     if (level) {
       this.character?.cheer();
+      this.lines?.flap();
       if (this.bloody) this.bloodScreen(level);
       await this.bigWin.show(level, round.totalWin, value => this.money(value), round.totalBet);
     }
@@ -1088,7 +1121,8 @@ export class Game extends Container {
     this.board.update(deltaMs);
     this.ambient.update(deltaMs);
     this.wheel.update(deltaMs);
-    this.character?.update(deltaMs, this.busy());
+    this.character?.update(deltaMs, this.busy(), this.board.lowestBall());
+    this.lines?.update(deltaMs);
   }
 
   /** The wheel pops up over the board (dimmed) for a round's spins. */

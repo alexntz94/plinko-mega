@@ -100,7 +100,11 @@
       }
     },
     "portraitSpan": 0.62,
-    "statusStroke": "#14324e"
+    "statusStroke": "#14324e",
+    "slotHang": {
+      "text": 0.55,
+      "textWidth": 0.66
+    }
   },
   "wheel": {
     "faces": [
@@ -305,30 +309,162 @@
     "head": "guy_blank.png",
     "arm": "guy_blank.png",
     "eyes": "guy_blank.png",
-    "cheer": "guy.png",
-    "point": "guy.png",
+    "cheer": "guy_cheer.png",
+    "point": "guy_cheer.png",
     "cheerScale": 1.0,
     "neck": [
-      0.5,
-      0.25
+      0.5023,
+      0.3719
     ],
     "shoulder": [
       0.75,
       0.35
     ],
     "feet": [
-      0.5,
-      0.975
+      0.5218,
+      0.9788
     ],
     "swing": 0,
     "swingSpeed": 1,
-    "height": 0.62,
+    "height": 0.7,
     "dust": false,
     "phone": [
       0.8,
       0.47,
       0.36
     ],
-    "phoneBehind": true
+    "phoneBehind": true,
+    "shrug": "guy_shrug.png",
+    "lean": 0.531,
+    "face": {
+      "idle": "guy_face.png",
+      "happy": "guy_happy.png",
+      "meh": "guy_meh.png",
+      "pupil": "guy_pupil.png",
+      "anchor": [
+        0.5,
+        0.95
+      ],
+      "eyes": [
+        [
+          0.337,
+          0.4369
+        ],
+        [
+          0.6432,
+          0.4311
+        ]
+      ],
+      "reach": [
+        0.033,
+        0.029
+      ]
+    }
+  },
+  "lines": {
+    "rope": "line_rope.png",
+    "socks": [
+      {
+        "file": "line_sock_0.png",
+        "hang": [
+          0.55,
+          0.1517
+        ]
+      },
+      {
+        "file": "line_sock_1.png",
+        "hang": [
+          0.5227,
+          0.1429
+        ]
+      },
+      {
+        "file": "line_sock_2.png",
+        "hang": [
+          0.5933,
+          0.1358
+        ]
+      },
+      {
+        "file": "line_sock_3.png",
+        "hang": [
+          0.4893,
+          0.1384
+        ]
+      },
+      {
+        "file": "line_sock_4.png",
+        "hang": [
+          0.5361,
+          0.1319
+        ]
+      },
+      {
+        "file": "line_sock_5.png",
+        "hang": [
+          0.5457,
+          0.1255
+        ]
+      },
+      {
+        "file": "line_sock_6.png",
+        "hang": [
+          0.5847,
+          0.2243
+        ]
+      },
+      {
+        "file": "line_sock_7.png",
+        "hang": [
+          0.4239,
+          0.1415
+        ]
+      }
+    ],
+    "size": [
+      0.15,
+      0.08
+    ],
+    "wide": [
+      {
+        "from": [
+          -0.59,
+          0.165
+        ],
+        "to": [
+          -0.11,
+          0.188
+        ],
+        "sag": 0.03,
+        "socks": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "from": [
+          0.075,
+          0.1
+        ],
+        "to": [
+          0.921,
+          0.125
+        ],
+        "sag": 0.035,
+        "socks": [
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "span": [
+          0.2,
+          1
+        ]
+      }
+    ],
+    "tall": []
   }
 }

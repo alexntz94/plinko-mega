@@ -281,9 +281,9 @@ export class ConsoleControls extends Container {
 
   /**
    * Wide, in a bar of its own (box: where it goes): on a plate, two rows left of a big DROP: credits | win | bet | balls,
-   * then the risks | rows | the small keys.
+   * then the risks | rows | the small keys. right: its strip runs on to there (under a character leaning on it).
    */
-  layoutBar(view: Viewport, box: Rectangle): void {
+  layoutBar(view: Viewport, box: Rectangle, right: number | null = null): void {
     for (const k of this.quick) k.visible = false;
     for (const k of [this.rowsDown, this.rowsShown, this.rowsUp]) k.visible = false;
     this.rowsKey.visible = true;
@@ -293,6 +293,11 @@ export class ConsoleControls extends Container {
       this.back.position.set(box.x + box.width / 2, box.y + box.height / 2);
       this.back.width = box.width + 24;
       this.back.height = box.height + 16;
+      // the strip runs on to `right` (a counter for a character to lean on), the controls staying in the box
+      if (right !== null && right > box.x + box.width) {
+        this.back.width = right - box.x + 12;
+        this.back.x = (box.x - 12 + right) / 2;
+      }
     }
     const pad = box.height * 0.08;
     const dropW = box.height * 1.05;

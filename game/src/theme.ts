@@ -27,6 +27,10 @@ export interface BoardStyle {
   portraitSpan: number;
   /** an outline round the line above the pegs (PLAYING...), for a board standing on a light wall; null: none */
   statusStroke: string | null;
+  /** drawn slots that hang from the board's foot (a sock): the picture's top where a tag's top would be, the prize
+   *  this far down it (a share of its height) and at most this wide (a share of its width); a landing stretches it
+   *  down. null: a tag, centred */
+  slotHang: { text: number; textWidth: number } | null;
 }
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
@@ -156,7 +160,29 @@ export interface CharacterArt {
   phone: { x: number; feet: number; height: number } | null;
   /** on a phone, at his spot but behind the board (leaning out from behind it) instead of in front of it */
   phoneBehind: boolean;
+  /**
+   * A face of its own instead of the head layer (the Shurda guy): head pictures (idle with empty eyes, laughing,
+   * "meh") set on the neck by their anchor (a share of the picture), and a pupil in each eye (where the eyes are and
+   * how far a pupil can move, shares of the idle head) that follows the balls. null: the head layer.
+   */
+  face: { idle: string; happy: string; meh: string; pupil: string; anchor: [number, number]; eyes: [number, number][];
+    reach: [number, number] } | null;
+  /** a whole pose for a round that paid less than its bet (shrugging), or null */
+  shrug: string | null;
+  /** on a wide screen he leans on the control bar: its top this far down his frame (the underside of his arm), the
+   *  bar running on under him; null: he stands beside the board */
+  lean: number | null;
 }
+/** A washing line over the wall: from and to (across: from the board's middle, in the visible screen's heights, so the
+ *  line keeps its place beside the board whatever the screen's shape; down: a share of the visible screen), how far it
+ *  sags (a share of the screen's height) and which socks hang on it (indices into the theme's socks), evenly spaced over the part of it `span` gives
+ *  (shares of its length; all of it when not given). */
+export interface WashingLine { from: [number, number]; to: [number, number]; sag: number; socks: number[]; span: [number, number] }
+/** Washing lines with socks pegged on them that sway (the Shurda drawer): the rope, the socks (where each hangs from:
+ *  its peg on the rope, a share of the picture), the lines on a wide screen and on a phone. */
+export interface WashingLines { rope: string; socks: { file: string; hang: [number, number] }[]; wide: WashingLine[]; tall: WashingLine[];
+  /** a sock's height, as a share of the visible screen's height (wide, tall) */
+  size: [number, number] }
 export interface Theme {
   id: string;
   name: string;
@@ -205,11 +231,13 @@ export interface Theme {
   ambient: { colours: string[]; rise: boolean };
   /** a character standing beside the board, or null */
   character: CharacterArt | null;
+  /** washing lines over the wall, or null */
+  lines: WashingLines | null;
   path: string;
 }
 
 const DEFAULT_FONT: ThemeFont = { family: 'Azonix', file: null, weight: 'normal' };
-const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1, statusStroke: null };
+const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1, statusStroke: null, slotHang: null };
 
 // theme.json is our own static file, but only well-formed values are used
 const colour = (value: unknown, fallback: string) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
@@ -337,7 +365,50 @@ function readCharacter(json: unknown): CharacterArt | null {
   const swingSpeed = typeof c.swingSpeed === 'number' && c.swingSpeed > 0 && c.swingSpeed < 20 ? c.swingSpeed : 0.8;
   const height = typeof c.height === 'number' && c.height > 0.3 && c.height < 1 ? c.height : 0.78;
   return { body, head, arm, eyes, cheer, point, cheerScale: scale, neck, shoulder, feet, swing, swingSpeed, height, dust: c.dust !== false,
-    phone: phoneSpot(c.phone), phoneBehind: c.phoneBehind === true };
+    phone: phoneSpot(c.phone), phoneBehind: c.phoneBehind === true, face: readFace(c.face), shrug: png(c.shrug),
+    lean: share(c.lean) };
+}
+
+function readFace(json: unknown): CharacterArt['face'] {
+  const f = (json ?? null) as Record<string, unknown> | null;
+  if (!f) return null;
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const share = (v: unknown) => (typeof v === 'number' && v > 0 && v < 1 ? v : null);
+  const pair = (v: unknown): [number, number] | null =>
+    Array.isArray(v) && v.length === 2 && share(v[0]) && share(v[1]) ? [v[0] as number, v[1] as number] : null;
+  const [idle, happy, meh, pupil] = [f.idle, f.happy, f.meh, f.pupil].map(png);
+  const anchor = pair(f.anchor), reach = pair(f.reach);
+  const eyes = Array.isArray(f.eyes) ? f.eyes.map(pair) : [];
+  if (!idle || !happy || !meh || !pupil || !anchor || !reach || !eyes.length || eyes.some(e => !e)) return null;
+  return { idle, happy, meh, pupil, anchor, eyes: eyes as [number, number][], reach };
+}
+
+function readLines(json: unknown): WashingLines | null {
+  const l = (json ?? null) as Record<string, unknown> | null;
+  if (!l) return null;
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const share = (v: unknown) => (typeof v === 'number' && v >= 0 && v <= 1 ? v : null);
+  const pair = (v: unknown): [number, number] | null =>
+    Array.isArray(v) && v.length === 2 && share(v[0]) !== null && share(v[1]) !== null ? [v[0] as number, v[1] as number] : null;
+  // a line's ends: across from the board's middle (either side), down a share of the screen
+  const end = (v: unknown): [number, number] | null =>
+    Array.isArray(v) && v.length === 2 && typeof v[0] === 'number' && Math.abs(v[0]) <= 2 && share(v[1]) !== null ? [v[0], v[1] as number] : null;
+  const rope = png(l.rope);
+  const socks = Array.isArray(l.socks) ? l.socks.map(s => {
+    const o = (s ?? {}) as Record<string, unknown>;
+    const file = png(o.file), hang = pair(o.hang);
+    return file && hang ? { file, hang } : null;
+  }) : [];
+  if (!rope || !socks.length || socks.some(s => !s)) return null;
+  const lines = (v: unknown): WashingLine[] => (Array.isArray(v) ? v : []).map(x => {
+    const o = (x ?? {}) as Record<string, unknown>;
+    const from = end(o.from), to = end(o.to);
+    const ids = Array.isArray(o.socks) ? o.socks.filter((i): i is number => Number.isInteger(i) && i >= 0 && i < socks.length) : [];
+    const span = pair(o.span);
+    return from && to && ids.length ? { from, to, sag: share(o.sag) ?? 0, socks: ids, span: span && span[0] < span[1] ? span : [0, 1] } : null;
+  }).filter((x): x is WashingLine => x !== null);
+  const size = pair(l.size) ?? [0.15, 0.1];
+  return { rope, socks: socks as WashingLines['socks'], wide: lines(l.wide), tall: lines(l.tall), size };
 }
 
 function readTesla(json: unknown, style: unknown): TeslaArt | null {
@@ -436,8 +507,15 @@ function readBoard(json: unknown): BoardStyle {
     fit: readFit(b.fit),
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
     statusStroke: b.statusStroke === undefined ? null : colour(b.statusStroke, '#000000'),
+    slotHang: readSlotHang(b.slotHang),
     fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' ? b.fx : 'standard',
   };
+}
+
+function readSlotHang(json: unknown): BoardStyle['slotHang'] {
+  const h = (json ?? null) as Record<string, unknown> | null;
+  if (!h || typeof h.text !== 'number' || typeof h.textWidth !== 'number') return null;
+  return { text: Math.min(0.95, Math.max(0.05, h.text)), textWidth: Math.min(1, Math.max(0.2, h.textWidth)) };
 }
 
 function readUi(json: unknown): ThemeUi {
@@ -506,6 +584,7 @@ export async function loadTheme(id: string): Promise<Theme> {
       rise: (json.ambient as Record<string, unknown> | undefined)?.rise === true,
     },
     character: readCharacter(json.character),
+    lines: readLines(json.lines),
     path,
   };
   document.title = theme.title;

@@ -39,6 +39,8 @@ interface SlotLook { face: string; flash: string; text: string }
 let slotLooks: SlotLook[] = SLOT_COLOURS.map((face, i) => ({ face, flash: SLOT_WIN_COLOURS[i], text: '#ffffff' }));
 let slotRadius = 10;
 let slotArt: Texture[] | null = null;
+/** drawn slots hanging from the board's foot (Shurda's socks), or null: tags */
+let slotHang: BoardStyle['slotHang'] = null;
 
 /** A colour mixed towards white: the lit-up version of a themed slot. */
 function lighten(hex: string, amount: number): string {
@@ -50,6 +52,7 @@ function lighten(hex: string, amount: number): string {
 /** The theme's slot colours (board and history use the same slots); set once before the board is built. */
 export function setSlotLooks(style: BoardStyle): void {
   slotRadius = style.slotRadius;
+  slotHang = style.slotHang;
   if (style.slots) slotLooks = style.slots.map(s => ({ face: s.face, flash: lighten(s.face, 0.35), text: s.text }));
 }
 
@@ -121,6 +124,10 @@ export class Slot extends Container {
       body = [new Sprite({ texture: slotArt[tier], anchor: 0.5 })];
       this.flash = new Sprite({ texture: slotArt[tier], anchor: 0.5 });
       (this.flash as Sprite).blendMode = 'add';
+      if (slotHang) {
+        // a sock hanging from the board's foot: its top where a tag's top would be (a tag is about 28 high)
+        for (const sprite of [...body, this.flash] as Sprite[]) { sprite.anchor.set(0.5, 0); sprite.y = -14; }
+      }
     } else {
       const shadow = new Graphics().roundRect(-SLOT_W / 2, -SLOT_H / 2 + 10, SLOT_W, SLOT_H, r).fill(look.face);
       const dim = new Graphics().roundRect(-SLOT_W / 2, -SLOT_H / 2 + 10, SLOT_W, SLOT_H, r).fill({ color: '#000000', alpha: 0.3 });
@@ -131,7 +138,7 @@ export class Slot extends Container {
     this.flash.alpha = 0;
     this.text = new Text({ text: '', anchor: 0.5, resolution: textQuality(),
       style: { fontFamily: typeface.family, fontWeight: typeface.weight as 'normal', fontSize: 22, fill: look.text } });
-    this.text.y = -3;
+    this.text.y = slotArt && slotHang ? -14 + slotArt[tier].height * slotHang.text : -3;
     this.meterMark = new Graphics().poly([0, -5, 4, 0, 0, 5, -4, 0]).fill('#ffffff').stroke({ color: '#000000', width: 1.5 });
     this.meterMark.position.set(0, -SLOT_H / 2 - 7);
     this.meterMark.visible = false;
@@ -150,7 +157,7 @@ export class Slot extends Container {
   setValue(value: number): void {
     this.text.text = this.spinLabel ? 'SPIN' : multiplierText(value);
     this.text.scale.set(1);
-    const max = SLOT_W - 5;
+    const max = slotArt && slotHang ? slotArt[this.tier].width * slotHang.textWidth : SLOT_W - 5;
     if (this.text.width > max) this.text.scale.set(max / this.text.width);
   }
 
@@ -163,6 +170,16 @@ export class Slot extends Container {
   hit(): void {
     // always dips from and back to its resting place, however many balls land at once, and squashes like a drum
     gsap.killTweensOf(this);
+    if (slotArt && slotHang) {
+      // a sock: the ball's weight stretches it down from its top, and it bounces back
+      this.pivot.y = -14;
+      this.y = this.baseY - 14;
+      gsap.fromTo(this.scale, { x: 0.88, y: 1.2 }, { x: 1, y: 1, duration: 0.6, ease: 'elastic.out(1.3, 0.3)', overwrite: true });
+      gsap.timeline()
+        .to(this.flash, { alpha: 0.8, duration: 0.15 })
+        .to(this.flash, { alpha: 0, duration: 0.25 });
+      return;
+    }
     gsap.fromTo(this.scale, { x: 1.25, y: 0.7 }, { x: 1, y: 1, duration: 0.5, ease: 'elastic.out(1.4, 0.35)', overwrite: true });
     gsap.timeline()
       .to(this, { y: this.baseY + 6, duration: 0.1, ease: 'power2.out' })
@@ -549,6 +566,14 @@ export class Board extends Container {
   /** How many balls are in the air. */
   inFlight(): number {
     return this.flights.size;
+  }
+
+  /** Where the lowest ball in the air is on the screen (for a character's eyes to follow), or null when none is. */
+  lowestBall(): { x: number; y: number } | null {
+    let low: Flight | null = null;
+    this.flights.forEach(f => { if (f.free && (!low || f.y > low.y)) low = f; });
+    const ball = low as Flight | null;
+    return ball ? this.field.toGlobal({ x: ball.x + ball.ox, y: ball.y + ball.oy }) : null;
   }
 
   /** The balls in the air hurry to their slots (PLAY's skip): no jolt, nothing about where they land changes. */

@@ -22,7 +22,7 @@ class ThemeServiceTest {
     @Test
     void aFreshInstallHasEveryThemeOnAndPlaysBombsAway() {
         ThemeService.Themes themes = with(Map.of()).current();
-        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop", "lagoon-drop", "pharaoh-drop", "zombie-war", "neon-nights", "candy-factory", "shurda-plinko");
+        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop", "lagoon-drop", "pharaoh-drop", "zombie-war", "neon-nights", "candy-factory", "shurda-plinko", "hell-of-a-deal");
         assertThat(themes.defaultTheme()).isEqualTo("bombs-away");
         assertThat(with(Map.of()).resolve("old-theme")).isEqualTo("bombs-away");
     }
@@ -31,7 +31,7 @@ class ThemeServiceTest {
     void namesThatAreNotThemesAreIgnored() {
         ThemeService.Themes themes = with(Map.of("game.themes", "old-theme,bombs-away", "game.theme.default", "old-theme")).current();
         // the themes newer than that choice come on too
-        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop", "lagoon-drop", "pharaoh-drop", "zombie-war", "neon-nights", "candy-factory", "shurda-plinko");
+        assertThat(themes.enabled()).containsExactly("bombs-away", "reactor-drop", "lagoon-drop", "pharaoh-drop", "zombie-war", "neon-nights", "candy-factory", "shurda-plinko", "hell-of-a-deal");
         assertThat(themes.defaultTheme()).isEqualTo("bombs-away");
     }
 

@@ -8,7 +8,7 @@ import { gsap } from 'gsap';
 gsap.defaults({ lazy: false });
 import './style.css';
 import { errorText, openSession, type ApiError } from './api';
-import { loadTheme, loadThemeFont, neonLayers, type Theme } from './theme';
+import { loadTheme, loadThemeFont, neonLayers, propFiles, type Theme } from './theme';
 import { atlasUrls, imageUrls, inAtlas, type Formats } from './images';
 import { computeViewport } from './viewport';
 import { initSounds, startMusic } from './sound';
@@ -53,6 +53,8 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.character ? [theme.character.body, theme.character.head, theme.character.arm, theme.character.eyes,
       theme.character.cheer, theme.character.point, ...(theme.character.shrug ? [theme.character.shrug] : []),
       ...(theme.character.face ? [theme.character.face.idle, theme.character.face.happy, theme.character.face.meh, theme.character.face.pupil] : [])] : []),
+    ...(theme.props ? propFiles(theme.props) : []),
+    ...(theme.board.fire ? [theme.board.fire.sheet, ...(theme.board.fire.glow ? [theme.board.fire.glow] : [])] : []),
     ...(theme.lines ? [theme.lines.rope, ...theme.lines.socks.map(s => s.file)] : []),
     ...(theme.blast ? [theme.blast.fire, theme.blast.dust, theme.blast.smoke, ...Object.values(theme.blast.kinds),
       ...Object.values(theme.blast.sheets), ...(theme.blast.tank ? [theme.blast.tank.body, theme.blast.tank.target] : []),
@@ -252,7 +254,8 @@ async function start(): Promise<void> {
   const game = new Game(session, theme, tex, fatal,
     backdrop.available ? { moving: () => backdrop.moving, onTap: () => backdrop.toggle() } : null, () => backdrop.start());
   world.addChild(game);
-  app.stage.addChild(background, world);
+  // the background's moving pieces lie on it, under the game
+  app.stage.addChild(background, ...(game.props ? [game.props] : []), world, ...(game.props ? [game.props.front] : []));
 
   let landscape: boolean | null = null;
   let fillTurned: (() => void) | null = null;
@@ -260,11 +263,20 @@ async function start(): Promise<void> {
     const view = computeViewport(app.screen.width, app.screen.height);
     // turned before the other orientation's picture arrived: the one already here, until it does
     const still = view.landscape ? 'background.png' : 'background_p.png';
-    background.texture = backdrop.texture(view.landscape)
-      ?? tex(waiting.has(still) ? (view.landscape ? 'background_p.png' : 'background.png') : still);
+    const video = backdrop.texture(view.landscape);
+    background.texture = video ?? tex(waiting.has(still) ? (view.landscape ? 'background_p.png' : 'background.png') : still);
     const cover = Math.max(app.screen.width / background.texture.width, app.screen.height / background.texture.height);
     background.scale.set(cover);
     background.position.set((app.screen.width - background.width) / 2, (app.screen.height - background.height) / 2);
+    // (a moving background shows the lamps and candles itself: the pieces behind the game only lie on the still one;
+    // the ones in front stay, laid out on the still picture's place)
+    if (game.props) {
+      game.props.visible = !video;
+      const picture = video ? tex(still) : background.texture;
+      const k = Math.max(app.screen.width / picture.width, app.screen.height / picture.height);
+      game.props.layout(view.landscape, (app.screen.width - picture.width * k) / 2, (app.screen.height - picture.height * k) / 2, k,
+        picture.width, picture.height);
+    }
     world.scale.set(view.scale);
     world.position.set(view.x, view.y);
     game.layout(view);

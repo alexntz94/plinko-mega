@@ -31,6 +31,10 @@ export interface BoardStyle {
    *  this far down it (a share of its height) and at most this wide (a share of its width); a landing stretches it
    *  down. null: a tag, centred */
   slotHang: { text: number; textWidth: number } | null;
+  /** the frame on fire (Hell of a Deal): a looping 4x4 flame sheet played at points along its rails (shares of the frame
+   *  picture, the flame's foot there), `size` tall (a share of the picture's height), and a glow picture laid over the
+   *  frame that breathes (its ember cracks); null: none */
+  fire: { sheet: string; points: [number, number][]; size: number; glow: string | null } | null;
 }
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
@@ -38,8 +42,9 @@ export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: 
 /** war: bombs (lit fuses, explosions); reactor: energy capsules (no fuse; sparks, plasma and lightning stills); lagoon:
  * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight);
  * zombie: a grenade (explosions and blood: splatters left on the board, big wins splashing the screen); neon: a capsule
- * ball (neon sparkles); candy: a gumball (sprinkles and wrapped sweets); shurda: a sock ball (comic starbursts and confetti) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda';
+ * ball (neon sparkles); candy: a gumball (sprinkles and wrapped sweets); shurda: a sock ball (comic starbursts and confetti);
+ * hell: an ember marble (gold sparks, embers and hellfire) */
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda' | 'hell';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -183,6 +188,28 @@ export interface WashingLine { from: [number, number]; to: [number, number]; sag
 export interface WashingLines { rope: string; socks: { file: string; hang: [number, number] }[]; wide: WashingLine[]; tall: WashingLine[];
   /** a sock's height, as a share of the visible screen's height (wide, tall) */
   size: [number, number] }
+/**
+ * A moving piece over the background (Hell of a Deal's lamps, candles, smoke): a picture (file) or a looping 4x4 sheet
+ * (sheet, a name from Props.sheets, played at fps), its anchor (shares of the picture) at `at` (shares of the background
+ * picture, or of the piece it stands on), `height` tall (a share of the background's height) or `width` wide (a share
+ * of what it stands on). It can swing from its anchor (radians), breathe (pulse: how much of its light comes and goes)
+ * or flicker like a flame's light; `on`: pieces standing on it that move with it.
+ */
+export interface Prop {
+  file: string | null; sheet: string | null; fps: number; at: [number, number]; anchor: [number, number];
+  height: number; width: number | null; alpha: number; blend: 'normal' | 'add';
+  swing: number; pulse: number; flicker: number; on: Prop[];
+  /** in front of the game (over the board and the controls), not behind it */
+  front: boolean;
+}
+/** The background's moving pieces: the sheets they play, and the pieces on a wide screen and on a phone. */
+export interface Props {
+  sheets: Record<string, { file: string; grid: [number, number]; skipLast: boolean }>;
+  wide: Prop[]; tall: Prop[];
+  /** a wall of fire for the big moments: how many bursts of `sheet` across the screen, how tall (a share of its height)
+   *  and how long each plays; null: none */
+  wipe: { sheet: string; count: number; height: number; seconds: number } | null;
+}
 export interface Theme {
   id: string;
   name: string;
@@ -233,11 +260,13 @@ export interface Theme {
   character: CharacterArt | null;
   /** washing lines over the wall, or null */
   lines: WashingLines | null;
+  /** the background's moving pieces (lamps, candles, smoke), or null */
+  props: Props | null;
   path: string;
 }
 
 const DEFAULT_FONT: ThemeFont = { family: 'Azonix', file: null, weight: 'normal' };
-const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1, statusStroke: null, slotHang: null };
+const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1, statusStroke: null, slotHang: null, fire: null };
 
 // theme.json is our own static file, but only well-formed values are used
 const colour = (value: unknown, fallback: string) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
@@ -369,6 +398,7 @@ function readCharacter(json: unknown): CharacterArt | null {
     lean: share(c.lean) };
 }
 
+
 function readFace(json: unknown): CharacterArt['face'] {
   const f = (json ?? null) as Record<string, unknown> | null;
   if (!f) return null;
@@ -409,6 +439,43 @@ function readLines(json: unknown): WashingLines | null {
   }).filter((x): x is WashingLine => x !== null);
   const size = pair(l.size) ?? [0.15, 0.1];
   return { rope, socks: socks as WashingLines['socks'], wide: lines(l.wide), tall: lines(l.tall), size };
+}
+
+function readProps(json: unknown): Props | null {
+  const p = (json ?? null) as Record<string, unknown> | null;
+  if (!p) return null;
+  const png = (v: unknown) => fileName(v, /\.png$/);
+  const num = (v: unknown, min: number, max: number, fallback: number) => (typeof v === 'number' && v >= min && v <= max ? v : fallback);
+  const pair = (v: unknown, min: number, max: number): [number, number] | null =>
+    Array.isArray(v) && v.length === 2 && v.every(n => typeof n === 'number' && n >= min && n <= max) ? [v[0], v[1]] : null;
+  const sheets: Props['sheets'] = {};
+  for (const [name, s] of Object.entries((p.sheets ?? {}) as Record<string, unknown>)) {
+    const o = (s ?? {}) as Record<string, unknown>;
+    const file = png(o.file), grid = pair(o.grid, 1, 8);
+    if (/^[a-z0-9_-]{1,24}$/.test(name) && file && grid) sheets[name] = { file, grid, skipLast: o.skipLast === true };
+  }
+  const prop = (v: unknown, depth: number): Prop | null => {
+    const o = (v ?? {}) as Record<string, unknown>;
+    const file = png(o.file), sheet = typeof o.sheet === 'string' && sheets[o.sheet] ? o.sheet : null;
+    const at = pair(o.at, -0.5, 1.5), anchor = pair(o.anchor, 0, 1) ?? [0.5, 0.5];
+    if ((!file && !sheet) || !at) return null;
+    return { file, sheet, fps: num(o.fps, 1, 60, 16), at, anchor, height: num(o.height, 0.001, 3, 0.1),
+      width: typeof o.width === 'number' && o.width > 0 && o.width <= 3 ? o.width : null, alpha: num(o.alpha, 0, 1, 1),
+      blend: o.blend === 'add' ? 'add' : 'normal', swing: num(o.swing, 0, 0.5, 0), pulse: num(o.pulse, 0, 1, 0),
+      flicker: num(o.flicker, 0, 1, 0), front: depth === 0 && o.front === true,
+      on: depth < 2 && Array.isArray(o.on) ? o.on.map(c => prop(c, depth + 1)).filter((c): c is Prop => c !== null) : [] };
+  };
+  const list = (v: unknown) => (Array.isArray(v) ? v : []).map(x => prop(x, 0)).filter((x): x is Prop => x !== null);
+  const w = (p.wipe ?? null) as Record<string, unknown> | null;
+  const wipe = w && typeof w.sheet === 'string' && sheets[w.sheet]
+    ? { sheet: w.sheet, count: Math.round(num(w.count, 1, 16, 6)), height: num(w.height, 0.05, 2, 0.5), seconds: num(w.seconds, 0.3, 4, 1.2) } : null;
+  return { sheets, wide: list(p.wide), tall: list(p.tall), wipe };
+}
+
+/** Every picture the props use (for loading). */
+export function propFiles(p: Props): string[] {
+  const walk = (list: Prop[]): string[] => list.flatMap(x => [...(x.file ? [x.file] : []), ...walk(x.on)]);
+  return [...Object.values(p.sheets).map(s => s.file), ...walk(p.wide), ...walk(p.tall)];
 }
 
 function readTesla(json: unknown, style: unknown): TeslaArt | null {
@@ -508,8 +575,19 @@ function readBoard(json: unknown): BoardStyle {
     portraitSpan: Math.min(1, Math.max(0.5, number(b.portraitSpan, 1))),
     statusStroke: b.statusStroke === undefined ? null : colour(b.statusStroke, '#000000'),
     slotHang: readSlotHang(b.slotHang),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' ? b.fx : 'standard',
+    fire: readFire(b.fire),
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' || b.fx === 'hell' ? b.fx : 'standard',
   };
+}
+
+function readFire(json: unknown): BoardStyle['fire'] {
+  const f = (json ?? null) as Record<string, unknown> | null;
+  if (!f) return null;
+  const sheet = fileName(f.sheet, /\.png$/);
+  const points = (Array.isArray(f.points) ? f.points : []).filter((p): p is [number, number] =>
+    Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && n >= 0 && n <= 1));
+  const size = typeof f.size === 'number' && f.size > 0 && f.size < 1 ? f.size : 0.06;
+  return sheet && points.length ? { sheet, points: points.slice(0, 40), size, glow: fileName(f.glow, /\.png$/) } : null;
 }
 
 function readSlotHang(json: unknown): BoardStyle['slotHang'] {
@@ -585,6 +663,7 @@ export async function loadTheme(id: string): Promise<Theme> {
     },
     character: readCharacter(json.character),
     lines: readLines(json.lines),
+    props: readProps(json.props),
     path,
   };
   document.title = theme.title;

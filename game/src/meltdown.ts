@@ -6,7 +6,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { kindBlast } from './effects';
-import { goldText } from './paint';
+import { goldText, mix } from './paint';
 import { label } from './ui';
 
 /** The gauge's marks: the meltdown's payouts (x the round's bet), from the left end of the dial to the right. */
@@ -19,7 +19,8 @@ export class CoreMeltdown extends Container {
   private readonly gauge = new Container();
   private area = { cx: 400, cy: 300, size: 300 };
 
-  constructor(private readonly look: { gold: string; text: string; rim: string; title?: string }) {
+  /** look.face and look.zone: the dial's glass and its lower zone (a theme's own; else dark glass and cyan) */
+  constructor(private readonly look: { gold: string; text: string; rim: string; title?: string; face?: string; zone?: string }) {
     super();
     this.addChild(this.dim, this.gauge);
     this.visible = false;
@@ -50,10 +51,10 @@ export class CoreMeltdown extends Container {
 
     // the dial: a dark glass face in a copper ring, the marks round it, the danger zone in red at the top end
     const face = new Graphics()
-      .circle(0, 0, r * 1.06).fill('#0b0d10')
-      .circle(0, 0, r).fill('#14191e').stroke({ color: this.look.rim, width: r * 0.07 })
+      .circle(0, 0, r * 1.06).fill(this.look.face ? mix(this.look.face, '#000000', 0.5) : '#0b0d10')
+      .circle(0, 0, r).fill(this.look.face ?? '#14191e').stroke({ color: this.look.rim, width: r * 0.07 })
       .arc(0, 0, r * 0.8, this.dialAngle(5), this.dialAngle(20)).stroke({ color: '#ff3b2a', width: r * 0.09, alpha: 0.75 })
-      .arc(0, 0, r * 0.8, this.dialAngle(0.5), this.dialAngle(5)).stroke({ color: '#46d9f2', width: r * 0.09, alpha: 0.35 });
+      .arc(0, 0, r * 0.8, this.dialAngle(0.5), this.dialAngle(5)).stroke({ color: this.look.zone ?? '#46d9f2', width: r * 0.09, alpha: 0.35 });
     this.gauge.addChild(face);
     const marks: Text[] = [];
     for (const m of MARKS) {

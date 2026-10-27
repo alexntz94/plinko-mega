@@ -1601,6 +1601,8 @@ export class FortuneWheel extends Container {
 
   /** The disc: a wedge per segment, labels along the radius, the rim with studs, the hub; the pointer on top. */
   private draw(segments = this.segments): void {
+    // (redrawn while the player picks, e.g. the screen laid out again: the old chests stop bobbing before they go)
+    for (const v of this.chests) gsap.killTweensOf([v.chest, v.glow]);
     this.disc.removeChildren().forEach(child => child.destroy({ children: true }));
     this.pointer.removeChildren().forEach(child => child.destroy({ children: true }));
     this.cover.removeChildren().forEach(child => child.destroy({ children: true }));

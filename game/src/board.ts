@@ -1,8 +1,8 @@
-import { Container, Graphics, GraphicsContext, Sprite, Text, Texture } from 'pixi.js';
+import { AnimatedSprite, Container, Graphics, GraphicsContext, Rectangle, Sprite, Text, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { Viewport } from './viewport';
 import { label, textQuality, typeface } from './ui';
-import { Particles, kindBlast, photoBlast, shake, splatter } from './effects';
+import { Particles, calm, kindBlast, photoBlast, shake, splatter } from './effects';
 import { goldText } from './paint';
 import type { BoardStyle, FitFrame, ThemeFx } from './theme';
 import { prizeIndexOfSlot, slotTier } from './rules';
@@ -282,6 +282,10 @@ const CANDY_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#f45c9a', '#8ad9ae'
 const SHURDA_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#f0388c', '#ffd23f', '#3db5e6', '#7ed957'], smoke: ['#fff6e0', '#ffe9a8', '#c9ecfa'],
   debris: ['#f0388c', '#ffd23f', '#3db5e6', '#7ed957'], words: ['SHURDA!', 'FLEX!', 'NICE!'], bigWords: ['NICE SOCKS!', 'BEAST MODE!', 'SOCK DAY!'],
   ink: '#ffffff', bigInk: '#ffd23f' };
+/** an ember marble in the devil's pawnshop: gold sparks, embers and gold coins thrown up */
+const HELL_BLAST: typeof WAR_BLAST = { sparks: ['#fff3c4', '#f2c14e', '#f57a1f', '#d8321e'], smoke: ['#3a1a14', '#5a2a1e', '#2a1410'],
+  debris: ['#f2c14e', '#f57a1f', '#d8321e', '#b8893a'], words: ['DEAL!', 'SOLD!', 'SEALED!'], bigWords: ['DEVIL OF A WIN!', 'HELL YES!', 'SOLD YOUR SOUL!'],
+  ink: '#fff2d6', bigInk: '#f2c14e' };
 /** a grenade among zombies: fire, blood spray and gore thrown out, splatters left behind */
 const ZOMBIE_BLAST: typeof WAR_BLAST = { sparks: ['#ff4a3a', '#b52c2c', '#ffb050', '#8a0f0f'], smoke: ['#3a2c2a', '#4a3a36', '#2a2224'],
   debris: ['#8a0f0f', '#b52c2c', '#5a0a0a', '#76a83b'], words: ['SPLAT!', 'BOOM!', 'GIBBED!'], bigWords: ['MASSACRE!', 'BLOODBATH!', 'OVERKILL!'],
@@ -336,7 +340,8 @@ export class Board extends Container {
   private lastPlace: { view: Viewport; place: Parameters<Board['layout']>[1] } | null = null;
 
   constructor(frame: Texture, framePortrait: Texture, private readonly ballTexture: Texture, private readonly style: BoardStyle,
-              pegTexture: Texture | null, private readonly fitFrames: Record<number, { wide: Texture; tall: Texture }> = {}) {
+              pegTexture: Texture | null, private readonly fitFrames: Record<number, { wide: Texture; tall: Texture }> = {},
+              fire: { sheet: Texture; glow: Texture | null } | null = null) {
     super();
     this.trailDot = style.trail ? new GraphicsContext().circle(0, 0, 1).fill(style.trail) : null;
     this.pegFlashColour = style.pegFlash;
@@ -370,7 +375,58 @@ export class Board extends Container {
     this.field.addChildAt(this.splatLayer, 0);
     this.field.addChild(this.status, this.gateLayer, this.holeLayer, this.slotLayer, this.nightLayer, this.powerLayer, this.trailLayer,
       this.ballLayer, this.particles, this.textLayer);
+    if (fire && style.fire) for (const picture of [this.frame, this.framePortrait]) picture.addChild(this.burning(picture, fire, style.fire));
     this.addChild(this.frame, this.framePortrait, this.field);
+  }
+
+  /** The frame's fire (style.fire): the glow of its ember cracks, small flames along its rails (each its own height). */
+  private readonly fireGlows: Sprite[] = [];
+  private readonly flames: { sprite: AnimatedSprite; base: number }[] = [];
+  private fireTime = 0;
+  private fireFlare = 0;
+  private burning(picture: Sprite, art: { sheet: Texture; glow: Texture | null }, spec: NonNullable<BoardStyle['fire']>): Container {
+    const layer = new Container();
+    const w = picture.texture.width, h = picture.texture.height;
+    if (art.glow) {
+      const glow = new Sprite({ texture: art.glow, anchor: 0.5 });
+      glow.blendMode = 'add';
+      this.fireGlows.push(glow);
+      layer.addChild(glow);
+    }
+    const t = art.sheet, cw = t.frame.width / 4, ch = t.frame.height / 4;
+    const frames = Array.from({ length: 16 }, (_, i) => new Texture({
+      source: t.source, frame: new Rectangle(t.frame.x + (i % 4) * cw, t.frame.y + Math.floor(i / 4) * ch, cw, ch) }));
+    for (const [px, py] of spec.points) {
+      const sprite = new AnimatedSprite({ textures: frames, anchor: { x: 0.5, y: 0.8 }, autoUpdate: !calm });
+      sprite.animationSpeed = (12 + Math.random() * 6) / 60;
+      sprite.gotoAndPlay(Math.floor(Math.random() * 16));
+      if (calm) sprite.stop();
+      sprite.blendMode = 'add';
+      sprite.position.set((px - 0.5) * w, (py - 0.5) * h);
+      const base = spec.size * h / ch * (0.8 + Math.random() * 0.4);
+      sprite.scale.set(Math.random() < 0.5 ? -base : base, base);
+      this.flames.push({ sprite, base });
+      layer.addChild(sprite);
+    }
+    return layer;
+  }
+
+  /** A big win: the frame's fire flares up for a moment. */
+  flareFire(): void {
+    if (!this.flames.length || calm) return;
+    gsap.fromTo(this, { fireFlare: 1 }, { fireFlare: 0, duration: 2.2, ease: 'power2.out', overwrite: 'auto' });
+  }
+
+  /** Every frame: the cracks breathe, the flames waver in height (and leap on a flare). */
+  private burn(dt: number): void {
+    if (!this.flames.length && !this.fireGlows.length) return;
+    this.fireTime += dt;
+    const t = this.fireTime, f = this.fireFlare;
+    for (const glow of this.fireGlows) glow.alpha = Math.min(1, 0.45 + 0.35 * Math.sin(t * 1.7) + 0.15 * Math.sin(t * 4.3) + f * 0.5);
+    this.flames.forEach(({ sprite, base }, i) => {
+      sprite.alpha = Math.min(1, 0.75 + 0.25 * Math.sin(t * 3 + i * 1.7) + f);
+      sprite.scale.y = base * (1 + 0.15 * Math.sin(t * 5 + i * 2.3) + f * 1.2);
+    });
   }
 
   /** Rows (8..14) and the multipliers per prize position ([low, mid, high] each), from the server's config. */
@@ -738,7 +794,7 @@ export class Board extends Container {
 
     const radius = ball.texture.width / 2;
     // every ball has its own pace, but within a ball the hops change smoothly (no random jerks from peg to peg)
-    const pace = random(0.21, 0.235);   // (the user asked for a calmer fall than 0.17-0.19)
+    const pace = random(0.27, 0.3);   // (the user asked for a calmer fall twice: 0.17-0.19, then 0.21-0.235)
     const slotTop = this.slotY() - SLOT_H / 2;
 
     return new Promise(resolve => {
@@ -764,7 +820,7 @@ export class Board extends Container {
       timeline.call(() => this.launch(points[0].y - PEG_SPACING * 0.9));
       timeline.to(ball, { alpha: pegs.decoy ? 0.55 : 1, duration: 0.12 });
       timeline.fromTo(ball.scale, { x: 0.2, y: 0.2 }, { x: size, y: size, duration: 0.25, ease: 'back.out(3)' }, 0);
-      timeline.to(flight, { y: points[0].y, duration: 0.34, ease: 'power2.in' }, 0);
+      timeline.to(flight, { y: points[0].y, duration: 0.42, ease: 'power2.in' }, 0);
       timeline.call(() => this.touchPeg(ball, 0, 0, events.onPeg, flight.size));
       const gateAt = (i: number) => {
         const gate = passes.get(i);
@@ -863,7 +919,7 @@ export class Board extends Container {
             entered = true;
             if (pegs.decoy) {
               // a cluster decoy: it fizzles in its slot, it pays nothing
-              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : this.fx === 'candy' ? ['#f45c9a', '#8ad9ae'] : this.fx === 'shurda' ? ['#f0388c', '#ffd23f'] : ['#8b939b', '#ff8a1a'], 6, 160);
+              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : this.fx === 'candy' ? ['#f45c9a', '#8ad9ae'] : this.fx === 'shurda' ? ['#f0388c', '#ffd23f'] : this.fx === 'hell' ? ['#f57a1f', '#f2c14e'] : ['#8b939b', '#ff8a1a'], 6, 160);
               return;
             }
             this.slots[slot]?.hit();
@@ -1004,6 +1060,7 @@ export class Board extends Container {
   update(deltaMs: number): void {
     const dt = Math.min(deltaMs, 50) / 1000;
     this.idle(dt);
+    if (!calm) this.burn(dt);
     const flights = [...this.flights];
     for (const f of flights) {
       // spring back to the route; balls going into a slot settle faster
@@ -1138,7 +1195,7 @@ export class Board extends Container {
   private explode(x: number, y: number, multiplier: number): void {
     const size = multiplier >= 10 ? 3 : multiplier >= 2 ? 2 : multiplier >= 1 ? 1 : 0;
     // a bomb: fire, smoke and debris; a reactor capsule: cyan-white sparks and a puff of vent steam, nothing thrown out
-    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : this.fx === 'candy' ? CANDY_BLAST : this.fx === 'shurda' ? SHURDA_BLAST : WAR_BLAST;
+    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : this.fx === 'candy' ? CANDY_BLAST : this.fx === 'shurda' ? SHURDA_BLAST : this.fx === 'hell' ? HELL_BLAST : WAR_BLAST;
     this.particles.burst(x, y, look.sparks, [6, 12, 22, 36][size], [150, 220, 320, 440][size]);
     // smoke (steam) rising out of the hole
     this.particles.burst(x, y - 6, look.smoke, [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
@@ -1186,13 +1243,17 @@ export class Board extends Container {
       if (heat > 0 && Math.random() < 0.5) this.particles.flame(ball.x, ball.y, WAR_FIRE[Math.min(heat, WAR_FIRE.length) - 1], radius * (0.3 + 0.08 * heat), 0.16 + 0.04 * heat);
       return;
     }
+    // an ember marble trails fire: soft flames behind it (the board shares about 8 a frame, however many balls fall)
+    if (this.fx === 'hell' && Math.random() < 8 / Math.max(8, this.flights.size * 2)) {
+      this.particles.flame(ball.x, ball.y, Math.random() < 0.5 ? '#f57a1f' : '#ffb347', radius * (0.35 + 0.08 * heat), 0.2 + 0.04 * heat);
+    }
     const context = heat > 0 ? HEAT[Math.min(heat, HEAT.length) - 1] : this.trailDot;
     if (!context) return;
     const dot = new Graphics(context);
     dot.blendMode = 'add';
     dot.position.copyFrom(ball.position);
     // a reactor capsule leaves a thin cyan streak (the capsule itself must stay the brightest thing)
-    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie' || this.fx === 'neon' || this.fx === 'candy' || this.fx === 'shurda';
+    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie' || this.fx === 'neon' || this.fx === 'candy' || this.fx === 'shurda' || this.fx === 'hell';
     const size = radius * (thin ? 0.3 : 0.7 + 0.25 * heat);
     const life = thin ? 0.22 : 0.32 + 0.12 * heat;
     dot.scale.set(size);
@@ -1414,6 +1475,8 @@ export class Board extends Container {
       const many = this.flights.size > 15;
       this.particles.sparks(peg.x, peg.y, this.pegFlashColour, many ? 2 : 4);
       if (!many) this.particles.ring(peg.x, peg.y, this.pegFlashColour, 11);
+      // a brass tack under an ember marble: a few embers spit up off it
+      if (this.fx === 'hell' && !many) this.particles.burst(peg.x, peg.y - 3, ['#f57a1f', '#ffb347', '#ffe08a'], 3, 110, -160);
       gsap.fromTo(peg.scale, { x: 1.35, y: 1.35 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)', overwrite: true });
     }
     if (flash) {

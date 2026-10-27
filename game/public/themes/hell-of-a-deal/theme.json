@@ -1,0 +1,990 @@
+{
+  "name": "Hell of a Deal",
+  "title": "Hell of a Deal \u00b7 Plinko",
+  "background": "#120a0c",
+  "accent": "#f57a1f",
+  "text": "#fff2d6",
+  "playText": "#f2c14e",
+  "retina": true,
+  "font": {
+    "family": "Bevan",
+    "file": "bevan.woff2",
+    "weight": "400"
+  },
+  "board": {
+    "fx": "hell",
+    "peg": "item_peg.png",
+    "pegFlash": "#ffd27a",
+    "trail": "#f57a1f",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#968c80",
+        "text": "#120a0c"
+      },
+      {
+        "face": "#e9d3a6",
+        "text": "#120a0c"
+      },
+      {
+        "face": "#f57a1f",
+        "text": "#120a0c"
+      },
+      {
+        "face": "#d8321e",
+        "text": "#fff2d6"
+      },
+      {
+        "face": "#f2c14e",
+        "text": "#120a0c"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 0.6435,
+        "x": 384,
+        "y": 93.86,
+        "spacing": 57.708,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.6257,
+        "x": 384,
+        "y": 97.87,
+        "spacing": 52.945,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.6118,
+        "x": 384,
+        "y": 101.1,
+        "spacing": 48.88,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.6005,
+        "x": 384,
+        "y": 103.75,
+        "spacing": 45.378,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.5912,
+        "x": 384,
+        "y": 105.97,
+        "spacing": 42.334,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.5834,
+        "x": 384,
+        "y": 107.86,
+        "spacing": 39.665,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.5768,
+        "x": 384,
+        "y": 109.48,
+        "spacing": 37.308,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.64,
+    "slotHang": {
+      "text": 0.6,
+      "textWidth": 0.7
+    },
+    "fire": {
+      "sheet": "anim_flame.png",
+      "points": [
+        [
+          0.3832,
+          0.2441
+        ],
+        [
+          0.6168,
+          0.2441
+        ],
+        [
+          0.3493,
+          0.3125
+        ],
+        [
+          0.6507,
+          0.3125
+        ],
+        [
+          0.3155,
+          0.3809
+        ],
+        [
+          0.6845,
+          0.3809
+        ],
+        [
+          0.2817,
+          0.4492
+        ],
+        [
+          0.7183,
+          0.4492
+        ],
+        [
+          0.2479,
+          0.5176
+        ],
+        [
+          0.7521,
+          0.5176
+        ],
+        [
+          0.2141,
+          0.5859
+        ],
+        [
+          0.7859,
+          0.5859
+        ],
+        [
+          0.1803,
+          0.6543
+        ],
+        [
+          0.8197,
+          0.6543
+        ],
+        [
+          0.1465,
+          0.7227
+        ],
+        [
+          0.8535,
+          0.7227
+        ],
+        [
+          0.1126,
+          0.791
+        ],
+        [
+          0.8874,
+          0.791
+        ],
+        [
+          0.5,
+          0.045
+        ]
+      ],
+      "size": 0.09,
+      "glow": "item_plinko_glow.png"
+    }
+  },
+  "wheel": {
+    "faces": [
+      "#5a0f14",
+      "#f2c14e",
+      "#d8321e",
+      "#b8893a",
+      "#f57a1f",
+      "#120a0c"
+    ],
+    "text": [
+      "#fff2d6",
+      "#120a0c",
+      "#fff2d6",
+      "#120a0c",
+      "#120a0c",
+      "#fff2d6"
+    ],
+    "rim": "#b8893a",
+    "ink": "#120a0c",
+    "title": "#f2c14e",
+    "gold": {
+      "faces": [
+        "#f2c14e",
+        "#fff3c4",
+        "#d8321e",
+        "#5a0f14"
+      ],
+      "text": [
+        "#120a0c",
+        "#120a0c",
+        "#fff2d6",
+        "#fff2d6"
+      ],
+      "rim": "#f2c14e"
+    },
+    "style": "chests",
+    "chests": {
+      "closed": "contract_sealed.png",
+      "open": "contract_ash.png",
+      "goldClosed": "contract_gold.png",
+      "goldOpen": "contract_ash.png",
+      "shelf": "contract_counter.png",
+      "glow": "contract_glow.png",
+      "burst": "anim_burn.png",
+      "plank": 0.7267,
+      "span": [
+        0.05,
+        0.95
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "pick": "PICK A CONTRACT!"
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#f57a1f",
+      "#f2c14e",
+      "#d8321e"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#120a0c",
+    "panel": "#5a0f14"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        62,
+        428,
+        272,
+        482
+      ],
+      "centre": [
+        352,
+        424,
+        416,
+        488
+      ],
+      "right": [
+        496,
+        428,
+        706,
+        482
+      ]
+    },
+    "inner": [
+      0.12,
+      0.18,
+      0.88,
+      0.82
+    ],
+    "bar": true,
+    "phoneTop": 490
+  },
+  "blast": {
+    "fire": "vfx_ring.png",
+    "dust": "vfx_haze.png",
+    "smoke": "vfx_haze.png",
+    "kinds": {
+      "small": "vfx_spark.png",
+      "impact": "vfx_spark.png",
+      "heavy": "vfx_ring.png",
+      "napalm": "vfx_ring.png",
+      "mushroom": "vfx_fountain.png",
+      "fireball": "vfx_glow.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.5
+      ],
+      "impact": [
+        0.5,
+        0.55
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.88
+      ],
+      "fireball": [
+        0.5,
+        0.5
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_spark.png",
+      "heavy": "anim_ring.png",
+      "mushroom": "anim_fountain.png",
+      "arc": "anim_sulphur.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    }
+  },
+  "music": "music.mp3",
+  "props": {
+    "sheets": {
+      "flame": {
+        "file": "anim_flame.png",
+        "grid": [
+          4,
+          4
+        ]
+      },
+      "embers": {
+        "file": "anim_embers.png",
+        "grid": [
+          4,
+          4
+        ]
+      },
+      "smoke": {
+        "file": "anim_smoke.png",
+        "grid": [
+          4,
+          4
+        ]
+      },
+      "fountain": {
+        "file": "anim_fountain.png",
+        "grid": [
+          4,
+          4
+        ],
+        "skipLast": true
+      }
+    },
+    "wide": [
+      {
+        "file": "prop_shaft.png",
+        "at": [
+          0.33,
+          0.0
+        ],
+        "anchor": [
+          0.95,
+          0.02
+        ],
+        "height": 0.62,
+        "blend": "add",
+        "alpha": 0.45,
+        "pulse": 0.5
+      },
+      {
+        "file": "prop_hellfire.png",
+        "at": [
+          0.5,
+          0.99
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "width": 1.15,
+        "height": 0.1,
+        "blend": "add",
+        "alpha": 0.85,
+        "pulse": 0.45
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.1,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.5,
+        "blend": "add",
+        "alpha": 0.85
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.33,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.4,
+        "blend": "add",
+        "alpha": 0.6
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.93,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.5,
+        "blend": "add",
+        "alpha": 0.85
+      },
+      {
+        "file": "prop_lamp_0.png",
+        "at": [
+          0.17,
+          -0.01
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "height": 0.44,
+        "swing": 0.035,
+        "on": [
+          {
+            "file": "prop_light.png",
+            "at": [
+              0.5398,
+              0.6941
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "height": 0.34,
+            "blend": "add",
+            "alpha": 0.8,
+            "flicker": 0.3
+          }
+        ]
+      },
+      {
+        "file": "prop_lamp_1.png",
+        "at": [
+          0.68,
+          -0.01
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "height": 0.38,
+        "swing": 0.03,
+        "on": [
+          {
+            "file": "prop_light.png",
+            "at": [
+              0.5587,
+              0.7013
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "height": 0.34,
+            "blend": "add",
+            "alpha": 0.8,
+            "flicker": 0.3
+          }
+        ]
+      },
+      {
+        "file": "prop_candle_2.png",
+        "at": [
+          0.075,
+          0.615
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.11,
+        "on": [
+          {
+            "sheet": "smoke",
+            "fps": 10,
+            "at": [
+              0.4901,
+              -0.0131
+            ],
+            "anchor": [
+              0.5,
+              1
+            ],
+            "height": 0.16,
+            "alpha": 0.35
+          },
+          {
+            "file": "prop_light.png",
+            "at": [
+              0.4901,
+              0.0169
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "height": 0.2,
+            "blend": "add",
+            "alpha": 0.7,
+            "flicker": 0.4
+          },
+          {
+            "sheet": "flame",
+            "fps": 14,
+            "at": [
+              0.4901,
+              0.0269
+            ],
+            "anchor": [
+              0.5,
+              0.8
+            ],
+            "height": 0.075,
+            "blend": "add"
+          }
+        ]
+      },
+      {
+        "file": "prop_candle_0.png",
+        "at": [
+          0.81,
+          0.615
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.19,
+        "on": [
+          {
+            "sheet": "smoke",
+            "fps": 10,
+            "at": [
+              0.5337,
+              -0.0167
+            ],
+            "anchor": [
+              0.5,
+              1
+            ],
+            "height": 0.16,
+            "alpha": 0.35
+          },
+          {
+            "file": "prop_light.png",
+            "at": [
+              0.5337,
+              0.0133
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "height": 0.2,
+            "blend": "add",
+            "alpha": 0.7,
+            "flicker": 0.4
+          },
+          {
+            "sheet": "flame",
+            "fps": 14,
+            "at": [
+              0.5337,
+              0.0233
+            ],
+            "anchor": [
+              0.5,
+              0.8
+            ],
+            "height": 0.075,
+            "blend": "add"
+          }
+        ]
+      },
+      {
+        "file": "prop_candle_1.png",
+        "at": [
+          0.975,
+          0.615
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.15,
+        "on": [
+          {
+            "sheet": "smoke",
+            "fps": 10,
+            "at": [
+              0.5109,
+              -0.0156
+            ],
+            "anchor": [
+              0.5,
+              1
+            ],
+            "height": 0.16,
+            "alpha": 0.35
+          },
+          {
+            "file": "prop_light.png",
+            "at": [
+              0.5109,
+              0.0144
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "height": 0.2,
+            "blend": "add",
+            "alpha": 0.7,
+            "flicker": 0.4
+          },
+          {
+            "sheet": "flame",
+            "fps": 14,
+            "at": [
+              0.5109,
+              0.0244
+            ],
+            "anchor": [
+              0.5,
+              0.8
+            ],
+            "height": 0.075,
+            "blend": "add"
+          }
+        ]
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.04,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.5,
+        "blend": "add",
+        "alpha": 0.7,
+        "front": true
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.96,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.5,
+        "blend": "add",
+        "alpha": 0.7,
+        "front": true
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.5,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.3,
+        "blend": "add",
+        "alpha": 0.35,
+        "front": true
+      }
+    ],
+    "tall": [
+      {
+        "file": "prop_shaft.png",
+        "at": [
+          0.42,
+          0.0
+        ],
+        "anchor": [
+          0.95,
+          0.02
+        ],
+        "height": 0.45,
+        "blend": "add",
+        "alpha": 0.28,
+        "pulse": 0.5
+      },
+      {
+        "file": "prop_hellfire.png",
+        "at": [
+          0.5,
+          0.99
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "width": 1.15,
+        "height": 0.1,
+        "blend": "add",
+        "alpha": 0.85,
+        "pulse": 0.45
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.15,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.35,
+        "blend": "add",
+        "alpha": 0.85
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.85,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.35,
+        "blend": "add",
+        "alpha": 0.85
+      },
+      {
+        "file": "prop_lamp_0.png",
+        "at": [
+          0.28,
+          -0.01
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "height": 0.2,
+        "swing": 0.035,
+        "on": [
+          {
+            "file": "prop_light.png",
+            "at": [
+              0.5398,
+              0.6941
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "height": 0.34,
+            "blend": "add",
+            "alpha": 0.8,
+            "flicker": 0.3
+          }
+        ]
+      },
+      {
+        "file": "prop_lamp_1.png",
+        "at": [
+          0.72,
+          -0.01
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "height": 0.18,
+        "swing": 0.03,
+        "on": [
+          {
+            "file": "prop_light.png",
+            "at": [
+              0.5587,
+              0.7013
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "height": 0.34,
+            "blend": "add",
+            "alpha": 0.8,
+            "flicker": 0.3
+          }
+        ]
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.2,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.45,
+        "blend": "add",
+        "alpha": 0.75,
+        "front": true
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.5,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.38,
+        "blend": "add",
+        "alpha": 0.5,
+        "front": true
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.8,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.45,
+        "blend": "add",
+        "alpha": 0.75,
+        "front": true
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.14,
+          0.62
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.3,
+        "blend": "add",
+        "alpha": 0.6,
+        "front": true
+      },
+      {
+        "sheet": "embers",
+        "fps": 12,
+        "at": [
+          0.86,
+          0.62
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.3,
+        "blend": "add",
+        "alpha": 0.6,
+        "front": true
+      }
+    ],
+    "wipe": {
+      "sheet": "fountain",
+      "count": 5,
+      "height": 0.6,
+      "seconds": 1.3
+    }
+  },
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
+  }
+}

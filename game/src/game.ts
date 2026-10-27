@@ -8,6 +8,7 @@ import { BigWin, BlastShower, CoinShower, splatter, winLevel, type Shower } from
 import { FortuneWheel, type ChestPick, type GachaPick, type PhotoRevolver, type TeslaRing } from './fortuneWheel';
 import { Character } from './character';
 import { WashingLines } from './washingLines';
+import { Props } from './props';
 import { MegaControls } from './megaControls';
 import { ConsoleControls } from './consoleControls';
 import { ArsenalPanel, ARSENALS } from './arsenal';
@@ -104,6 +105,9 @@ const CANDY_STAMPS: Record<string, string> = { pair: 'DOUBLE DIP', 'magnet-left'
 /** Shurda Plinko's: Golden Sock is heavy, Pair of Socks the pair, Drawer Breeze the magnet, Laundry Day the meltdown. */
 const SHURDA_NAMES: Record<string, string> = { heavy: 'GOLD SOCK', pair: 'PAIR', 'magnet-left': 'BREEZE L', 'magnet-right': 'BREEZE R', meltdown: 'LAUNDRY' };
 const SHURDA_STAMPS: Record<string, string> = { pair: 'PAIR OF SOCKS', 'magnet-left': 'DRAWER BREEZE', 'magnet-right': 'DRAWER BREEZE', meltdown: 'LAUNDRY DAY' };
+/** Hell of a Deal's: Hellfire Mark is heavy, Double Dealing the pair, Sulphur Draft the magnet, Closing Sale the meltdown. */
+const HELL_NAMES: Record<string, string> = { heavy: 'HELLFIRE', pair: 'DOUBLE', 'magnet-left': 'SULPHUR L', 'magnet-right': 'SULPHUR R', meltdown: 'SALE' };
+const HELL_STAMPS: Record<string, string> = { pair: 'DOUBLE DEALING', 'magnet-left': 'SULPHUR DRAFT', 'magnet-right': 'SULPHUR DRAFT', meltdown: 'CLOSING SALE' };
 /** Zombie War's: Mega Charge is heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the meltdown. */
 const ZOMBIE_NAMES: Record<string, string> = { heavy: 'MEGA CHARGE', pair: 'SPLIT FUSE', 'magnet-left': 'HORDE L', 'magnet-right': 'HORDE R', meltdown: 'RAID' };
 const ZOMBIE_STAMPS: Record<string, string> = { pair: 'SPLIT FUSE', 'magnet-left': 'HORDE RUSH', 'magnet-right': 'HORDE RUSH', meltdown: 'LOCKER RAID' };
@@ -183,6 +187,8 @@ export class Game extends Container {
   private readonly characterFeet: [number, number];
   /** washing lines over the wall (theme lines), or null */
   private readonly lines: WashingLines | null;
+  /** the background's moving pieces (theme props), or null; main.ts lays them over the background */
+  readonly props: Props | null;
   /** The theme's names: Reactor Drop's heavy is OVERCHARGE. */
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
@@ -242,7 +248,8 @@ export class Game extends Container {
       neonLayers(theme).map(([wide, tall]) => [tex(wide), tex(tall)]), motion);
     this.board = new Board(tex('item_plinko.png'), tex('item_plinko_p.png'), tex('item_ball.png'), theme.board,
       theme.board.peg ? tex(theme.board.peg) : null,
-      Object.fromEntries(Object.entries(theme.board.fit ?? {}).map(([rows, f]) => [rows, { wide: tex(f.frame), tall: tex(f.framePortrait) }])));
+      Object.fromEntries(Object.entries(theme.board.fit ?? {}).map(([rows, f]) => [rows, { wide: tex(f.frame), tall: tex(f.framePortrait) }])),
+      theme.board.fire ? { sheet: tex(theme.board.fire.sheet), glow: theme.board.fire.glow ? tex(theme.board.fire.glow) : null } : null);
     const inkLook = theme.ui.style === 'ink' ? { ink: theme.ui.ink, panel: theme.ui.panel } : null;
     this.meter = new Meter(theme.accent, theme.ui.style === 'glass' ? theme.background : null, inkLook);
     this.meter.set(session.meter?.enabled ?? false, session.meter?.charges ?? 0, session.meter?.of ?? 0);
@@ -255,11 +262,11 @@ export class Game extends Container {
     this.phoneTop = theme.console?.phoneTop ?? 418;
     const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
     const zombie = theme.board.fx === 'zombie', neon = theme.board.fx === 'neon', candy = theme.board.fx === 'candy';
-    const shurda = theme.board.fx === 'shurda';
+    const shurda = theme.board.fx === 'shurda', hell = theme.board.fx === 'hell';
     this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}),
-      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}), ...(shurda ? SHURDA_NAMES : {}) };
-    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}), ...(shurda ? SHURDA_STAMPS : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : shurda ? 'GOLDEN SOCK' : 'HEAVY SHELLS';
+      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}), ...(shurda ? SHURDA_NAMES : {}), ...(hell ? HELL_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}), ...(shurda ? SHURDA_STAMPS : {}), ...(hell ? HELL_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : shurda ? 'GOLDEN SOCK' : hell ? 'HELLFIRE MARK' : 'HEAVY SHELLS';
     this.bloody = zombie;
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
@@ -276,7 +283,7 @@ export class Game extends Container {
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex), gacha: gachaPick(theme, tex),
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"]
-          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : shurda ? ['SHURDA!', 'NICE SOCKS!'] : ['BOOM!', 'KABOOM!'] });
+          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : shurda ? ['SHURDA!', 'NICE SOCKS!'] : hell ? ['SOLD!', 'DEVIL OF A DEAL!'] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests || !!theme.wheel.gacha;
     this.chestPick = !!theme.wheel.chests;
     // (the gacha, the jars and the socks play it too: the capsule, the jar, the sock holds the payout)
@@ -333,6 +340,7 @@ export class Game extends Container {
     this.character = c ? new Character({ body: tex(c.body), head: tex(c.head), arm: tex(c.arm), eyes: tex(c.eyes),
       cheer: tex(c.cheer), point: tex(c.point), shrug: c.shrug ? tex(c.shrug) : null,
       face: c.face ? { idle: tex(c.face.idle), happy: tex(c.face.happy), meh: tex(c.face.meh), pupil: tex(c.face.pupil) } : null }, c) : null;
+    this.props = theme.props ? new Props(theme.props, tex) : null;
     this.lines = theme.lines ? new WashingLines(theme.lines, tex(theme.lines.rope), theme.lines.socks.map(sock => tex(sock.file))) : null;
     this.table.addChild(this.ambient, ...(this.lines ? [this.lines] : []), this.vents, ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
       this.banner, this.meter, this.bar);
@@ -345,10 +353,11 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (reactor || lagoon || pharaoh || zombie || neon || candy || shurda) {
+    if (reactor || lagoon || pharaoh || zombie || neon || candy || shurda || hell) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
-        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : shurda ? 'LAUNDRY DAY' : 'CORE PRESSURE' });
+        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : shurda ? 'LAUNDRY DAY' : hell ? 'CLOSING SALE' : 'CORE PRESSURE',
+        ...(hell ? { face: '#2a0a0e', zone: '#f2c14e' } : {}) });
       this.table.addChild(this.meltdown);
     }
     if (theme.blast?.tank) {
@@ -943,7 +952,7 @@ export class Game extends Container {
       if (this.view) this.meltdown.layout(this.view);
       const win = round.targetWins?.[0] ?? 0;
       await this.meltdown.play(round.targets[0], `x${round.targets[0]}  ${this.money(win)}`,
-        () => { land(win); sound(round.targets![0] >= 5 ? 'jackpot' : 'big'); this.screen.flash(0.6); }, () => sound('riser', { volume: 0.7 }));
+        () => { land(win); sound(round.targets![0] >= 5 ? 'jackpot' : 'big'); this.screen.flash(0.6); this.props?.wipe(); }, () => sound('riser', { volume: 0.7 }));
     } else if (round.targets?.length && this.tank) {
       // tank assault: the tank fires at its targets, each adding its win as it is hit
       if (this.view) this.tank.layout(this.view);
@@ -1021,6 +1030,9 @@ export class Game extends Container {
     if (level) {
       this.character?.cheer();
       this.lines?.flap();
+      this.props?.flare();
+      this.props?.wipe();
+      this.board.flareFire();
       if (this.bloody) this.bloodScreen(level);
       await this.bigWin.show(level, round.totalWin, value => this.money(value), round.totalBet);
     }
@@ -1123,6 +1135,7 @@ export class Game extends Container {
     this.wheel.update(deltaMs);
     this.character?.update(deltaMs, this.busy(), this.board.lowestBall());
     this.lines?.update(deltaMs);
+    this.props?.update(deltaMs);
   }
 
   /** The wheel pops up over the board (dimmed) for a round's spins. */
@@ -1132,6 +1145,7 @@ export class Game extends Container {
     // on a phone the bonus fills the top of the screen where he stands: he steps out of sight until it is done
     if (this.view && !this.view.landscape) this.character?.setAway(true);
     this.character?.point();
+    this.props?.wipe();
     sound('spin', { volume: 0.6 });
     gsap.to(this.board, { alpha: 0.35, duration: 0.25 });
     gsap.to([this.meter, this.ticker], { alpha: 0, duration: 0.2 });

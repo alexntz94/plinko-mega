@@ -91,6 +91,16 @@ const SHURDA_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'LAUNDRY DAY', text: 'Pick a sock ball from the drawer after the drop: x0.5 to x20', ready: true },
 ];
 
+/** Hell of a Deal's power-ups (Hellfire Mark is the server's heavy, Double Dealing the pair, Sulphur Draft the magnet,
+ *  Closing Sale the meltdown). */
+const HELL_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'HELLFIRE MARK', text: 'Every ember marble burns gold: x2 to x10', ready: true },
+  { id: 'pair', name: 'DOUBLE DEALING', text: 'Each marble splits in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'SULPHUR DRAFT', text: '70% of marbles drawn to your side: its tickets pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'CLOSING SALE', text: 'Pick a sealed contract after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
@@ -101,6 +111,7 @@ export const ARSENALS: Record<string, { title: string; hint: string; cards: Arse
   'neon-nights': { title: 'POWER-UPS', hint: 'Light up your next drop', cards: NEON_CARDS },
   'candy-factory': { title: 'TREATS', hint: 'Sweeten your next drop', cards: CANDY_CARDS },
   'shurda-plinko': { title: 'SOCK BOX', hint: 'Pick a pair for your next drop', cards: SHURDA_CARDS },
+  'hell-of-a-deal': { title: 'DEALS', hint: 'Strike a deal for your next drop', cards: HELL_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite | NineSliceSprite; lit: Graphics; price: Text;

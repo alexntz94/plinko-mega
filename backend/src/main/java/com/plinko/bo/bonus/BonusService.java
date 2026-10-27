@@ -413,8 +413,9 @@ public class BonusService {
      * own names; Lagoon Drop's Crosscurrent is the magnet, its Volcano Vault the meltdown; Pharaoh's Drop's Scarab
      * Fortune, Twin Serpents, Sirocco Draft and Tomb Raid, and Zombie War's Mega Charge, Split Fuse, Horde Rush and Locker
      * Raid, and Neon Nights' Golden Gacha, Twin Pop, Side Magnet and Lucky Draw, and Candy Factory's Golden Glaze, Double
-     * Dip, Candy Current and Sugar Rush, and Shurda Plinko's Golden Sock, Pair of Socks, Drawer Breeze and Laundry Day, are
-     * heavy, pair, the magnet and the meltdown).
+     * Dip, Candy Current and Sugar Rush, and Shurda Plinko's Golden Sock, Pair of Socks, Drawer Breeze and Laundry Day, and
+     * Hell of a Deal's Hellfire Mark, Double Dealing, Sulphur Draft and Closing Sale, are heavy, pair, the magnet and the
+     * meltdown).
      */
     public static final java.util.Map<String, java.util.List<String>> THEME_POWERS = java.util.Map.of(
             "bombs-away", java.util.List.of("heavy", "cluster", "strike-left", "strike-centre", "strike-right", "crates", "missile", "night", "tank"),
@@ -424,7 +425,8 @@ public class BonusService {
             "zombie-war", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
             "neon-nights", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
             "candy-factory", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
-            "shurda-plinko", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"));
+            "shurda-plinko", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
+            "hell-of-a-deal", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"));
 
     /** How many times a ball with this power-up lands, keeping its best landing: cluster 3, pair 2, else 1. */
     public static int landings(String power) {

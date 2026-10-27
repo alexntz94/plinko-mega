@@ -38,6 +38,9 @@ class ThemePowersTest {
         assertThat(BonusService.themeSells("hell-of-a-deal", "meltdown")).as("Closing Sale").isTrue();
         assertThat(BonusService.themeSells("hell-of-a-deal", "pair")).as("Double Dealing").isTrue();
         assertThat(BonusService.themeSells("hell-of-a-deal", "tank")).isFalse();
+        assertThat(BonusService.themeSells("disco-is-dead", "meltdown")).as("Last Dance").isTrue();
+        assertThat(BonusService.themeSells("disco-is-dead", "pair")).as("Duet").isTrue();
+        assertThat(BonusService.themeSells("disco-is-dead", "tank")).isFalse();
         assertThat(BonusService.themeSells("old-theme", "heavy")).isFalse();
         for (List<String> powers : BonusService.THEME_POWERS.values()) {
             assertThat(BonusService.POWERS).containsAll(powers);

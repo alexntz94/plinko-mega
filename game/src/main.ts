@@ -17,6 +17,8 @@ import { setBlastArt, setBlastKinds, setBlastSheets, setSplatters } from './effe
 import { setMegaLook, setSlotArt, setSlotLooks, setSpinMark } from './board';
 import { Game } from './game';
 import { BackdropVideo } from './backdrop';
+import { Clips } from './clips';
+import { assetUrl } from './version';
 
 const IMAGES = [
   'background.png', 'background_p.png', 'logo.png', 'logo_p.png', 'button_start.png', 'item_ball.png', 'item_plinko.png', 'item_plinko_p.png',
@@ -255,7 +257,11 @@ async function start(): Promise<void> {
     backdrop.available ? { moving: () => backdrop.moving, onTap: () => backdrop.toggle() } : null, () => backdrop.start());
   world.addChild(game);
   // the background's moving pieces lie on it, under the game
-  app.stage.addChild(background, ...(game.props ? [game.props] : []), world, ...(game.props ? [game.props.front] : []));
+  // the big moments' clips cover everything (clips.ts)
+  const clips = new Clips(theme.clips, file => assetUrl(theme.path + file));
+  game.onClip = kind => clips.play(kind, landscape !== false, app.screen.width, app.screen.height);
+  app.stage.addChild(background, ...(game.props ? [game.props, game.props.actors] : []), world,
+    ...(game.props ? [game.props.front] : []), clips);
 
   let landscape: boolean | null = null;
   let fillTurned: (() => void) | null = null;
@@ -276,7 +282,13 @@ async function start(): Promise<void> {
       const k = Math.max(app.screen.width / picture.width, app.screen.height / picture.height);
       game.props.layout(view.landscape, (app.screen.width - picture.width * k) / 2, (app.screen.height - picture.height * k) / 2, k,
         picture.width, picture.height);
+      // the characters dance from the start (not only once the background video plays, after the first round), unless
+      // the player stopped the motion, asks for less of it, or saves data
+      game.props.animate(backdrop.available && backdrop.moving);
     }
+    // the clips load with the moving background
+    if (video && clips.any) clips.load();
+    clips.layout(app.screen.width, app.screen.height);
     world.scale.set(view.scale);
     world.position.set(view.x, view.y);
     game.layout(view);

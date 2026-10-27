@@ -426,7 +426,8 @@ public class BonusService {
             "neon-nights", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
             "candy-factory", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
             "shurda-plinko", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
-            "hell-of-a-deal", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"));
+            "hell-of-a-deal", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"),
+            "disco-is-dead", java.util.List.of("heavy", "pair", "magnet-left", "magnet-right", "meltdown"));
 
     /** How many times a ball with this power-up lands, keeping its best landing: cluster 3, pair 2, else 1. */
     public static int landings(String power) {

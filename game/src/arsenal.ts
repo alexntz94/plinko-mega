@@ -101,6 +101,16 @@ const HELL_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'CLOSING SALE', text: 'Pick a sealed contract after the drop: x0.5 to x20', ready: true },
 ];
 
+/** Disco Is Dead's power-ups (Gold Record is the server's heavy, Duet the pair, Bassline the magnet, Last Dance the
+ *  meltdown). */
+const DISCO_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'GOLD RECORD', text: 'Every mirror ball goes gold: x2 to x10', ready: true },
+  { id: 'pair', name: 'DUET', text: 'Each ball splits in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'BASSLINE', text: '70% of balls pulled to your side: its tiles pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'LAST DANCE', text: 'The dance meter climbs after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
@@ -112,6 +122,7 @@ export const ARSENALS: Record<string, { title: string; hint: string; cards: Arse
   'candy-factory': { title: 'TREATS', hint: 'Sweeten your next drop', cards: CANDY_CARDS },
   'shurda-plinko': { title: 'SOCK BOX', hint: 'Pick a pair for your next drop', cards: SHURDA_CARDS },
   'hell-of-a-deal': { title: 'DEALS', hint: 'Strike a deal for your next drop', cards: HELL_CARDS },
+  'disco-is-dead': { title: 'REQUESTS', hint: 'Request a track for your next drop', cards: DISCO_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite | NineSliceSprite; lit: Graphics; price: Text;

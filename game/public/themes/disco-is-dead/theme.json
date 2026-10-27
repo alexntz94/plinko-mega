@@ -1,0 +1,836 @@
+{
+  "name": "Disco Is Dead",
+  "title": "Disco Is Dead \u00b7 Plinko",
+  "background": "#1b0b33",
+  "accent": "#ff2e93",
+  "text": "#f3ebdd",
+  "playText": "#f3ebdd",
+  "retina": true,
+  "font": {
+    "family": "Shrikhand",
+    "file": "shrikhand.woff2",
+    "weight": "400"
+  },
+  "board": {
+    "fx": "disco",
+    "peg": "item_peg.png",
+    "pegFlash": "#ff9ad0",
+    "trail": "#19d3c5",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#c8b4eb",
+        "text": "#10061e"
+      },
+      {
+        "face": "#19d3c5",
+        "text": "#10061e"
+      },
+      {
+        "face": "#ff2e93",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#7b2ff7",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#ffc94a",
+        "text": "#10061e"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 0.6088,
+        "x": 384,
+        "y": 154.85,
+        "spacing": 51.165,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.5926,
+        "x": 384,
+        "y": 158.21,
+        "spacing": 46.893,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.5798,
+        "x": 384,
+        "y": 160.92,
+        "spacing": 43.257,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.5695,
+        "x": 384,
+        "y": 163.14,
+        "spacing": 40.131,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.561,
+        "x": 384,
+        "y": 165.01,
+        "spacing": 37.419,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.5539,
+        "x": 384,
+        "y": 166.59,
+        "spacing": 35.043,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.5478,
+        "x": 384,
+        "y": 167.95,
+        "spacing": 32.948,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.64,
+    "bulbs": {
+      "glow": "item_bulb.png",
+      "points": [
+        [
+          0.0899,
+          0.9033
+        ],
+        [
+          0.9099,
+          0.9033
+        ],
+        [
+          0.0902,
+          0.8761
+        ],
+        [
+          0.9101,
+          0.8753
+        ],
+        [
+          0.0798,
+          0.8609
+        ],
+        [
+          0.9198,
+          0.8617
+        ],
+        [
+          0.1086,
+          0.8401
+        ],
+        [
+          0.891,
+          0.8398
+        ],
+        [
+          0.1299,
+          0.7976
+        ],
+        [
+          0.9014,
+          0.8244
+        ],
+        [
+          0.1276,
+          0.769
+        ],
+        [
+          0.8694,
+          0.7975
+        ],
+        [
+          0.1509,
+          0.7557
+        ],
+        [
+          0.8787,
+          0.7802
+        ],
+        [
+          0.1697,
+          0.7126
+        ],
+        [
+          0.8488,
+          0.7551
+        ],
+        [
+          0.1996,
+          0.6533
+        ],
+        [
+          0.8578,
+          0.7378
+        ],
+        [
+          0.2285,
+          0.5937
+        ],
+        [
+          0.8298,
+          0.7126
+        ],
+        [
+          0.2478,
+          0.5549
+        ],
+        [
+          0.8104,
+          0.6729
+        ],
+        [
+          0.2665,
+          0.517
+        ],
+        [
+          0.7909,
+          0.6323
+        ],
+        [
+          0.285,
+          0.4798
+        ],
+        [
+          0.7715,
+          0.5923
+        ],
+        [
+          0.3033,
+          0.4431
+        ],
+        [
+          0.7524,
+          0.5533
+        ],
+        [
+          0.3215,
+          0.4063
+        ],
+        [
+          0.7338,
+          0.5153
+        ],
+        [
+          0.3394,
+          0.371
+        ],
+        [
+          0.7153,
+          0.4774
+        ],
+        [
+          0.3562,
+          0.3346
+        ],
+        [
+          0.6967,
+          0.441
+        ],
+        [
+          0.3733,
+          0.3007
+        ],
+        [
+          0.6789,
+          0.4055
+        ],
+        [
+          0.3904,
+          0.2686
+        ],
+        [
+          0.6604,
+          0.3707
+        ],
+        [
+          0.4063,
+          0.2356
+        ],
+        [
+          0.6432,
+          0.3356
+        ],
+        [
+          0.4238,
+          0.203
+        ],
+        [
+          0.6262,
+          0.3017
+        ],
+        [
+          0.4382,
+          0.1709
+        ],
+        [
+          0.6094,
+          0.2684
+        ],
+        [
+          0.4537,
+          0.1393
+        ],
+        [
+          0.5931,
+          0.2349
+        ],
+        [
+          0.4571,
+          0.1071
+        ],
+        [
+          0.577,
+          0.2032
+        ],
+        [
+          0.4705,
+          0.1065
+        ],
+        [
+          0.5608,
+          0.1711
+        ]
+      ],
+      "size": 0.05,
+      "colours": [
+        "#fff1c4",
+        "#ff2e93",
+        "#19d3c5",
+        "#ffc94a"
+      ]
+    }
+  },
+  "wheel": {
+    "faces": [
+      "#1b0b33",
+      "#ffc94a",
+      "#ff2e93",
+      "#19d3c5",
+      "#7b2ff7",
+      "#10061e"
+    ],
+    "text": [
+      "#f3ebdd",
+      "#10061e",
+      "#ffffff",
+      "#10061e",
+      "#ffffff",
+      "#f3ebdd"
+    ],
+    "rim": "#c9c3d6",
+    "ink": "#10061e",
+    "title": "#ffc94a",
+    "gold": {
+      "faces": [
+        "#ffc94a",
+        "#fff3c4",
+        "#ff2e93",
+        "#1b0b33"
+      ],
+      "text": [
+        "#10061e",
+        "#10061e",
+        "#ffffff",
+        "#f3ebdd"
+      ],
+      "rim": "#ffc94a"
+    },
+    "style": "chests",
+    "chests": {
+      "closed": "record_sealed.png",
+      "open": "record_broken.png",
+      "goldClosed": "record_gold.png",
+      "goldOpen": "record_broken.png",
+      "shelf": "record_shelf.png",
+      "glow": "record_glow.png",
+      "burst": "anim_spark.png",
+      "plank": 0.8167,
+      "span": [
+        0.05,
+        0.95
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "pick": "PICK A RECORD!"
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#ff2e93",
+      "#19d3c5",
+      "#ffc94a"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#10061e",
+    "panel": "#1b0b33"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        62,
+        428,
+        272,
+        482
+      ],
+      "centre": [
+        352,
+        424,
+        416,
+        488
+      ],
+      "right": [
+        496,
+        428,
+        706,
+        482
+      ]
+    },
+    "inner": [
+      0.07,
+      0.14,
+      0.93,
+      0.84
+    ],
+    "bar": true,
+    "phoneTop": 500
+  },
+  "blast": {
+    "fire": "vfx_ring.png",
+    "dust": "vfx_haze.png",
+    "smoke": "vfx_haze.png",
+    "kinds": {
+      "small": "vfx_spark.png",
+      "impact": "vfx_spark.png",
+      "heavy": "vfx_ring.png",
+      "napalm": "vfx_ring.png",
+      "mushroom": "vfx_fountain.png",
+      "fireball": "vfx_glow.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.5
+      ],
+      "impact": [
+        0.5,
+        0.5
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.88
+      ],
+      "fireball": [
+        0.5,
+        0.5
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_spark.png",
+      "heavy": "anim_ring.png",
+      "mushroom": "anim_fountain.png",
+      "arc": "anim_glitter.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    }
+  },
+  "music": "music.mp3",
+  "props": {
+    "sheets": {
+      "glitter": {
+        "file": "anim_glitter.png",
+        "grid": [
+          4,
+          4
+        ]
+      },
+      "fountain": {
+        "file": "anim_fountain.png",
+        "grid": [
+          4,
+          4
+        ],
+        "skipLast": true
+      }
+    },
+    "wide": [
+      {
+        "file": "actor_dancers.png",
+        "actor": {
+          "idle": "actor_dancers_idle.mp4",
+          "win": "actor_dancers_win.mp4",
+          "part": [
+            0,
+            1
+          ]
+        },
+        "at": [
+          0.12,
+          0.985
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.44
+      },
+      {
+        "file": "actor_king.png",
+        "actor": {
+          "idle": "actor_king_idle.mp4",
+          "win": "actor_king_win.mp4",
+          "part": [
+            0,
+            1
+          ]
+        },
+        "at": [
+          0.865,
+          0.985
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.62
+      },
+      {
+        "file": "prop_beam_pink.png",
+        "at": [
+          0.06,
+          -0.03
+        ],
+        "anchor": [
+          0.5,
+          0.0
+        ],
+        "height": 1.05,
+        "blend": "add",
+        "alpha": 0.22,
+        "swing": 0.32,
+        "pulse": 0.35,
+        "front": true
+      },
+      {
+        "file": "prop_beam_turq.png",
+        "at": [
+          0.94,
+          -0.03
+        ],
+        "anchor": [
+          0.5,
+          0.0
+        ],
+        "height": 1.05,
+        "blend": "add",
+        "alpha": 0.22,
+        "swing": 0.32,
+        "pulse": 0.35,
+        "front": true
+      },
+      {
+        "file": "prop_beam_gold.png",
+        "at": [
+          0.5,
+          -0.05
+        ],
+        "anchor": [
+          0.5,
+          0.0
+        ],
+        "height": 0.9,
+        "blend": "add",
+        "alpha": 0.14,
+        "swing": 0.42,
+        "pulse": 0.35,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.08,
+          0.3
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.3,
+        "blend": "add",
+        "alpha": 0.8,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.92,
+          0.3
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.3,
+        "blend": "add",
+        "alpha": 0.8,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.5,
+          0.12
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.25,
+        "blend": "add",
+        "alpha": 0.6,
+        "front": true
+      }
+    ],
+    "tall": [
+      {
+        "file": "actor_dancers.png",
+        "actor": {
+          "idle": "actor_dancers_idle.mp4",
+          "win": "actor_dancers_win.mp4",
+          "part": [
+            0.5,
+            1
+          ]
+        },
+        "at": [
+          0.338,
+          0.35
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.18
+      },
+      {
+        "file": "actor_dancers.png",
+        "actor": {
+          "idle": "actor_dancers_idle.mp4",
+          "win": "actor_dancers_win.mp4",
+          "part": [
+            0,
+            0.5
+          ]
+        },
+        "at": [
+          0.262,
+          0.375
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.19
+      },
+      {
+        "file": "actor_king.png",
+        "actor": {
+          "idle": "actor_king_idle.mp4",
+          "win": "actor_king_win.mp4",
+          "part": [
+            0,
+            1
+          ]
+        },
+        "at": [
+          0.707,
+          0.385
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.22
+      },
+      {
+        "file": "prop_beam_pink.png",
+        "at": [
+          0.05,
+          -0.02
+        ],
+        "anchor": [
+          0.5,
+          0.0
+        ],
+        "height": 0.85,
+        "blend": "add",
+        "alpha": 0.2,
+        "swing": 0.28,
+        "pulse": 0.35,
+        "front": true
+      },
+      {
+        "file": "prop_beam_turq.png",
+        "at": [
+          0.95,
+          -0.02
+        ],
+        "anchor": [
+          0.5,
+          0.0
+        ],
+        "height": 0.85,
+        "blend": "add",
+        "alpha": 0.2,
+        "swing": 0.28,
+        "pulse": 0.35,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.15,
+          0.12
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.18,
+        "blend": "add",
+        "alpha": 0.8,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.85,
+          0.12
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.18,
+        "blend": "add",
+        "alpha": 0.8,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.5,
+          0.92
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.2,
+        "blend": "add",
+        "alpha": 0.7,
+        "front": true
+      }
+    ],
+    "wipe": {
+      "sheet": "fountain",
+      "count": 5,
+      "height": 0.55,
+      "seconds": 1.2
+    }
+  },
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
+  },
+  "clips": {
+    "bonus": {
+      "wide": "clip_bonus.mp4",
+      "tall": "clip_bonus_p.mp4"
+    },
+    "win": {
+      "wide": "clip_win.mp4",
+      "tall": "clip_win_p.mp4"
+    }
+  }
+}

@@ -286,6 +286,11 @@ const SHURDA_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#f0388c', '#ffd23f
 const HELL_BLAST: typeof WAR_BLAST = { sparks: ['#fff3c4', '#f2c14e', '#f57a1f', '#d8321e'], smoke: ['#3a1a14', '#5a2a1e', '#2a1410'],
   debris: ['#f2c14e', '#f57a1f', '#d8321e', '#b8893a'], words: ['DEAL!', 'SOLD!', 'SEALED!'], bigWords: ['DEVIL OF A WIN!', 'HELL YES!', 'SOLD YOUR SOUL!'],
   ink: '#fff2d6', bigInk: '#f2c14e' };
+/** a mirror ball on the dance floor: glitter, stars and records thrown up */
+const DISCO_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#ff2e93', '#19d3c5', '#ffc94a', '#7b2ff7'], smoke: ['#3a1a5a', '#5a2a7a', '#2a1240'],
+  debris: ['#ff2e93', '#19d3c5', '#ffc94a', '#f3ebdd'], words: ['GROOVY!', 'FUNKY!', 'DIG IT!'], bigWords: ['DISCO INFERNO!', "STAYIN' ALIVE!", 'DANCE TO DEATH!'],
+  ink: '#ffffff', bigInk: '#ffc94a' };
+const DISCO_GLITTER = ['#ffffff', '#ff2e93', '#19d3c5', '#ffc94a'];
 /** a grenade among zombies: fire, blood spray and gore thrown out, splatters left behind */
 const ZOMBIE_BLAST: typeof WAR_BLAST = { sparks: ['#ff4a3a', '#b52c2c', '#ffb050', '#8a0f0f'], smoke: ['#3a2c2a', '#4a3a36', '#2a2224'],
   debris: ['#8a0f0f', '#b52c2c', '#5a0a0a', '#76a83b'], words: ['SPLAT!', 'BOOM!', 'GIBBED!'], bigWords: ['MASSACRE!', 'BLOODBATH!', 'OVERKILL!'],
@@ -341,7 +346,7 @@ export class Board extends Container {
 
   constructor(frame: Texture, framePortrait: Texture, private readonly ballTexture: Texture, private readonly style: BoardStyle,
               pegTexture: Texture | null, private readonly fitFrames: Record<number, { wide: Texture; tall: Texture }> = {},
-              fire: { sheet: Texture; glow: Texture | null } | null = null) {
+              fire: { sheet: Texture; glow: Texture | null } | null = null, bulbs: Texture | null = null) {
     super();
     this.trailDot = style.trail ? new GraphicsContext().circle(0, 0, 1).fill(style.trail) : null;
     this.pegFlashColour = style.pegFlash;
@@ -376,6 +381,7 @@ export class Board extends Container {
     this.field.addChild(this.status, this.gateLayer, this.holeLayer, this.slotLayer, this.nightLayer, this.powerLayer, this.trailLayer,
       this.ballLayer, this.particles, this.textLayer);
     if (fire && style.fire) for (const picture of [this.frame, this.framePortrait]) picture.addChild(this.burning(picture, fire, style.fire));
+    if (bulbs && style.bulbs) for (const picture of [this.frame, this.framePortrait]) picture.addChild(this.marquee(picture, bulbs, style.bulbs));
     this.addChild(this.frame, this.framePortrait, this.field);
   }
 
@@ -409,6 +415,47 @@ export class Board extends Container {
       layer.addChild(sprite);
     }
     return layer;
+  }
+
+  /** The frame's marquee bulbs (style.bulbs): a glow on each, the lights chasing up the rails in the theme's colours. */
+  private readonly bulbs: { sprite: Sprite; step: number }[] = [];
+  private bulbTime = 0;
+  private bulbParty = 0;
+  private marquee(picture: Sprite, glow: Texture, spec: NonNullable<BoardStyle['bulbs']>): Container {
+    const layer = new Container();
+    const w = picture.texture.width, h = picture.texture.height;
+    spec.points.forEach(([px, py], i) => {
+      const sprite = new Sprite({ texture: glow, anchor: 0.5 });
+      sprite.blendMode = 'add';
+      sprite.position.set((px - 0.5) * w, (py - 0.5) * h);
+      sprite.scale.set(spec.size * h / glow.height);
+      // the points come in pairs, one on each rail, from the foot up: a pair lights together
+      this.bulbs.push({ sprite, step: Math.floor(i / 2) });
+      layer.addChild(sprite);
+    });
+    return layer;
+  }
+
+  /** A big moment: the bulbs blink all together, in every colour, for a while. */
+  partyBulbs(seconds = 2.5): void {
+    if (!this.bulbs.length || calm) return;
+    gsap.fromTo(this, { bulbParty: 1 }, { bulbParty: 0, duration: seconds, ease: 'power1.in', overwrite: 'auto' });
+  }
+
+  /** Every frame: a run of light chasing up both rails, its colours turning; in a party, the whole frame blinks. */
+  private chase(dt: number): void {
+    if (!this.bulbs.length) return;
+    this.bulbTime += dt;
+    const t = this.bulbTime, colours = this.style.bulbs!.colours, steps = Math.max(1, ...this.bulbs.map(b => b.step + 1));
+    const blink = Math.floor(t * 8) % 2;
+    for (const { sprite, step } of this.bulbs) {
+      // a soft head of light running up (three runs on the frame at once), the other bulbs glowing low
+      const phase = ((t * 1.1 - step / steps) * 3) % 1;
+      const run = Math.pow(Math.max(0, Math.cos(phase * Math.PI * 2)), 6);
+      const party = this.bulbParty * ((step + blink) % 2 ? 1 : 0.15);
+      sprite.alpha = Math.min(1, 0.22 + 0.78 * run + party);
+      sprite.tint = colours[(step + Math.floor(t * 1.5)) % colours.length];
+    }
   }
 
   /** A big win: the frame's fire flares up for a moment. */
@@ -919,10 +966,14 @@ export class Board extends Container {
             entered = true;
             if (pegs.decoy) {
               // a cluster decoy: it fizzles in its slot, it pays nothing
-              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : this.fx === 'candy' ? ['#f45c9a', '#8ad9ae'] : this.fx === 'shurda' ? ['#f0388c', '#ffd23f'] : this.fx === 'hell' ? ['#f57a1f', '#f2c14e'] : ['#8b939b', '#ff8a1a'], 6, 160);
+              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : this.fx === 'candy' ? ['#f45c9a', '#8ad9ae'] : this.fx === 'shurda' ? ['#f0388c', '#ffd23f'] : this.fx === 'hell' ? ['#f57a1f', '#f2c14e'] : this.fx === 'disco' ? ['#ff2e93', '#19d3c5'] : ['#8b939b', '#ff8a1a'], 6, 160);
               return;
             }
             this.slots[slot]?.hit();
+            // the dance floor: the tiles either side light up after it, a wave running out from the landing
+            if (this.fx === 'disco' && this.flights.size < 12) {
+              for (const d of [1, 2]) for (const n of [slot - d, slot + d]) gsap.delayedCall(d * 0.07, () => this.slots[n]?.glow());
+            }
             this.landingEffect(slot, prizeIndexOfSlot(rows, slot), gateBoost * mega);
             if (mega > 1) this.megaLanding(this.slotX(slot), slotTop, mega, !pegs.quiet);
             if (this.currentSpinSlots().includes(slot)) this.spinLanding(slot);
@@ -1060,7 +1111,7 @@ export class Board extends Container {
   update(deltaMs: number): void {
     const dt = Math.min(deltaMs, 50) / 1000;
     this.idle(dt);
-    if (!calm) this.burn(dt);
+    if (!calm) { this.burn(dt); this.chase(dt); }
     const flights = [...this.flights];
     for (const f of flights) {
       // spring back to the route; balls going into a slot settle faster
@@ -1195,7 +1246,7 @@ export class Board extends Container {
   private explode(x: number, y: number, multiplier: number): void {
     const size = multiplier >= 10 ? 3 : multiplier >= 2 ? 2 : multiplier >= 1 ? 1 : 0;
     // a bomb: fire, smoke and debris; a reactor capsule: cyan-white sparks and a puff of vent steam, nothing thrown out
-    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : this.fx === 'candy' ? CANDY_BLAST : this.fx === 'shurda' ? SHURDA_BLAST : this.fx === 'hell' ? HELL_BLAST : WAR_BLAST;
+    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : this.fx === 'candy' ? CANDY_BLAST : this.fx === 'shurda' ? SHURDA_BLAST : this.fx === 'hell' ? HELL_BLAST : this.fx === 'disco' ? DISCO_BLAST : WAR_BLAST;
     this.particles.burst(x, y, look.sparks, [6, 12, 22, 36][size], [150, 220, 320, 440][size]);
     // smoke (steam) rising out of the hole
     this.particles.burst(x, y - 6, look.smoke, [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
@@ -1247,13 +1298,17 @@ export class Board extends Container {
     if (this.fx === 'hell' && Math.random() < 8 / Math.max(8, this.flights.size * 2)) {
       this.particles.flame(ball.x, ball.y, Math.random() < 0.5 ? '#f57a1f' : '#ffb347', radius * (0.35 + 0.08 * heat), 0.2 + 0.04 * heat);
     }
+    // a mirror ball sheds glitter: a few sparkles in the dance floor's colours
+    if (this.fx === 'disco' && Math.random() < 6 / Math.max(6, this.flights.size * 2)) {
+      this.particles.sparks(ball.x + (Math.random() - 0.5) * radius, ball.y, DISCO_GLITTER[Math.floor(Math.random() * 4)], 1, radius * 1.4);
+    }
     const context = heat > 0 ? HEAT[Math.min(heat, HEAT.length) - 1] : this.trailDot;
     if (!context) return;
     const dot = new Graphics(context);
     dot.blendMode = 'add';
     dot.position.copyFrom(ball.position);
     // a reactor capsule leaves a thin cyan streak (the capsule itself must stay the brightest thing)
-    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie' || this.fx === 'neon' || this.fx === 'candy' || this.fx === 'shurda' || this.fx === 'hell';
+    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie' || this.fx === 'neon' || this.fx === 'candy' || this.fx === 'shurda' || this.fx === 'hell' || this.fx === 'disco';
     const size = radius * (thin ? 0.3 : 0.7 + 0.25 * heat);
     const life = thin ? 0.22 : 0.32 + 0.12 * heat;
     dot.scale.set(size);
@@ -1477,6 +1532,8 @@ export class Board extends Container {
       if (!many) this.particles.ring(peg.x, peg.y, this.pegFlashColour, 11);
       // a brass tack under an ember marble: a few embers spit up off it
       if (this.fx === 'hell' && !many) this.particles.burst(peg.x, peg.y - 3, ['#f57a1f', '#ffb347', '#ffe08a'], 3, 110, -160);
+      // a chrome stud under a mirror ball: a little spray of glitter
+      if (this.fx === 'disco' && !many) this.particles.burst(peg.x, peg.y - 3, DISCO_GLITTER, 3, 120, 260);
       gsap.fromTo(peg.scale, { x: 1.35, y: 1.35 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)', overwrite: true });
     }
     if (flash) {

@@ -35,6 +35,9 @@ export interface BoardStyle {
    *  picture, the flame's foot there), `size` tall (a share of the picture's height), and a glow picture laid over the
    *  frame that breathes (its ember cracks); null: none */
   fire: { sheet: string; points: [number, number][]; size: number; glow: string | null } | null;
+  /** marquee bulbs on the frame (Disco Is Dead): a glow picture laid on each bulb (shares of the frame picture, in the
+   *  order the lights chase), `size` across (a share of the picture's height), in these colours; null: none */
+  bulbs: { glow: string; points: [number, number][]; size: number; colours: string[] } | null;
 }
 /** The look of the parts the game draws in code (the bonus meter): 'flat', 'glass' (shaded) or 'ink' (flat colour with
  * thick ink outlines; `ink` and `panel` give its colours). */
@@ -43,8 +46,8 @@ export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: 
  * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight);
  * zombie: a grenade (explosions and blood: splatters left on the board, big wins splashing the screen); neon: a capsule
  * ball (neon sparkles); candy: a gumball (sprinkles and wrapped sweets); shurda: a sock ball (comic starbursts and confetti);
- * hell: an ember marble (gold sparks, embers and hellfire) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda' | 'hell';
+ * hell: an ember marble (gold sparks, embers and hellfire); disco: a mirror ball (glitter, stars and a dance floor) */
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda' | 'hell' | 'disco';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -201,6 +204,10 @@ export interface Prop {
   swing: number; pulse: number; flicker: number; on: Prop[];
   /** in front of the game (over the board and the controls), not behind it */
   front: boolean;
+  /** a character filmed dancing (Disco Is Dead): its idle loop and its win clip, each an MP4 with the colour picture on
+   *  top and its shape (white where it is) underneath; `file` is its first frame, shown until they play. It stands over
+   *  the moving background too. null: a picture */
+  actor: { idle: string; win: string; part: [number, number] } | null;
 }
 /** The background's moving pieces: the sheets they play, and the pieces on a wide screen and on a phone. */
 export interface Props {
@@ -246,6 +253,9 @@ export interface Theme {
   landscapeExitFromPortrait: boolean;
   /** Looping, muted background videos (landscape / portrait) played over the still backgrounds once they run. */
   video: { wide: string | null; tall: string | null };
+  /** short clips played over the game for its big moments (Disco Is Dead): the bonus starting, a big win; each a
+   *  landscape and a portrait MP4 (a WebM copy next to it); null: none */
+  clips: { bonus: { wide: string; tall: string } | null; win: { wide: string; tall: string } | null };
   /** A looping background track (.mp3 with an .ogg of the same name), quiet under the effects; null: none. */
   music: string | null;
   /** How many lit-neon layers the logo has (logo_neon_<n>.png and logo_neon_<n>_p.png, laid over the logo, whose
@@ -266,7 +276,7 @@ export interface Theme {
 }
 
 const DEFAULT_FONT: ThemeFont = { family: 'Azonix', file: null, weight: 'normal' };
-const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1, statusStroke: null, slotHang: null, fire: null };
+const DEFAULT_BOARD: BoardStyle = { peg: null, pegFlash: '#FFBF00', trail: null, slots: null, slotRadius: 10, slotArt: false, fx: 'standard', fit: null, portraitSpan: 1, statusStroke: null, slotHang: null, fire: null, bulbs: null };
 
 // theme.json is our own static file, but only well-formed values are used
 const colour = (value: unknown, fallback: string) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
@@ -441,6 +451,14 @@ function readLines(json: unknown): WashingLines | null {
   return { rope, socks: socks as WashingLines['socks'], wide: lines(l.wide), tall: lines(l.tall), size };
 }
 
+function actorOf(v: unknown): Prop['actor'] {
+  const a = (v ?? null) as Record<string, unknown> | null;
+  const idle = a ? fileName(a.idle, /\.mp4$/) : null, win = a ? fileName(a.win, /\.mp4$/) : null;
+  const part = Array.isArray(a?.part) && a.part.length === 2 && a.part.every(n => typeof n === 'number' && n >= 0 && n <= 1) && a.part[0] < a.part[1]
+    ? [a.part[0], a.part[1]] as [number, number] : [0, 1] as [number, number];
+  return idle && win ? { idle, win, part } : null;
+}
+
 function readProps(json: unknown): Props | null {
   const p = (json ?? null) as Record<string, unknown> | null;
   if (!p) return null;
@@ -462,7 +480,7 @@ function readProps(json: unknown): Props | null {
     return { file, sheet, fps: num(o.fps, 1, 60, 16), at, anchor, height: num(o.height, 0.001, 3, 0.1),
       width: typeof o.width === 'number' && o.width > 0 && o.width <= 3 ? o.width : null, alpha: num(o.alpha, 0, 1, 1),
       blend: o.blend === 'add' ? 'add' : 'normal', swing: num(o.swing, 0, 0.5, 0), pulse: num(o.pulse, 0, 1, 0),
-      flicker: num(o.flicker, 0, 1, 0), front: depth === 0 && o.front === true,
+      flicker: num(o.flicker, 0, 1, 0), front: depth === 0 && o.front === true, actor: depth === 0 ? actorOf(o.actor) : null,
       on: depth < 2 && Array.isArray(o.on) ? o.on.map(c => prop(c, depth + 1)).filter((c): c is Prop => c !== null) : [] };
   };
   const list = (v: unknown) => (Array.isArray(v) ? v : []).map(x => prop(x, 0)).filter((x): x is Prop => x !== null);
@@ -576,7 +594,8 @@ function readBoard(json: unknown): BoardStyle {
     statusStroke: b.statusStroke === undefined ? null : colour(b.statusStroke, '#000000'),
     slotHang: readSlotHang(b.slotHang),
     fire: readFire(b.fire),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' || b.fx === 'hell' ? b.fx : 'standard',
+    bulbs: readBulbs(b.bulbs),
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' || b.fx === 'hell' || b.fx === 'disco' ? b.fx : 'standard',
   };
 }
 
@@ -588,6 +607,17 @@ function readFire(json: unknown): BoardStyle['fire'] {
     Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && n >= 0 && n <= 1));
   const size = typeof f.size === 'number' && f.size > 0 && f.size < 1 ? f.size : 0.06;
   return sheet && points.length ? { sheet, points: points.slice(0, 40), size, glow: fileName(f.glow, /\.png$/) } : null;
+}
+
+function readBulbs(json: unknown): BoardStyle['bulbs'] {
+  const f = (json ?? null) as Record<string, unknown> | null;
+  if (!f) return null;
+  const glow = fileName(f.glow, /\.png$/);
+  const points = (Array.isArray(f.points) ? f.points : []).filter((p): p is [number, number] =>
+    Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && n >= 0 && n <= 1));
+  const size = typeof f.size === 'number' && f.size > 0 && f.size < 1 ? f.size : 0.03;
+  const colours = (Array.isArray(f.colours) ? f.colours : []).filter((c): c is string => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c));
+  return glow && points.length ? { glow, points: points.slice(0, 120), size, colours: colours.length ? colours.slice(0, 8) : ['#fff1c4'] } : null;
 }
 
 function readSlotHang(json: unknown): BoardStyle['slotHang'] {
@@ -626,6 +656,16 @@ function readWheel(json: unknown, board: BoardStyle, accent: string, text: strin
   };
 }
 
+function readClips(json: unknown): Theme['clips'] {
+  const c = (json ?? {}) as Record<string, unknown>;
+  const pair = (v: unknown) => {
+    const o = (v ?? null) as Record<string, unknown> | null;
+    const wide = o ? fileName(o.wide, /\.mp4$/) : null, tall = o ? fileName(o.tall, /\.mp4$/) : null;
+    return wide && tall ? { wide, tall } : null;
+  };
+  return { bonus: pair(c.bonus), win: pair(c.win) };
+}
+
 export async function loadTheme(id: string): Promise<Theme> {
   const safe = /^[a-z0-9-]{1,32}$/.test(id) ? id : 'bombs-away';
   const path = `/themes/${safe}/`;
@@ -653,6 +693,7 @@ export async function loadTheme(id: string): Promise<Theme> {
       wide: fileName((json.video as Record<string, unknown> | undefined)?.wide, /\.(mp4|webm)$/),
       tall: fileName((json.video as Record<string, unknown> | undefined)?.tall, /\.(mp4|webm)$/),
     },
+    clips: readClips(json.clips),
     music: fileName(json.music, /\.mp3$/),
     logoNeon: Math.min(3, Math.max(0, Math.floor(number(json.logoNeon, 0)))),
     sounds: Array.isArray(json.sounds) ? SOUND_NAMES.filter(name => (json.sounds as unknown[]).includes(name)) : [],

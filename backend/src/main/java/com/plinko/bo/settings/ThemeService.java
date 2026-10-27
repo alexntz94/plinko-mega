@@ -28,6 +28,7 @@ public class ThemeService {
         KNOWN.put("candy-factory", "Candy Factory");
         KNOWN.put("shurda-plinko", "Shurda Plinko");
         KNOWN.put("hell-of-a-deal", "Hell of a Deal");
+        KNOWN.put("disco-is-dead", "Disco Is Dead");
     }
 
     public record Themes(List<String> enabled, String defaultTheme) {

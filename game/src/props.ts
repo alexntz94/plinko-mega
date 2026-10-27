@@ -3,10 +3,12 @@
 // piece can swing from its anchor (a hanging lamp), breathe or flicker (a flame's light, the hellfire under the floor),
 // or play a 4x4 sheet in a loop (a candle flame, smoke, rising embers); pieces on a piece move with it (a lamp's flame
 // and glow swing with the lamp). A big win flares every light and sets the lamps swinging. Pieces marked `front` lie
-// in a layer of their own (front) over the game: embers rising past the board. Purely visual.
+// in a layer of their own (front) over the game: embers rising past the board. Characters filmed dancing (actor.ts)
+// stand in a layer of their own too (actors), over the moving background, under the game. Purely visual.
 
 import { AnimatedSprite, Container, Graphics, Rectangle, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
+import { Actor } from './actor';
 import { calm } from './effects';
 import type { Prop, Props as PropsArt } from './theme';
 
@@ -21,10 +23,15 @@ export class Props extends Container {
   private shape: 'wide' | 'tall' | null = null;
   /** the pieces in front of the game (main.ts puts this layer over it) */
   readonly front = new Container();
+  /** the dancing characters: over the moving background (which hides this layer's pieces), under the game */
+  readonly actors = new Container();
+  private dancers: Actor[] = [];
+  private dancing = false;
   /** the background picture's size as laid out (its own pixels) */
   private size = { w: 0, h: 0 };
 
-  constructor(private readonly art: PropsArt, private readonly tex: (file: string) => Texture) {
+  constructor(private readonly art: PropsArt, private readonly tex: (file: string) => Texture,
+              private readonly url: (file: string) => string = file => file) {
     super();
     for (const [name, sheet] of Object.entries(art.sheets)) {
       const t = tex(sheet.file), [cols, rows] = sheet.grid;
@@ -41,7 +48,7 @@ export class Props extends Container {
    * scaled by `scale` on the screen. The pieces of the orientation on screen; the others are let go.
    */
   layout(landscape: boolean, x: number, y: number, scale: number, w: number, h: number): void {
-    for (const layer of [this, this.front]) {
+    for (const layer of [this, this.front, this.actors]) {
       layer.position.set(x, y);
       layer.scale.set(scale);
     }
@@ -49,9 +56,31 @@ export class Props extends Container {
     const shape = landscape ? 'wide' : 'tall';
     if (shape === this.shape && this.live.length) return;
     this.shape = shape;
-    for (const layer of [this, this.front]) layer.removeChildren().forEach(child => child.destroy({ children: true }));
+    for (const layer of [this, this.front, this.actors]) layer.removeChildren().forEach(child => child.destroy({ children: true }));
     this.live = [];
-    for (const prop of this.art[shape]) (prop.front ? this.front : this).addChild(this.make(prop, w, h, h));
+    this.dancers.forEach(actor => actor.run(false));
+    this.dancers = [];
+    for (const prop of this.art[shape]) {
+      if (prop.actor && prop.file) this.actors.addChild(this.actor(prop, w, h));
+      else (prop.front ? this.front : this).addChild(this.make(prop, w, h, h));
+    }
+    this.dancers.forEach(actor => actor.run(this.dancing));
+  }
+
+  /** A dancing character: its first frame until its videos play, the share of the picture's height it stands. */
+  private actor(prop: Prop, w: number, h: number): Actor {
+    const actor = new Actor(this.tex(prop.file as string), prop.anchor,
+      { idle: this.url(prop.actor!.idle), win: this.url(prop.actor!.win) }, prop.actor!.part);
+    actor.scale.set(prop.width !== null ? (prop.width * w) / actor.size.w : (prop.height * h) / actor.size.h);
+    actor.position.set(prop.at[0] * w, prop.at[1] * h);
+    this.dancers.push(actor);
+    return actor;
+  }
+
+  /** The characters dance while the moving background plays (main.ts), and stand still on the still picture. */
+  animate(on: boolean): void {
+    this.dancing = on && !calm;
+    this.dancers.forEach(actor => actor.run(this.dancing));
   }
 
   /** One piece, `h` its parent's height (the background's, or the piece it stands on). */
@@ -88,6 +117,7 @@ export class Props extends Container {
   /** A big win: every light flares and the lamps swing. */
   flare(): void {
     if (calm) return;
+    this.dancers.forEach(actor => actor.cheer());
     for (const l of this.live) {
       if (l.prop.swing) l.swingV += RANDOM(1.2, 2.2) * (Math.random() < 0.5 ? -1 : 1);
       if (l.prop.pulse || l.prop.flicker) gsap.fromTo(l, { flare: 1 }, { flare: 0, duration: 1.6, ease: 'power2.out', overwrite: true });

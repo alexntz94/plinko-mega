@@ -47,7 +47,7 @@
         "y": 195.2,
         "spacing": 43.885,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko.png"
+        "framePortrait": "item_plinko_p.png"
       },
       "9": {
         "rowGap": 0.5063,
@@ -55,7 +55,7 @@
         "y": 197.66,
         "spacing": 40.175,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko.png"
+        "framePortrait": "item_plinko_p.png"
       },
       "10": {
         "rowGap": 0.4959,
@@ -63,7 +63,7 @@
         "y": 199.64,
         "spacing": 37.027,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko.png"
+        "framePortrait": "item_plinko_p.png"
       },
       "11": {
         "rowGap": 0.4874,
@@ -71,7 +71,7 @@
         "y": 201.27,
         "spacing": 34.327,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko.png"
+        "framePortrait": "item_plinko_p.png"
       },
       "12": {
         "rowGap": 0.4804,
@@ -79,7 +79,7 @@
         "y": 202.63,
         "spacing": 31.988,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko.png"
+        "framePortrait": "item_plinko_p.png"
       },
       "13": {
         "rowGap": 0.4745,
@@ -87,7 +87,7 @@
         "y": 203.79,
         "spacing": 29.942,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko.png"
+        "framePortrait": "item_plinko_p.png"
       },
       "14": {
         "rowGap": 0.4695,
@@ -95,7 +95,7 @@
         "y": 204.79,
         "spacing": 28.14,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko.png"
+        "framePortrait": "item_plinko_p.png"
       }
     },
     "portraitSpan": 0.64

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackdropVideo, VIDEO_WAITS_FOR_FIRST_ROUND } from '../src/backdrop';
 import type { Theme } from '../src/theme';
 
-// Review 4.x / N15.3: the moving background is not part of the first visit on any device: nothing is fetched until the
-// player's first round (the game calls start()), or until the player starts it in the settings column.
+// Review 4.x / N15.3: the moving background moves from the start (the owner's choice): it loads once the game has
+// loaded, only the orientation on screen, and never for a player who stopped it (nor where it never plays).
 vi.mock('pixi.js', () => ({ Texture: class {}, VideoSource: class {} }));
 vi.mock('../src/effects', () => ({ calm: false }));
 vi.mock('../src/version', () => ({ assetUrl: (path: string) => path }));
@@ -44,16 +44,15 @@ describe('the moving background (backdrop.ts)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('waits for the first round on every device (the budget script counts on it)', () => {
-    expect(VIDEO_WAITS_FOR_FIRST_ROUND).toBe(true);
+  it('does not wait for the first round (the budget script counts it in the first visit)', () => {
+    expect(VIDEO_WAITS_FOR_FIRST_ROUND).toBe(false);
   });
 
-  it('loads nothing on the first screen, even on a desktop browser with a fast connection', () => {
+  it('loads the orientation on screen once the game has loaded, before any round', () => {
     const backdrop = new BackdropVideo(theme, () => undefined);
     vi.runAllTimers();
-    expect(backdrop.texture(true)).toBeNull();
-    expect(backdrop.texture(false)).toBeNull();
-    expect(videos).toHaveLength(0);
+    expect(backdrop.texture(true)).toBeNull(); // the still picture until it plays
+    expect(videos.map(video => video.src)).toEqual(['themes/bombs-away/background.mp4']);
   });
 
   it('starts loading the orientation on screen after the first round', () => {

@@ -1,7 +1,7 @@
 // A theme's clips for its big moments (Disco Is Dead: the needle dropping on a record as the bonus starts, the whole
 // disco celebrating a big win): a short video over the whole game, a few seconds, then it fades away; a tap ends it
-// sooner. The game goes on under it (nothing waits for it). Loaded with the moving background (after the player's
-// first round, not when the phone saves data or the player stopped the motion); a clip not loaded yet is skipped.
+// sooner. The game goes on under it (nothing waits for it). Loaded after the player's first round, where the moving
+// background may play (not when the phone saves data or the player stopped the motion); a clip not loaded yet is skipped.
 // Purely visual.
 
 import { Container, Graphics, Sprite, Texture, VideoSource } from 'pixi.js';

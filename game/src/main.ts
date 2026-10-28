@@ -257,7 +257,12 @@ async function start(): Promise<void> {
   const backdrop = new BackdropVideo(theme, () => layout());
   const game = new Game(session, theme, tex, fatal,
     backdrop.available ? { moving: () => backdrop.moving, onTap: () => backdrop.toggle() } : null,
-    () => { backdrop.start(); game.props?.firstRoundPlayed(); });
+    () => {
+      backdrop.start();
+      game.props?.firstRoundPlayed();
+      // the big moments' clips (several MB) only after the first round, where the moving background may play
+      if (clips.any && backdrop.available && backdrop.moving) clips.load();
+    });
   world.addChild(game);
   // the background's moving pieces lie on it, under the game
   // the big moments' clips cover everything (clips.ts)
@@ -289,8 +294,6 @@ async function start(): Promise<void> {
       // the player stopped the motion, asks for less of it, or saves data
       game.props.animate(backdrop.available && backdrop.moving);
     }
-    // the clips load with the moving background
-    if (video && clips.any) clips.load();
     clips.layout(app.screen.width, app.screen.height);
     world.scale.set(view.scale);
     world.position.set(view.x, view.y);

@@ -24,12 +24,13 @@ function slowConnection(): boolean {
 }
 
 /**
- * Review 4.x / N15.3: the moving background is never part of the first visit, on every device: it starts loading only
- * after the player's first round (or when the player starts it in the settings column), so a first visit stays under
- * 2 MB per theme whatever the connection (Safari, Firefox and every iPhone browser don't say what connection they are
- * on). scripts/theme-size-budget.mjs reads this flag: set to false, it counts the video in each theme's first visit.
+ * Review 4.x / N15.3: when the moving background loads. It used to wait for the player's first round, so it was never
+ * part of a first visit; the owner chose to have it move from the start: it now loads once the game itself has loaded
+ * (it never delays the start screen), except where it never plays (a phone saving data or on a slow connection, a
+ * player asking for less motion, or one who stopped it in the settings column). The first visit then includes it: the
+ * size check counts it, with a limit of its own (scripts/theme-size-budget.mjs reads this flag).
  */
-export const VIDEO_WAITS_FOR_FIRST_ROUND = true;
+export const VIDEO_WAITS_FOR_FIRST_ROUND = false;
 
 export class BackdropVideo {
   private readonly ready = new Map<'wide' | 'tall', Texture>();

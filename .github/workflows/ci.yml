@@ -86,8 +86,8 @@ jobs:
         working-directory: game
       # review 4.x: what a first visit downloads per theme, counted on the files players get (the image build's game
       # stage: half-size, atlas, WebP and AVIF copies). Fails when any theme is over 2 MB, or an existing theme grows past
-      # its budget (game/scripts/theme-size-budget.json: its size + 40 KB). The video loads after the player's first
-      # round (game/src/backdrop.ts), so it is reported apart ("after 1st round"), not in the first visit.
+      # its budget (game/scripts/theme-size-budget.json: its size + 40 KB). The moving background loads once the game has
+      # loaded (game/src/backdrop.ts): it is counted apart, with a limit of its own (1.5 MB an orientation).
       - name: First-visit size per theme (on the image build's files)
         run: |
           docker build --target game -f deploy/nginx/Dockerfile -t plinko-game:ci .

@@ -4,9 +4,10 @@
 //   - every theme: 2 MB (the target, review 4.x), the moving background included when it loads before the first round;
 //   - a theme listed in theme-size-budget.json: also its size when the list was written, plus a small slack (it can't
 //     grow).
-// The moving background (video) is part of the first visit only if it loads before the player's first round. It no
-// longer does (src/backdrop.ts, VIDEO_WAITS_FOR_FIRST_ROUND, read here): its bytes are then reported apart, in the
-// "after 1st round" column (the MP4 a browser with H.264 gets), and are not in the total.
+// The moving background (video): when it loads before the player's first round (src/backdrop.ts,
+// VIDEO_WAITS_FOR_FIRST_ROUND, read here: the owner chose to have it move from the start) it is part of the first visit,
+// counted on its own ("video", the MP4 a browser with H.264 gets) with a limit of its own (VIDEO_TARGET), so the
+// pictures, sounds and music keep their 2 MB; when it waits, it is reported apart ("after 1st round").
 //
 //   node scripts/theme-size-budget.mjs <folder with themes/ and assets/> [--built] [--update]
 //
@@ -26,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 const KB = 1024;
 const MB = 1024 * KB;
 const TARGET = 2 * MB;    // every theme's budget (review 4.x)
+const VIDEO_TARGET = 1.5 * MB;   // the moving background of one orientation, when it is part of the first visit
 const SLACK = 40 * KB;    // on top of an existing theme's size: room for encoder differences between machines, not for new art
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BUDGETS = join(HERE, 'theme-size-budget.json');
@@ -100,7 +102,8 @@ function firstVisit(dir, theme, landscape) {
   const video = typeof clip === 'string' ? size(join(dir, clip)) : 0;
   const early = VIDEO_AFTER_FIRST_ROUND ? 0 : video;
   const requests = fetched.length + (font ? 1 : 0) + new Set(soundFiles).size + (music ? 1 : 0) + (early ? 1 : 0);
-  return { images, font, sounds, music, video: early, later: video - early, requests, total: images + font + sounds + music + early };
+  // (the video has a limit of its own: the total is the rest)
+  return { images, font, sounds, music, video: early, later: video - early, requests, total: images + font + sounds + music };
 }
 
 const themesDir = join(root, 'themes');
@@ -118,20 +121,22 @@ const rows = ids.map(id => {
   const theme = JSON.parse(readFileSync(join(dir, 'theme.json'), 'utf8'));
   const wide = firstVisit(dir, theme, true);
   const tall = firstVisit(dir, theme, false);
-  return { id, worst: wide.total >= tall.total ? { ...wide, shape: 'landscape' } : { ...tall, shape: 'portrait' } };
+  // (and the heavier orientation's video, checked against its own limit)
+  return { id, worst: wide.total >= tall.total ? { ...wide, shape: 'landscape' } : { ...tall, shape: 'portrait' },
+    video: Math.max(wide.video, tall.video) };
 });
 
 console.log(`First visit per theme in MB (${root}${built ? ', built copy' : ', plain checkout: PNGs only, not checked'}), the heavier orientation`);
 const head = ['theme', 'shape', 'images', 'font', 'sounds', 'music', 'video', 'total', 'budget', 'requests', 'after 1st round', ''];
-const table = rows.map(({ id, worst: w }) => [id, w.shape, mb(w.images), mb(w.font), mb(w.sounds), mb(w.music), mb(w.video),
+const table = rows.map(({ id, worst: w, video }) => [id, w.shape, mb(w.images), mb(w.font), mb(w.sounds), mb(w.music), mb(video),
   mb(w.total), mb(budgetOf(id)) + (id in budgets ? '' : '*'), String(w.requests), mb(w.later),
-  !built ? '' : w.total > budgetOf(id) ? 'OVER BUDGET' : 'ok']);
+  !built ? '' : w.total > budgetOf(id) ? 'OVER BUDGET' : video > VIDEO_TARGET ? 'VIDEO OVER' : 'ok']);
 const widths = head.map((h, i) => Math.max(h.length, ...table.map(row => row[i].length)));
 for (const row of [head, ...table]) console.log(row.map((cell, i) => (i < 2 ? cell.padEnd(widths[i]) : cell.padStart(widths[i]))).join('  ').trimEnd());
 console.log('budget: 2 MB, or less for a theme listed in theme-size-budget.json (its size then + slack); * not listed.');
 console.log(VIDEO_AFTER_FIRST_ROUND
   ? 'video: loads after the first round (src/backdrop.ts), so in "after 1st round", not in the total.'
-  : 'video: loads before the first round (src/backdrop.ts), so counted in the first visit.');
+  : `video: loads once the game has loaded (src/backdrop.ts): part of the first visit, its own limit ${mb(VIDEO_TARGET)} MB, not in the total.`);
 
 if (args.includes('--update')) {
   if (!built) { console.error('FAIL: --update needs a built copy'); process.exit(1); }
@@ -145,5 +150,10 @@ if (!built) process.exit(0);
 const over = rows.filter(row => row.worst.total > budgetOf(row.id));
 if (over.length) {
   console.error(`FAIL: over the budget: ${over.map(row => `${row.id} (${mb(row.worst.total)} MB, budget ${mb(budgetOf(row.id))} MB)`).join(', ')}`);
+  process.exit(1);
+}
+const heavy = rows.filter(row => row.video > VIDEO_TARGET);
+if (heavy.length) {
+  console.error(`FAIL: moving background over ${mb(VIDEO_TARGET)} MB: ${heavy.map(row => `${row.id} (${mb(row.video)} MB)`).join(', ')}`);
   process.exit(1);
 }

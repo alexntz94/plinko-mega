@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # Base images pinned by digest (update deliberately, e.g. with Renovate/Dependabot, then rescan).
-FROM maven:3.10.0-eclipse-temurin-21@sha256:9b4877723dadf350b452dd97d9a6401e7b56f98fa9dfe420c32ad909989c7e4c AS build
+FROM maven:3-eclipse-temurin-27@sha256:095c056353550ea93605f9cbd200a7cbbc489a1989eeec8b8600749a157a0096 AS build
 WORKDIR /build
 COPY pom.xml .
 RUN mvn -B -q dependency:go-offline

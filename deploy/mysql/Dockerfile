@@ -2,7 +2,7 @@
 #  - runs as the mysql user from the start, so gosu (only used to drop root) is removed
 #  - MySQL Shell removed (unused; it bundles its own Python runtime)
 #  - OS security updates applied
-FROM mysql:8.4.11@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
+FROM mysql:26.7.0@sha256:625f74ddf93652d9d0f8d4ea7d741b9189554a5e96d27bb770abd0902d89c6e3
 RUN microdnf remove -y mysql-shell \
  && microdnf upgrade -y --refresh \
  && microdnf clean all \

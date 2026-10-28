@@ -1,0 +1,341 @@
+{
+  "name": "Death & Taxes",
+  "title": "Death & Taxes",
+  "background": "#e9dfc6",
+  "accent": "#9e1b1b",
+  "text": "#1d1712",
+  "playText": "#efe6cf",
+  "retina": true,
+  "font": {
+    "family": "IM Fell English SC",
+    "file": "imfell.woff2",
+    "weight": "400"
+  },
+  "board": {
+    "fx": "ledger",
+    "peg": "item_peg.png",
+    "pegFlash": "#9e1b1b",
+    "trail": "#1d1712",
+    "slotRadius": 2,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#efe6cf",
+        "text": "#1d1712"
+      },
+      {
+        "face": "#c9a46a",
+        "text": "#1d1712"
+      },
+      {
+        "face": "#60708c",
+        "text": "#efe6cf"
+      },
+      {
+        "face": "#9e1b1b",
+        "text": "#efe6cf"
+      },
+      {
+        "face": "#d9a441",
+        "text": "#1d1712"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 0.5196,
+        "x": 384,
+        "y": 195.2,
+        "spacing": 43.885,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
+      },
+      "9": {
+        "rowGap": 0.5063,
+        "x": 384,
+        "y": 197.66,
+        "spacing": 40.175,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
+      },
+      "10": {
+        "rowGap": 0.4959,
+        "x": 384,
+        "y": 199.64,
+        "spacing": 37.027,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
+      },
+      "11": {
+        "rowGap": 0.4874,
+        "x": 384,
+        "y": 201.27,
+        "spacing": 34.327,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
+      },
+      "12": {
+        "rowGap": 0.4804,
+        "x": 384,
+        "y": 202.63,
+        "spacing": 31.988,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
+      },
+      "13": {
+        "rowGap": 0.4745,
+        "x": 384,
+        "y": 203.79,
+        "spacing": 29.942,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
+      },
+      "14": {
+        "rowGap": 0.4695,
+        "x": 384,
+        "y": 204.79,
+        "spacing": 28.14,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
+      }
+    },
+    "portraitSpan": 0.64
+  },
+  "wheel": {
+    "faces": [
+      "#efe6cf",
+      "#1d1712",
+      "#9e1b1b",
+      "#c9a46a",
+      "#d9a441",
+      "#60708c"
+    ],
+    "text": [
+      "#1d1712",
+      "#efe6cf",
+      "#efe6cf",
+      "#1d1712",
+      "#1d1712",
+      "#efe6cf"
+    ],
+    "rim": "#3a2f26",
+    "ink": "#1d1712",
+    "title": "#9e1b1b",
+    "gold": {
+      "faces": [
+        "#d9a441",
+        "#f3e3b0",
+        "#9e1b1b",
+        "#1d1712"
+      ],
+      "text": [
+        "#1d1712",
+        "#1d1712",
+        "#efe6cf",
+        "#efe6cf"
+      ],
+      "rim": "#d9a441"
+    },
+    "style": "chests",
+    "chests": {
+      "closed": "record_sealed.png",
+      "open": "record_broken.png",
+      "goldClosed": "record_gold.png",
+      "goldOpen": "record_broken.png",
+      "shelf": "record_shelf.png",
+      "glow": "record_glow.png",
+      "burst": "vfx_ink_small.png",
+      "plank": 0.7033,
+      "span": [
+        0.05,
+        0.95
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "pick": "PICK A LETTER!"
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#3a2f26",
+      "#5a4a3a",
+      "#9e1b1b"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#1d1712",
+    "panel": "#efe6cf"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "inner": [
+      0.067,
+      0.207,
+      0.933,
+      0.793
+    ],
+    "phoneTop": 500,
+    "ledger": {
+      "book": "console_book.png",
+      "ink": "#1d1712",
+      "red": "#9e1b1b",
+      "left": [
+        0.0413,
+        0.048,
+        0.4699,
+        0.7408
+      ],
+      "right": [
+        0.5283,
+        0.048,
+        0.9555,
+        0.7408
+      ]
+    }
+  },
+  "blast": {
+    "fire": "vfx_ink_fire.png",
+    "dust": "vfx_wash.png",
+    "smoke": "vfx_wash.png",
+    "kinds": {
+      "small": "vfx_ink_small.png",
+      "impact": "vfx_ink_impact.png",
+      "heavy": "vfx_ink_heavy.png",
+      "napalm": "vfx_ink_heavy.png",
+      "mushroom": "vfx_ink_huge.png",
+      "fireball": "vfx_ink_impact.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.5
+      ],
+      "impact": [
+        0.5,
+        0.5
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.5
+      ],
+      "fireball": [
+        0.5,
+        0.5
+      ]
+    },
+    "splatters": [
+      "splat_0.png",
+      "splat_1.png",
+      "splat_2.png",
+      "splat_3.png"
+    ]
+  },
+  "music": "music.mp3",
+  "props": {
+    "sheets": {},
+    "wide": [
+      {
+        "file": "actor_reaper.png",
+        "actor": {
+          "idle": "actor_reaper_idle.mp4",
+          "win": "actor_reaper_win.mp4",
+          "part": [
+            0,
+            1
+          ]
+        },
+        "at": [
+          0.9,
+          1.0
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.66
+      }
+    ],
+    "tall": [
+      {
+        "file": "actor_reaper.png",
+        "actor": {
+          "idle": "actor_reaper_idle.mp4",
+          "win": "actor_reaper_win.mp4",
+          "part": [
+            0,
+            1
+          ]
+        },
+        "at": [
+          0.8,
+          0.41
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.25
+      }
+    ],
+    "wipe": {
+      "kind": "ink",
+      "count": 8,
+      "height": 0.3,
+      "seconds": 1.6
+    }
+  },
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
+  },
+  "clips": {
+    "bonus": {
+      "wide": "clip_bonus.mp4",
+      "tall": "clip_bonus_p.mp4"
+    },
+    "win": {
+      "wide": "clip_win.mp4",
+      "tall": "clip_win_p.mp4"
+    }
+  }
+}

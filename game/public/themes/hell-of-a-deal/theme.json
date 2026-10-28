@@ -1,6 +1,6 @@
 {
   "name": "Hell of a Deal",
-  "title": "Hell of a Deal \u00b7 Plinko",
+  "title": "Hell of a Deal · Plinko",
   "background": "#120a0c",
   "accent": "#f57a1f",
   "text": "#fff2d6",
@@ -47,55 +47,55 @@
         "y": 93.86,
         "spacing": 57.708,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko_p.png"
+        "framePortrait": "item_plinko.png"
       },
       "9": {
         "rowGap": 0.6257,
         "x": 384,
         "y": 97.87,
         "spacing": 52.945,
-        "frame": "item_plinko_r9.png",
-        "framePortrait": "item_plinko_r9_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "10": {
         "rowGap": 0.6118,
         "x": 384,
         "y": 101.1,
         "spacing": 48.88,
-        "frame": "item_plinko_r10.png",
-        "framePortrait": "item_plinko_r10_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "11": {
         "rowGap": 0.6005,
         "x": 384,
         "y": 103.75,
         "spacing": 45.378,
-        "frame": "item_plinko_r11.png",
-        "framePortrait": "item_plinko_r11_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "12": {
         "rowGap": 0.5912,
         "x": 384,
         "y": 105.97,
         "spacing": 42.334,
-        "frame": "item_plinko_r12.png",
-        "framePortrait": "item_plinko_r12_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "13": {
         "rowGap": 0.5834,
         "x": 384,
         "y": 107.86,
         "spacing": 39.665,
-        "frame": "item_plinko_r13.png",
-        "framePortrait": "item_plinko_r13_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "14": {
         "rowGap": 0.5768,
         "x": 384,
         "y": 109.48,
         "spacing": 37.308,
-        "frame": "item_plinko_r14.png",
-        "framePortrait": "item_plinko_r14_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       }
     },
     "portraitSpan": 0.64,

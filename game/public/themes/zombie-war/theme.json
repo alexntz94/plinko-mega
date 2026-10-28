@@ -47,55 +47,55 @@
         "y": 70.42,
         "spacing": 46.255,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko_p.png"
+        "framePortrait": "item_plinko.png"
       },
       "9": {
         "rowGap": 0.7827,
         "x": 384,
         "y": 74.79,
         "spacing": 46.255,
-        "frame": "item_plinko_r9.png",
-        "framePortrait": "item_plinko_r9_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "10": {
         "rowGap": 0.7233,
         "x": 384,
         "y": 78.32,
         "spacing": 45.178,
-        "frame": "item_plinko_r10.png",
-        "framePortrait": "item_plinko_r10_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "11": {
         "rowGap": 0.7094,
         "x": 384,
         "y": 81.22,
         "spacing": 41.977,
-        "frame": "item_plinko_r11.png",
-        "framePortrait": "item_plinko_r11_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "12": {
         "rowGap": 0.6979,
         "x": 384,
         "y": 83.65,
         "spacing": 39.189,
-        "frame": "item_plinko_r12.png",
-        "framePortrait": "item_plinko_r12_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "13": {
         "rowGap": 0.6883,
         "x": 384,
         "y": 85.71,
         "spacing": 36.741,
-        "frame": "item_plinko_r13.png",
-        "framePortrait": "item_plinko_r13_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "14": {
         "rowGap": 0.6802,
         "x": 384,
         "y": 87.48,
         "spacing": 34.575,
-        "frame": "item_plinko_r14.png",
-        "framePortrait": "item_plinko_r14_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       }
     },
     "portraitSpan": 0.82
@@ -360,5 +360,9 @@
     ],
     "height": 0.76
   },
-  "music": "music.mp3"
+  "music": "music.mp3",
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
+  }
 }

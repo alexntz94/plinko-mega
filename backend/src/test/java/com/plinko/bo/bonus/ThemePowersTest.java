@@ -44,6 +44,9 @@ class ThemePowersTest {
         assertThat(BonusService.themeSells("plinko-exe", "meltdown")).as("System Crash").isTrue();
         assertThat(BonusService.themeSells("plinko-exe", "pair")).as("Fork Bomb").isTrue();
         assertThat(BonusService.themeSells("plinko-exe", "tank")).isFalse();
+        assertThat(BonusService.themeSells("death-and-taxes", "meltdown")).as("Death Duty").isTrue();
+        assertThat(BonusService.themeSells("death-and-taxes", "magnet-left")).as("Loophole").isTrue();
+        assertThat(BonusService.themeSells("death-and-taxes", "tank")).isFalse();
         assertThat(BonusService.themeSells("old-theme", "heavy")).isFalse();
         for (List<String> powers : BonusService.THEME_POWERS.values()) {
             assertThat(BonusService.POWERS).containsAll(powers);

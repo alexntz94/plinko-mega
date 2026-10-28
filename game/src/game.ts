@@ -115,6 +115,9 @@ const DISCO_STAMPS: Record<string, string> = { pair: 'DUET', 'magnet-left': 'BAS
 /** PLINKO.exe's: Golden Packet is heavy, Fork Bomb the pair, Backdoor the magnet, System Crash the meltdown. */
 const EXE_NAMES: Record<string, string> = { heavy: 'GOLD PACKET', pair: 'FORK BOMB', 'magnet-left': 'BACKDOOR L', 'magnet-right': 'BACKDOOR R', meltdown: 'CRASH' };
 const EXE_STAMPS: Record<string, string> = { pair: 'FORK BOMB', 'magnet-left': 'BACKDOOR', 'magnet-right': 'BACKDOOR', meltdown: 'SYSTEM CRASH' };
+/** Death & Taxes': a Gold Sovereign is heavy, Double Entry the pair, a Loophole the magnet, Death Duty the meltdown. */
+const LEDGER_NAMES: Record<string, string> = { heavy: 'SOVEREIGN', pair: 'DOUBLE ENTRY', 'magnet-left': 'LOOPHOLE L', 'magnet-right': 'LOOPHOLE R', meltdown: 'DUTY' };
+const LEDGER_STAMPS: Record<string, string> = { pair: 'DOUBLE ENTRY', 'magnet-left': 'LOOPHOLE', 'magnet-right': 'LOOPHOLE', meltdown: 'DEATH DUTY' };
 /** Zombie War's: Mega Charge is heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the meltdown. */
 const ZOMBIE_NAMES: Record<string, string> = { heavy: 'MEGA CHARGE', pair: 'SPLIT FUSE', 'magnet-left': 'HORDE L', 'magnet-right': 'HORDE R', meltdown: 'RAID' };
 const ZOMBIE_STAMPS: Record<string, string> = { pair: 'SPLIT FUSE', 'magnet-left': 'HORDE RUSH', 'magnet-right': 'HORDE RUSH', meltdown: 'LOCKER RAID' };
@@ -202,6 +205,11 @@ export class Game extends Container {
   private readonly powerNames: Record<string, string>;
   private readonly heavyName: string;
   private readonly powerStamps: Record<string, string>;
+  /** a ledger theme's open book (wide screens: the board on its left page, the controls on its right), or null */
+  private readonly book: Sprite | null;
+  private readonly bookPages: [number, number, number, number][] | null;
+  /** where the book's pages are now (wide screens), in the table's coordinates */
+  private pages: { left: Rectangle; right: Rectangle } | null = null;
   /** where the controls go on the board's console (the theme's frame picture) */
   private readonly consoleRects: NonNullable<Theme['console']>['rects'] | null;
   private readonly ticker: WinTicker;
@@ -230,6 +238,7 @@ export class Game extends Container {
   private lastLaunch = 0;          // when the last round was asked for (the market's minimum time per round)
   private holding = false;        // autoplay is running
   private queuedTaps = 0;         // taps that came while a request was on its way: played right after it
+  private wheelTurns: Promise<void> = Promise.resolve();   // the round on the wheel now (the next one waits for it)
   private pendingWins = 0;        // wins of balls still in the air: on screen only once they land
   private roundWin = 0;           // the bar's WIN: what the latest round has won so far (from 0 at every round)
   private roundSeq = 0;           // which round is the latest (an earlier one still landing doesn't touch WIN)
@@ -273,11 +282,13 @@ export class Game extends Container {
     const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
     const zombie = theme.board.fx === 'zombie', neon = theme.board.fx === 'neon', candy = theme.board.fx === 'candy';
     const shurda = theme.board.fx === 'shurda', hell = theme.board.fx === 'hell', disco = theme.board.fx === 'disco', exe = theme.board.fx === 'exe';
+    const ledger = theme.board.fx === 'ledger';
     this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}),
-      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}), ...(shurda ? SHURDA_NAMES : {}), ...(hell ? HELL_NAMES : {}), ...(disco ? DISCO_NAMES : {}), ...(exe ? EXE_NAMES : {}) };
-    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}), ...(shurda ? SHURDA_STAMPS : {}), ...(hell ? HELL_STAMPS : {}), ...(disco ? DISCO_STAMPS : {}), ...(exe ? EXE_STAMPS : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : shurda ? 'GOLDEN SOCK' : hell ? 'HELLFIRE MARK' : disco ? 'GOLD RECORD' : exe ? 'GOLDEN PACKET' : 'HEAVY SHELLS';
-    this.bloody = zombie;
+      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}), ...(shurda ? SHURDA_NAMES : {}), ...(hell ? HELL_NAMES : {}), ...(disco ? DISCO_NAMES : {}), ...(exe ? EXE_NAMES : {}), ...(ledger ? LEDGER_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}), ...(shurda ? SHURDA_STAMPS : {}), ...(hell ? HELL_STAMPS : {}), ...(disco ? DISCO_STAMPS : {}), ...(exe ? EXE_STAMPS : {}), ...(ledger ? LEDGER_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : shurda ? 'GOLDEN SOCK' : hell ? 'HELLFIRE MARK' : disco ? 'GOLD RECORD' : exe ? 'GOLDEN PACKET' : ledger ? 'GOLD SOVEREIGN' : 'HEAVY SHELLS';
+    // (a ledger's big win throws ink over the screen)
+    this.bloody = zombie || ledger;
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
     this.bigWin = new BigWin([theme.accent, ...(theme.board.slots?.map(s => s.face) ?? ['#FFBF00', '#EF521E', '#ED0000']), theme.text],
@@ -293,7 +304,7 @@ export class Game extends Container {
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex), gacha: gachaPick(theme, tex),
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"]
-          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : shurda ? ['SHURDA!', 'NICE SOCKS!'] : hell ? ['SOLD!', 'DEVIL OF A DEAL!'] : disco ? ['GROOVY!', 'DISCO INFERNO!'] : exe ? ['HACKED!', 'SYSTEM BREACH!'] : ['BOOM!', 'KABOOM!'] });
+          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : shurda ? ['SHURDA!', 'NICE SOCKS!'] : hell ? ['SOLD!', 'DEVIL OF A DEAL!'] : disco ? ['GROOVY!', 'DISCO INFERNO!'] : exe ? ['HACKED!', 'SYSTEM BREACH!'] : ledger ? ['PAID!', 'PAID IN FULL!'] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests || !!theme.wheel.gacha;
     this.chestPick = !!theme.wheel.chests;
     // (the gacha, the jars and the socks play it too: the capsule, the jar, the sock holds the payout)
@@ -335,9 +346,13 @@ export class Game extends Container {
     };
     this.bar = theme.console
       ? new ConsoleControls({ drop: tex(theme.console.drop), panel: tex(theme.console.panel), key: tex(theme.console.key),
-        back: theme.console.back ? tex(theme.console.back) : null, panelInner: theme.console.inner },
+        back: theme.console.back ? tex(theme.console.back) : null, panelInner: theme.console.inner,
+        ledger: theme.console.ledger ? { ink: theme.console.ledger.ink, red: theme.console.ledger.red } : null },
         { gold: theme.wheel.title, text: theme.text, ink: theme.wheel.ink }, actions, quickBets(this.ladder, defaultBet), value => this.money(value))
       : new MegaControls({ gold: theme.wheel.title, ink: theme.wheel.ink, panel: theme.ui.panel, text: theme.text }, actions);
+    const book = theme.console?.ledger ?? null;
+    this.book = book ? new Sprite({ texture: tex(book.book), anchor: 0.5 }) : null;
+    this.bookPages = book ? [book.left, book.right] : null;
     this.ticker = new WinTicker(theme.wheel.title);
     this.ambient = new Ambient(theme.ambient.colours, theme.ambient.rise);
     this.banner.onTick = () => sound('tick', { volume: 0.6 });
@@ -352,7 +367,7 @@ export class Game extends Container {
       face: c.face ? { idle: tex(c.face.idle), happy: tex(c.face.happy), meh: tex(c.face.meh), pupil: tex(c.face.pupil) } : null }, c) : null;
     this.props = theme.props ? new Props(theme.props, tex, file => assetUrl(theme.path + file)) : null;
     this.lines = theme.lines ? new WashingLines(theme.lines, tex(theme.lines.rope), theme.lines.socks.map(sock => tex(sock.file))) : null;
-    this.table.addChild(this.ambient, ...(this.lines ? [this.lines] : []), this.vents, ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
+    this.table.addChild(this.ambient, ...(this.lines ? [this.lines] : []), this.vents, ...(this.book ? [this.book] : []), ...(this.character ? [this.character] : []), this.board, this.ticker, this.wheel,
       this.banner, this.meter, this.bar);
     // Reactor Drop: the station breathes: vent steam drifts up at the sides now and then
     if (theme.board.fx === 'reactor' && theme.blast) this.ventSteam(tex(theme.blast.smoke));
@@ -363,11 +378,11 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (reactor || lagoon || pharaoh || zombie || neon || candy || shurda || hell || disco || exe) {
+    if (reactor || lagoon || pharaoh || zombie || neon || candy || shurda || hell || disco || exe || ledger) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
-        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : shurda ? 'LAUNDRY DAY' : hell ? 'CLOSING SALE' : disco ? 'LAST DANCE' : exe ? 'SYSTEM CRASH' : 'CORE PRESSURE',
-        ...(hell ? { face: '#2a0a0e', zone: '#f2c14e' } : disco ? { face: '#1b0b33', zone: '#ff2e93' } : exe ? { face: '#07140c', zone: '#39ff14' } : {}) });
+        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : shurda ? 'LAUNDRY DAY' : hell ? 'CLOSING SALE' : disco ? 'LAST DANCE' : exe ? 'SYSTEM CRASH' : ledger ? 'DEATH DUTY' : 'CORE PRESSURE',
+        ...(hell ? { face: '#2a0a0e', zone: '#f2c14e' } : disco ? { face: '#1b0b33', zone: '#ff2e93' } : exe ? { face: '#07140c', zone: '#39ff14' } : ledger ? { face: '#efe6cf', zone: '#9e1b1b' } : {}) });
       this.table.addChild(this.meltdown);
     }
     if (theme.blast?.tank) {
@@ -415,7 +430,8 @@ export class Game extends Container {
       // over the middle of the board, clear of the console (a photo revolver's dial is about 3.5 radii tall)
       // a tesla ring is only about 2.7 radii tall, so it can be bigger
       const photo = this.bar instanceof ConsoleControls, ring = photo && this.ring;
-      this.wheel.place(boardX, view.offsetY + visibleH * (photo ? 0.42 : 0.62),
+      // (a ledger's envelopes stand across the whole open book)
+      this.wheel.place(this.book ? this.book.x : boardX, view.offsetY + visibleH * (photo ? 0.42 : 0.62),
         Math.min(ring ? 150 : photo ? 112 : 170, visibleH * (ring ? 0.22 : photo ? 0.17 : 0.28)));
     }
     // a chest pick's two shelves stand in the screen's upper middle
@@ -456,6 +472,14 @@ export class Game extends Container {
       const a = at(x0, y0), b = at(x1, y1);
       return new Rectangle(a.x, a.y, b.x - a.x, b.y - a.y);
     };
+    if (this.book) {
+      // written on the ledger: its right page (wide), or a page under the board (tall)
+      const bottom = view.stageH - view.offsetY - 6;
+      const top = at(384, this.phoneTop).y + 6;
+      bar.layoutLedger(view, view.landscape && this.pages ? this.pages.right
+        : new Rectangle(view.offsetX + 4, top, view.stageW - 2 * view.offsetX - 8, bottom - top));
+      return;
+    }
     if (view.landscape && this.consoleBar) {
       // a character leaning on it: the bar's strip runs on under him, to the screen's edge
       bar.layoutBar(view, this.barBox(view), this.leaning(view) ? view.stageW - view.offsetX + 12 : null);
@@ -522,6 +546,7 @@ export class Game extends Container {
 
   /** Where a console board's middle is across: the middle of the screen, or left of the character beside it. */
   private boardX(view: Viewport): number {
+    if (this.book && view.landscape && this.pages) return this.pages.left.x + this.pages.left.width / 2;
     return this.character && view.landscape ? view.offsetX + (view.stageW - 2 * view.offsetX) * 0.41 : view.stageW / 2;
   }
 
@@ -533,6 +558,26 @@ export class Game extends Container {
       // the board and its console, centred and as big as the screen allows (wide; with a character, left of him); the
       // board on top (tall)
       const visibleW = view.stageW - 2 * view.offsetX;
+      if (this.book) {
+        this.book.visible = view.landscape;
+        this.pages = null;
+        if (view.landscape) {
+          // the open ledger left of the Reaper (his hand behind its edge), as wide as the screen allows; an oblong ledger, so drawn up to half as
+          // tall again (ruled paper takes it); the board on its left page
+          const t = this.book.texture;
+          const kx = visibleW * 0.84 / t.width, ky = Math.min(visibleH * 0.95 / t.height, kx * 1.5);
+          const cx = view.offsetX + visibleW * 0.445, cy = view.offsetY + visibleH * 0.5;
+          this.book.scale.set(kx, ky);
+          this.book.position.set(cx, cy);
+          const [left, right] = this.bookPages!.map(([x0, y0, x1, y1]) => new Rectangle(cx + (x0 - 0.5) * t.width * kx, cy + (y0 - 0.5) * t.height * ky,
+            (x1 - x0) * t.width * kx, (y1 - y0) * t.height * ky));
+          this.pages = { left, right };
+          this.board.layout(view, { x: left.x + left.width / 2, y: left.y + left.height / 2, fit: 1, bare: true,
+            // (the frame's picture has room round the triangle: that may lie over the page's edges)
+            room: { w: left.width * 1.28, h: left.height * 1.04 } });
+          return;
+        }
+      }
       this.lines?.layout(view, this.boardX(view));
       if (this.character && this.leaning(view)) {
         // leaning on the bar's right end: the underside of his arm on its top, his elbow just inside its end
@@ -740,6 +785,8 @@ export class Game extends Container {
     if (this.page !== 'game') return;
     if (this.holding) { this.stopHolding(); return; }
     if (this.board.inFlight() > 0) { this.board.hurryAll(); return; }
+    // (no new round while the bonus is on: the player picks first)
+    if (this.wheel.visible) return;
     void this.launchRound();
   }
 
@@ -754,7 +801,7 @@ export class Game extends Container {
     this.syncControls();
     while (this.holding && this.page === 'game') {
       // the next drop when the last request is answered, and not faster than the balls can be told apart
-      while (this.requesting) await wait(0.05);
+      while (this.requesting || this.wheel.visible) await wait(0.05);
       if (!this.holding) break;
       const round = await this.launchRound();
       if (!round) { this.stopHolding(); break; }
@@ -976,8 +1023,16 @@ export class Game extends Container {
     // every ball in a SPIN slot turns the wheel under the board, then a full meter's MEGA SPINs turn it gold
     const config = this.session.config.mega;
     const spins = round.spins ?? [];
-    if (spinsWon !== spins.length) this.wheel.setSpins(spins.length);
     const onWheel = spins.length + (round.megaSpins?.length ?? 0) > 0;
+    // one round on the wheel at a time: a round dropped while another's bonus plays waits its turn (two at once moved
+    // the same chests about together, and the pick never settled)
+    let done = () => undefined as void;
+    if (onWheel) {
+      const before = this.wheelTurns;
+      this.wheelTurns = new Promise<void>(resolve => { done = resolve; });
+      await before;
+    }
+    if (spinsWon !== spins.length || onWheel) this.wheel.setSpins(spins.length);
     if (onWheel) await this.revealWheel();
     for (let i = 0; i < spins.length; i++) {
       const spin = spins[i];
@@ -998,7 +1053,10 @@ export class Game extends Container {
       land(mega.win);
       sound(config.megaWheel[mega.segment].name ? 'jackpot' : 'coins');
     }
-    if (onWheel) await this.hideWheel();
+    if (onWheel) {
+      await this.hideWheel();
+      done();
+    }
     if (round.slotFactors?.length) this.board.setPower(null, []);
     // the pegs a MEGA BALL blew away come back once the round is over
     this.board.restorePegs();

@@ -79,8 +79,11 @@ function firstVisit(dir, theme, landscape) {
   ]);
   const board = theme.board ?? {};
   const ui = theme.ui ?? {};
+  // a console's pictures (main.ts themeExtras): its DROP plate, panel, key and back plate, and a ledger's open book
+  const desk = theme.console ? [theme.console.drop, theme.console.panel, theme.console.key, theme.console.back, theme.console.ledger?.book]
+    .filter(file => typeof file === 'string') : [];
   const files = [...new Set([...IMAGES, ...(board.peg ? [board.peg] : []), ...(board.slotArt ? SLOT_ART : []),
-    ...neon.flat()])].filter(file => !other.has(file));
+    ...neon.flat(), ...desk])].filter(file => !other.has(file));
   const sheet = atlas(dir);
   const fetched = [...new Set([...(sheet?.files ?? []),
     ...files.filter(file => !sheet?.frames.has(file)).map(file => picture(dir, theme, file))])];

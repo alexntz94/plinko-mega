@@ -48,55 +48,55 @@
         "y": 93.08,
         "spacing": 36.447,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko_p.png"
+        "framePortrait": "item_plinko.png"
       },
       "9": {
         "rowGap": 0.9282,
         "x": 384,
         "y": 97.17,
         "spacing": 36.447,
-        "frame": "item_plinko_r9.png",
-        "framePortrait": "item_plinko_r9_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "10": {
         "rowGap": 0.8378,
         "x": 384,
         "y": 100.46,
         "spacing": 36.447,
-        "frame": "item_plinko_r10.png",
-        "framePortrait": "item_plinko_r10_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "11": {
         "rowGap": 0.8036,
         "x": 384,
         "y": 103.17,
         "spacing": 34.628,
-        "frame": "item_plinko_r11.png",
-        "framePortrait": "item_plinko_r11_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "12": {
         "rowGap": 0.7969,
         "x": 384,
         "y": 105.44,
         "spacing": 32.069,
-        "frame": "item_plinko_r12.png",
-        "framePortrait": "item_plinko_r12_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "13": {
         "rowGap": 0.7913,
         "x": 384,
         "y": 107.37,
         "spacing": 29.862,
-        "frame": "item_plinko_r13.png",
-        "framePortrait": "item_plinko_r13_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "14": {
         "rowGap": 0.7865,
         "x": 384,
         "y": 109.03,
         "spacing": 27.94,
-        "frame": "item_plinko_r14.png",
-        "framePortrait": "item_plinko_r14_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       }
     },
     "portraitSpan": 0.86
@@ -306,5 +306,9 @@
       ]
     }
   },
-  "music": "music.mp3"
+  "music": "music.mp3",
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
+  }
 }

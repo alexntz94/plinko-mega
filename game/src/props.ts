@@ -9,7 +9,7 @@
 import { AnimatedSprite, Container, Graphics, Rectangle, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { Actor } from './actor';
-import { calm } from './effects';
+import { calm, splatter } from './effects';
 import type { Prop, Props as PropsArt } from './theme';
 
 interface Live { view: Container; prop: Prop; base: number; phase: number; swing: number; swingV: number; flare: number; span: number }
@@ -73,9 +73,17 @@ export class Props extends Container {
       { idle: this.url(prop.actor!.idle), win: this.url(prop.actor!.win) }, prop.actor!.part);
     actor.scale.set(prop.width !== null ? (prop.width * w) / actor.size.w : (prop.height * h) / actor.size.h);
     actor.position.set(prop.at[0] * w, prop.at[1] * h);
+    if (this.played) actor.allowWin();
     this.dancers.push(actor);
     return actor;
   }
+
+  /** After the player's first round: the characters' win clips may load (actor.ts). */
+  firstRoundPlayed(): void {
+    this.played = true;
+    this.dancers.forEach(actor => actor.allowWin());
+  }
+  private played = false;
 
   /** The characters dance while the moving background plays (main.ts), and stand still on the still picture. */
   animate(on: boolean): void {
@@ -131,6 +139,7 @@ export class Props extends Container {
   wipe(): void {
     const spec = this.art.wipe;
     if (spec?.kind === 'glitch') return this.glitch(spec);
+    if (spec?.kind === 'ink') return this.ink(spec);
     const frames = spec ? this.frames.get(spec.sheet) : undefined;
     if (calm || !spec || !frames?.length || !this.size.h) return;
     const { w, h } = this.size;
@@ -194,6 +203,20 @@ export class Props extends Container {
     tl.to(flash, { alpha: 0.18, duration: 0.05 }).to(flash, { alpha: 0, duration: 0.35, ease: 'power2.out' });
     for (let i = 0; i < steps; i++) tl.call(jump, [], i * 0.06);
     tl.to(layer, { alpha: 0, duration: 0.12 }, steps * 0.06);
+  }
+
+  /**
+   * Ink thrown across the screen (Death & Taxes): big blots of the theme's splatters hitting both sides of the screen
+   * one after another, in front of the game, running a little and fading (the board in the middle stays clear).
+   */
+  private ink(spec: NonNullable<PropsArt['wipe']>): void {
+    if (calm || !this.size.h) return;
+    const { w, h } = this.size;
+    for (let i = 0; i < spec.count; i++) {
+      const left = i % 2 === 0;
+      gsap.delayedCall(i * 0.06, () => splatter(this.front, (left ? RANDOM(0.02, 0.26) : RANDOM(0.74, 0.98)) * w, RANDOM(0.08, 0.92) * h,
+        spec.height * h * RANDOM(0.7, 1.3), spec.seconds, 0.1));
+    }
   }
 
   /** Every frame: swings, breathing and flickering lights. */

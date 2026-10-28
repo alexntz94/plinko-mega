@@ -54,48 +54,48 @@
         "x": 384,
         "y": 87.55,
         "spacing": 43.291,
-        "frame": "item_plinko_r9.png",
-        "framePortrait": "item_plinko_r9_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
       },
       "10": {
         "rowGap": 0.6836,
         "x": 384,
         "y": 90.47,
         "spacing": 39.538,
-        "frame": "item_plinko_r10.png",
-        "framePortrait": "item_plinko_r10_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
       },
       "11": {
         "rowGap": 0.677,
         "x": 384,
         "y": 92.87,
         "spacing": 36.383,
-        "frame": "item_plinko_r11.png",
-        "framePortrait": "item_plinko_r11_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
       },
       "12": {
         "rowGap": 0.6714,
         "x": 384,
         "y": 94.88,
         "spacing": 33.695,
-        "frame": "item_plinko_r12.png",
-        "framePortrait": "item_plinko_r12_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
       },
       "13": {
         "rowGap": 0.6667,
         "x": 384,
         "y": 96.58,
         "spacing": 31.376,
-        "frame": "item_plinko_r13.png",
-        "framePortrait": "item_plinko_r13_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
       },
       "14": {
         "rowGap": 0.6626,
         "x": 384,
         "y": 98.05,
         "spacing": 29.356,
-        "frame": "item_plinko_r14.png",
-        "framePortrait": "item_plinko_r14_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
       }
     },
     "portraitSpan": 0.66
@@ -350,5 +350,9 @@
     ],
     "height": 0.76
   },
-  "music": "music.mp3"
+  "music": "music.mp3",
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
+  }
 }

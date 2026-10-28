@@ -295,6 +295,11 @@ const DISCO_GLITTER = ['#ffffff', '#ff2e93', '#19d3c5', '#ffc94a'];
 const EXE_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#39ff14', '#ff1fa8', '#00e5ff'], smoke: ['#0b2a12', '#14361c', '#0a1a0e'],
   debris: ['#39ff14', '#ff1fa8', '#00e5ff', '#e2ffe2'], words: ['HACKED!', 'CRIT HIT!', 'OVERCLOCK!'], bigWords: ['SYSTEM BREACH!', 'KERNEL PANIC!', 'ROOT ACCESS!'],
   ink: '#e2ffe2', bigInk: '#39ff14' };
+/** a coin on a ledger: ink thrown up off the page, a red rubber stamp over a good landing */
+const LEDGER_BLAST: typeof WAR_BLAST = { sparks: ['#1d1712', '#9e1b1b', '#4a3f33', '#c9a46a'], smoke: ['#b8ab92', '#a39780', '#cfc4ac'],
+  debris: ['#1d1712', '#9e1b1b', '#c9a46a'], words: ['PAID!', 'REFUND!', 'DIVIDEND!'], bigWords: ['PAID IN FULL!', 'TAX REBATE!', 'DEBT FORGIVEN!'],
+  ink: '#9e1b1b', bigInk: '#9e1b1b' };
+const LEDGER_INK = ['#1d1712', '#1d1712', '#3a2f26', '#9e1b1b'];
 const EXE_BITS = ['#39ff14', '#39ff14', '#9dff8a', '#ff1fa8', '#00e5ff'];
 /** a grenade among zombies: fire, blood spray and gore thrown out, splatters left behind */
 const ZOMBIE_BLAST: typeof WAR_BLAST = { sparks: ['#ff4a3a', '#b52c2c', '#ffb050', '#8a0f0f'], smoke: ['#3a2c2a', '#4a3a36', '#2a2224'],
@@ -971,7 +976,7 @@ export class Board extends Container {
             entered = true;
             if (pegs.decoy) {
               // a cluster decoy: it fizzles in its slot, it pays nothing
-              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : this.fx === 'candy' ? ['#f45c9a', '#8ad9ae'] : this.fx === 'shurda' ? ['#f0388c', '#ffd23f'] : this.fx === 'hell' ? ['#f57a1f', '#f2c14e'] : this.fx === 'disco' ? ['#ff2e93', '#19d3c5'] : this.fx === 'exe' ? ['#39ff14', '#ff1fa8'] : ['#8b939b', '#ff8a1a'], 6, 160);
+              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : this.fx === 'candy' ? ['#f45c9a', '#8ad9ae'] : this.fx === 'shurda' ? ['#f0388c', '#ffd23f'] : this.fx === 'hell' ? ['#f57a1f', '#f2c14e'] : this.fx === 'disco' ? ['#ff2e93', '#19d3c5'] : this.fx === 'exe' ? ['#39ff14', '#ff1fa8'] : this.fx === 'ledger' ? ['#1d1712', '#9e1b1b'] : ['#8b939b', '#ff8a1a'], 6, 160);
               return;
             }
             this.slots[slot]?.hit();
@@ -1251,7 +1256,7 @@ export class Board extends Container {
   private explode(x: number, y: number, multiplier: number): void {
     const size = multiplier >= 10 ? 3 : multiplier >= 2 ? 2 : multiplier >= 1 ? 1 : 0;
     // a bomb: fire, smoke and debris; a reactor capsule: cyan-white sparks and a puff of vent steam, nothing thrown out
-    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : this.fx === 'candy' ? CANDY_BLAST : this.fx === 'shurda' ? SHURDA_BLAST : this.fx === 'hell' ? HELL_BLAST : this.fx === 'disco' ? DISCO_BLAST : this.fx === 'exe' ? EXE_BLAST : WAR_BLAST;
+    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : this.fx === 'candy' ? CANDY_BLAST : this.fx === 'shurda' ? SHURDA_BLAST : this.fx === 'hell' ? HELL_BLAST : this.fx === 'disco' ? DISCO_BLAST : this.fx === 'exe' ? EXE_BLAST : this.fx === 'ledger' ? LEDGER_BLAST : WAR_BLAST;
     this.particles.burst(x, y, look.sparks, [6, 12, 22, 36][size], [150, 220, 320, 440][size]);
     // smoke (steam) rising out of the hole
     this.particles.burst(x, y - 6, look.smoke, [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
@@ -1263,6 +1268,8 @@ export class Board extends Container {
     const ground = kind === 'impact' || kind === 'mushroom';
     // blood: a splatter left on the board where it blew, bigger for a better landing
     if (this.fx === 'zombie') splatter(this.splatLayer, x + (Math.random() - 0.5) * 20, y - 10 - size * 8, [40, 60, 95, 140][size], 2.2 + size * 0.6);
+    // ink: a smaller blot above the label (its prize stays readable)
+    if (this.fx === 'ledger' && size >= 1) splatter(this.splatLayer, x + (Math.random() - 0.5) * 20, y - 22 - size * 10, [0, 22, 34, 52][size], 1.4 + size * 0.4);
     const shown = kindBlast(this.textLayer, kind, x, ground ? y + 12 : y, [48, 64, 104, 150][size])
       || photoBlast(this.textLayer, x, y, [26, 38, 56, 84][size], size >= 1);
     if (!shown) {
@@ -1277,11 +1284,13 @@ export class Board extends Container {
     if (size < 2) return;
     shake(this, size === 3 ? 9 : 4);
     const words = size === 3 ? look.bigWords : look.words;
+    // (a ledger's word is a red rubber stamp on the cream page: a cream edge, slammed down crooked)
+    const ledger = this.fx === 'ledger';
     const word = label(words[Math.floor(Math.random() * words.length)], size === 3 ? 34 : 24, 'center',
-      { fill: size === 3 ? look.bigInk : look.ink, stroke: { color: '#0b0d10', width: 6, join: 'miter' } });
+      { fill: size === 3 ? look.bigInk : look.ink, stroke: { color: ledger ? '#efe6cf' : '#0b0d10', width: 6, join: 'miter' } });
     word.anchor.set(0.5, 0.5);
     word.position.set(x, y - 40);
-    word.rotation = (Math.random() - 0.5) * 0.3;
+    word.rotation = (Math.random() - 0.5) * (ledger ? 0.5 : 0.3);
     this.textLayer.addChild(word);
     gsap.timeline({ onComplete: () => word.destroy() })
       .fromTo(word.scale, { x: 2.4, y: 2.4 }, { x: 1, y: 1, duration: 0.2, ease: 'power3.in' })
@@ -1316,14 +1325,16 @@ export class Board extends Container {
     const context = heat > 0 ? HEAT[Math.min(heat, HEAT.length) - 1] : this.trailDot;
     if (!context) return;
     const dot = new Graphics(context);
-    dot.blendMode = 'add';
+    // (a coin on a ledger draws a fine pen line in ink: ink is dark, not light)
+    const ledger = this.fx === 'ledger';
+    dot.blendMode = ledger ? 'normal' : 'add';
     dot.position.copyFrom(ball.position);
     // a reactor capsule leaves a thin cyan streak (the capsule itself must stay the brightest thing)
     const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie' || this.fx === 'neon' || this.fx === 'candy' || this.fx === 'shurda' || this.fx === 'hell' || this.fx === 'disco' || this.fx === 'exe';
-    const size = radius * (thin ? 0.3 : 0.7 + 0.25 * heat);
-    const life = thin ? 0.22 : 0.32 + 0.12 * heat;
+    const size = radius * (ledger ? 0.16 : thin ? 0.3 : 0.7 + 0.25 * heat);
+    const life = ledger ? 0.3 : thin ? 0.22 : 0.32 + 0.12 * heat;
     dot.scale.set(size);
-    dot.alpha = thin ? 0.55 : 0.85;
+    dot.alpha = ledger ? 0.6 : thin ? 0.55 : 0.85;
     this.trailLayer.addChild(dot);
     gsap.to(dot, { alpha: 0, duration: life, ease: 'power1.in', onComplete: () => dot.destroy() });
     gsap.to(dot.scale, { x: size * 0.15, y: size * 0.15, duration: life });
@@ -1545,6 +1556,8 @@ export class Board extends Container {
       if (this.fx === 'hell' && !many) this.particles.burst(peg.x, peg.y - 3, ['#f57a1f', '#ffb347', '#ffe08a'], 3, 110, -160);
       // a chrome stud under a mirror ball: a little spray of glitter
       if (this.fx === 'disco' && !many) this.particles.burst(peg.x, peg.y - 3, DISCO_GLITTER, 3, 120, 260);
+      // a brass tack on a ledger: a few drops of ink flicked off it
+      if (this.fx === 'ledger' && !many) this.particles.burst(peg.x, peg.y - 2, LEDGER_INK, 3, 90, 700);
       // a chrome stud under a data packet: a few bits knocked loose
       if (this.fx === 'exe' && !many) for (let i = 0; i < 3; i++) {
         this.particles.bit(peg.x + (Math.random() - 0.5) * 16, peg.y + (Math.random() - 0.5) * 12, EXE_BITS[i % EXE_BITS.length], 1.6, 0.35);

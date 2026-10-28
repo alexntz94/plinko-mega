@@ -47,55 +47,55 @@
         "y": 145.8,
         "spacing": 47.734,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko_p.png"
+        "framePortrait": "item_plinko.png"
       },
       "9": {
         "rowGap": 0.6059,
         "x": 384,
         "y": 149.01,
         "spacing": 43.727,
-        "frame": "item_plinko_r9.png",
-        "framePortrait": "item_plinko_r9_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "10": {
         "rowGap": 0.593,
         "x": 384,
         "y": 151.59,
         "spacing": 40.322,
-        "frame": "item_plinko_r10.png",
-        "framePortrait": "item_plinko_r10_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "11": {
         "rowGap": 0.5827,
         "x": 384,
         "y": 153.71,
         "spacing": 37.397,
-        "frame": "item_plinko_r11.png",
-        "framePortrait": "item_plinko_r11_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "12": {
         "rowGap": 0.5741,
         "x": 384,
         "y": 155.49,
         "spacing": 34.861,
-        "frame": "item_plinko_r12.png",
-        "framePortrait": "item_plinko_r12_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "13": {
         "rowGap": 0.5669,
         "x": 384,
         "y": 156.99,
         "spacing": 32.641,
-        "frame": "item_plinko_r13.png",
-        "framePortrait": "item_plinko_r13_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "14": {
         "rowGap": 0.5608,
         "x": 384,
         "y": 158.29,
         "spacing": 30.684,
-        "frame": "item_plinko_r14.png",
-        "framePortrait": "item_plinko_r14_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       }
     },
     "portraitSpan": 0.64,

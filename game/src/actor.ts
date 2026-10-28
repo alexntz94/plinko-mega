@@ -2,7 +2,9 @@
 // colour picture in the top half and its shape (white where it is, black around it) in the bottom half, so they show
 // with a see-through background on every browser (Safari has no WebM with transparency): the colour half is drawn
 // through the shape half as its mask. Until the video plays (the moving background is off, the player's first round
-// is not over, the phone saves data), its first frame stands there as a picture. Purely visual.
+// is not over, the phone saves data), its first frame stands there as a picture. The win clip (the bigger one) loads
+// only after the player's first round, like the moving background: until then a big win keeps the idle loop. Purely
+// visual.
 
 import { Container, Rectangle, Sprite, Texture, VideoSource } from 'pixi.js';
 
@@ -38,6 +40,8 @@ export class Actor extends Container {
   private win: Clip | null = null;
   private running = false;
   private showing: Clip | null = null;
+  /** the win clip may load (after the player's first round) */
+  private winAllowed = false;
 
   /** `still` the first frame, `files` the two clips' addresses, `part` the share of their width this character is
    *  ([0, 1]: all of it; a phone shows the two dancers of one video apart). */
@@ -68,9 +72,15 @@ export class Actor extends Container {
       return;
     }
     this.idle ??= this.load(this.files.idle, true);
-    this.win ??= this.load(this.files.win, false);
+    if (this.winAllowed) this.win ??= this.load(this.files.win, false);
     void this.idle.video.play().catch(() => undefined);
     if (this.idle.colour) this.show(this.idle);
+  }
+
+  /** After the player's first round: the win clip loads (now, or when the character starts dancing). */
+  allowWin(): void {
+    this.winAllowed = true;
+    if (this.running) this.win ??= this.load(this.files.win, false);
   }
 
   /** A big win: the win clip once, then back to the idle loop. */

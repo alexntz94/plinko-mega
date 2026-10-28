@@ -284,5 +284,9 @@
       "body": "tank.png",
       "target": "target.png"
     }
+  },
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
   }
 }

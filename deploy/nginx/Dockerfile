@@ -15,7 +15,8 @@ RUN apk add --no-cache vips-tools=8.18.2-r0 \
 # half-size (atlas@2x.png/.json, atlas.png/.json): 2 requests instead of about 25 (scripts/theme-atlas.mjs, pure
 # JavaScript). The single files stay: the game falls back to them if the atlas can't be loaded.
 RUN node scripts/theme-atlas.mjs public
-# Review 4.4: the big pictures also as WebP (a quarter of the PNG's size, no visible difference); the game asks for them
+# Review 4.4: the big pictures also as WebP (a quarter of the PNG's size, no visible difference; a console's back plate and
+# a ledger's open book are as big as a background, and a filmed character's first frame); the game asks for them
 # when the browser can show them, and the PNGs stay for the rest. The atlases as lossless WebP (every pixel kept, smaller
 # than the single PNGs together); their PNGs are only the encoder's input and are removed: a browser without WebP gets
 # the single files, which weigh less.
@@ -25,7 +26,7 @@ RUN node scripts/theme-atlas.mjs public
 # One encoder per processor core; a failed one fails the build.
 RUN apk add --no-cache libwebp-tools=1.6.0-r0 \
  && find public/themes -type f \( -name 'background*.png' -o -name 'logo*.png' -o -name 'item_plinko*.png' \
-      -o -name 'item_exit*.png' -o -name 'item_result*.png' \) -print0 \
+      -o -name 'item_exit*.png' -o -name 'item_result*.png' -o -name 'console_back*.png' -o -name 'console_book*.png' -o -name 'actor_*.png' \) -print0 \
     | xargs -0 -n 1 -P "$(nproc)" sh -c 'cwebp -quiet -q 85 -alpha_q 90 -m 6 "$1" -o "${1%.png}.webp"' _ \
  && find public/themes -type f -name 'atlas*.png' -print0 \
     | xargs -0 -n 1 -P "$(nproc)" sh -c 'cwebp -quiet -lossless -z 9 "$1" -o "${1%.png}.webp" && rm "$1"' _

@@ -1,6 +1,6 @@
 {
   "name": "Disco Is Dead",
-  "title": "Disco Is Dead \u00b7 Plinko",
+  "title": "Disco Is Dead · Plinko",
   "background": "#1b0b33",
   "accent": "#ff2e93",
   "text": "#f3ebdd",
@@ -47,55 +47,55 @@
         "y": 154.85,
         "spacing": 51.165,
         "frame": "item_plinko.png",
-        "framePortrait": "item_plinko_p.png"
+        "framePortrait": "item_plinko.png"
       },
       "9": {
         "rowGap": 0.5926,
         "x": 384,
         "y": 158.21,
         "spacing": 46.893,
-        "frame": "item_plinko_r9.png",
-        "framePortrait": "item_plinko_r9_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "10": {
         "rowGap": 0.5798,
         "x": 384,
         "y": 160.92,
         "spacing": 43.257,
-        "frame": "item_plinko_r10.png",
-        "framePortrait": "item_plinko_r10_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "11": {
         "rowGap": 0.5695,
         "x": 384,
         "y": 163.14,
         "spacing": 40.131,
-        "frame": "item_plinko_r11.png",
-        "framePortrait": "item_plinko_r11_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "12": {
         "rowGap": 0.561,
         "x": 384,
         "y": 165.01,
         "spacing": 37.419,
-        "frame": "item_plinko_r12.png",
-        "framePortrait": "item_plinko_r12_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "13": {
         "rowGap": 0.5539,
         "x": 384,
         "y": 166.59,
         "spacing": 35.043,
-        "frame": "item_plinko_r13.png",
-        "framePortrait": "item_plinko_r13_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       },
       "14": {
         "rowGap": 0.5478,
         "x": 384,
         "y": 167.95,
         "spacing": 32.948,
-        "frame": "item_plinko_r14.png",
-        "framePortrait": "item_plinko_r14_p.png"
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko.png"
       }
     },
     "portraitSpan": 0.64,

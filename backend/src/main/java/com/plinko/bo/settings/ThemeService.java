@@ -30,6 +30,7 @@ public class ThemeService {
         KNOWN.put("hell-of-a-deal", "Hell of a Deal");
         KNOWN.put("disco-is-dead", "Disco Is Dead");
         KNOWN.put("plinko-exe", "PLINKO.exe");
+        KNOWN.put("death-and-taxes", "Death & Taxes");
     }
 
     public record Themes(List<String> enabled, String defaultTheme) {

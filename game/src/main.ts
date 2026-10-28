@@ -43,7 +43,8 @@ function themeExtras(theme: Theme): string[] {
     ...(theme.board.slotArt ? SLOT_ART : []),
     ...neonLayers(theme).flat(),
     ...[theme.wheel.hub, theme.wheel.pointer, theme.wheel.gate, theme.wheel.bezel, theme.wheel.glass].filter((file): file is string => file !== null),
-    ...(theme.console ? [theme.console.drop, theme.console.panel, theme.console.key, ...(theme.console.back ? [theme.console.back] : [])] : []),
+    ...(theme.console ? [theme.console.drop, theme.console.panel, theme.console.key, ...(theme.console.back ? [theme.console.back] : []),
+      ...(theme.console.ledger ? [theme.console.ledger.book] : [])] : []),
     ...(theme.wheel.revolverArt ? [theme.wheel.revolverArt.cylinder, theme.wheel.revolverArt.dial, theme.wheel.revolverArt.flash,
       ...Object.values(theme.wheel.revolverArt.cartridges)] : []),
     ...(theme.wheel.tesla ? [theme.wheel.tesla.orb, theme.wheel.tesla.flash, ...Object.values(theme.wheel.tesla.cells),
@@ -70,8 +71,9 @@ function themeExtras(theme: Theme): string[] {
  * background, logo (and its neon layers), board frame, game-over plate and exit screen of the shape not on screen.
  */
 function otherOrientation(theme: Theme, landscape: boolean): string[] {
-  // (a theme whose wide screen shows the tall board too, its controls in a bar under it, needs that one at once)
-  const tallBoard = theme.console?.bar === true;
+  // (a theme whose wide screen shows the tall board too, its controls in a bar under it or written on a ledger beside
+  // it, needs that one at once)
+  const tallBoard = theme.console?.bar === true || !!theme.console?.ledger;
   const other = landscape ? ['background_p.png', 'logo_p.png', ...(tallBoard ? [] : ['item_plinko_p.png']), 'item_result_p.png']
     : ['background.png', 'logo.png', 'item_plinko.png', 'item_result.png'];
   const exit = theme.landscapeExitFromPortrait ? [] : [landscape ? 'item_exit_p.png' : 'item_exit.png'];
@@ -254,7 +256,8 @@ async function start(): Promise<void> {
   // a theme's moving background replaces the still one once it plays; it starts after the first round (backdrop.ts)
   const backdrop = new BackdropVideo(theme, () => layout());
   const game = new Game(session, theme, tex, fatal,
-    backdrop.available ? { moving: () => backdrop.moving, onTap: () => backdrop.toggle() } : null, () => backdrop.start());
+    backdrop.available ? { moving: () => backdrop.moving, onTap: () => backdrop.toggle() } : null,
+    () => { backdrop.start(); game.props?.firstRoundPlayed(); });
   world.addChild(game);
   // the background's moving pieces lie on it, under the game
   // the big moments' clips cover everything (clips.ts)

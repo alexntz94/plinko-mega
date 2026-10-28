@@ -48,7 +48,7 @@ export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: 
  * ball (neon sparkles); candy: a gumball (sprinkles and wrapped sweets); shurda: a sock ball (comic starbursts and confetti);
  * hell: an ember marble (gold sparks, embers and hellfire); disco: a mirror ball (glitter, stars and a dance floor);
  * exe: a data packet in a corrupted terminal (a trail of bits, glitches) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda' | 'hell' | 'disco' | 'exe';
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda' | 'hell' | 'disco' | 'exe' | 'ledger';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -218,7 +218,7 @@ export interface Props {
   wide: Prop[]; tall: Prop[];
   /** a wall of fire for the big moments: how many bursts of `sheet` across the screen, how tall (a share of its height)
    *  and how long each plays; or (kind glitch) the screen glitching: bars of the colours torn across it; null: none */
-  wipe: { kind: 'fire' | 'glitch'; sheet: string; count: number; height: number; seconds: number; colours: string[] } | null;
+  wipe: { kind: 'fire' | 'glitch' | 'ink'; sheet: string; count: number; height: number; seconds: number; colours: string[] } | null;
 }
 export interface Theme {
   id: string;
@@ -242,7 +242,11 @@ export interface Theme {
     phoneTop: number;
     /** the plain area inside the readout panel's frame, as shares of the picture [x0, y0, x1, y1] (text stays in it
      *  and only the middle stretches), or null: a thin frame, the picture stretched whole */
-    inner: Rect4 | null } | null;
+    inner: Rect4 | null;
+    /** the controls written on a ledger (Death & Taxes): on a wide screen an open book (its picture), the board on its
+     *  left page and the controls on its right (each page's plain area, as shares of the picture [x0, y0, x1, y1]); on a
+     *  tall screen on the `back` picture (a page) under the board. In ink, the lit ones circled in red. Or null */
+    ledger: { book: string; ink: string; red: string; left: Rect4; right: Rect4 } | null } | null;
   /** a photo explosion (fireball, ground dust ring, smoke plume) for every blast, or null: drawn in code */
   blast: { fire: string; dust: string; smoke: string; kinds: Partial<Record<BlastName, string>>;
     /** animated explosions: per kind, a sprite sheet (a square grid of frames, `grids` per kind, 4 when not given) */
@@ -488,10 +492,11 @@ function readProps(json: unknown): Props | null {
   };
   const list = (v: unknown) => (Array.isArray(v) ? v : []).map(x => prop(x, 0)).filter((x): x is Prop => x !== null);
   const w = (p.wipe ?? null) as Record<string, unknown> | null;
-  const glitch = w?.kind === 'glitch';
+  const glitch = w?.kind === 'glitch', ink = w?.kind === 'ink';
   const colours = Array.isArray(w?.colours) ? w.colours.filter((c): c is string => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)) : [];
-  const wipe = w && (glitch ? colours.length > 0 : typeof w.sheet === 'string' && sheets[w.sheet])
-    ? { kind: glitch ? 'glitch' as const : 'fire' as const, sheet: typeof w.sheet === 'string' ? w.sheet : '', count: Math.round(num(w.count, 1, 40, 6)),
+  // (ink: the theme's splatters, blast.splatters)
+  const wipe = w && (ink || (glitch ? colours.length > 0 : typeof w.sheet === 'string' && sheets[w.sheet]))
+    ? { kind: ink ? 'ink' as const : glitch ? 'glitch' as const : 'fire' as const, sheet: typeof w.sheet === 'string' ? w.sheet : '', count: Math.round(num(w.count, 1, 40, 6)),
         height: num(w.height, 0.005, 2, 0.5), seconds: num(w.seconds, 0.2, 4, 1.2), colours } : null;
   return { sheets, wide: list(p.wide), tall: list(p.tall), wipe };
 }
@@ -579,7 +584,12 @@ function readConsole(json: unknown): Theme['console'] {
   const i = c.inner;
   const inner = Array.isArray(i) && i.length === 4 && i.every(n => typeof n === 'number' && n >= 0 && n <= 1) && i[0] < i[2] && i[1] < i[3]
     ? i as Rect4 : null;
-  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects, inner, bar: c.bar === true,
+  const share = (v: unknown): Rect4 | null =>
+    Array.isArray(v) && v.length === 4 && v.every(n => typeof n === 'number' && n >= 0 && n <= 1) && v[0] < v[2] && v[1] < v[3] ? v as Rect4 : null;
+  const l = (c.ledger ?? null) as Record<string, unknown> | null;
+  const book = l ? fileName(l.book, /\.png$/) : null, left = l ? share(l.left) : null, right = l ? share(l.right) : null;
+  const ledger = l && book && left && right ? { book, ink: colour(l.ink, '#1d1712'), red: colour(l.red, '#9e1b1b'), left, right } : null;
+  return drop && panel && key ? { drop, panel, key, back: fileName(c.back, /\.png$/), rects, inner, ledger, bar: c.bar === true,
     phoneTop: typeof c.phoneTop === 'number' && c.phoneTop > 100 && c.phoneTop < 1000 ? c.phoneTop : 418 } : null;
 }
 
@@ -601,7 +611,7 @@ function readBoard(json: unknown): BoardStyle {
     slotHang: readSlotHang(b.slotHang),
     fire: readFire(b.fire),
     bulbs: readBulbs(b.bulbs),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' || b.fx === 'hell' || b.fx === 'disco' || b.fx === 'exe' ? b.fx : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' || b.fx === 'hell' || b.fx === 'disco' || b.fx === 'exe' || b.fx === 'ledger' ? b.fx : 'standard',
   };
 }
 

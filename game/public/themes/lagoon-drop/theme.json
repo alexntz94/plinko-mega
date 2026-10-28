@@ -348,5 +348,9 @@
       ]
     }
   },
-  "music": "music.mp3"
+  "music": "music.mp3",
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
+  }
 }

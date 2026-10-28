@@ -12,7 +12,7 @@ import { Actor } from './actor';
 import { calm } from './effects';
 import type { Prop, Props as PropsArt } from './theme';
 
-interface Live { view: Container; prop: Prop; base: number; phase: number; swing: number; swingV: number; flare: number }
+interface Live { view: Container; prop: Prop; base: number; phase: number; swing: number; swingV: number; flare: number; span: number }
 
 const RANDOM = (min: number, max: number) => min + Math.random() * (max - min);
 
@@ -110,7 +110,7 @@ export class Props extends Container {
       c.position.set((child.at[0] - prop.anchor[0]) * tw, (child.at[1] - prop.anchor[1]) * th);
       view.addChild(c);
     }
-    this.live.push({ view, prop, base: prop.alpha, phase: RANDOM(0, Math.PI * 2), swing: 0, swingV: 0, flare: 0 });
+    this.live.push({ view, prop, base: prop.alpha, phase: RANDOM(0, Math.PI * 2), swing: 0, swingV: 0, flare: 0, span: parentH });
     return view;
   }
 
@@ -130,6 +130,7 @@ export class Props extends Container {
    */
   wipe(): void {
     const spec = this.art.wipe;
+    if (spec?.kind === 'glitch') return this.glitch(spec);
     const frames = spec ? this.frames.get(spec.sheet) : undefined;
     if (calm || !spec || !frames?.length || !this.size.h) return;
     const { w, h } = this.size;
@@ -158,6 +159,43 @@ export class Props extends Container {
     }
   }
 
+  /**
+   * The screen glitching (PLINKO.exe): bars of the theme's colours torn across it at random heights, jumping about for a
+   * moment in hard steps, in front of the game, and a quick flash.
+   */
+  private glitch(spec: NonNullable<PropsArt['wipe']>): void {
+    if (calm || !this.size.h) return;
+    const { w, h } = this.size;
+    const layer = new Container();
+    this.front.addChild(layer);
+    const flash = new Graphics().rect(0, 0, w, h).fill({ color: spec.colours[0], alpha: 1 });
+    flash.blendMode = 'add';
+    flash.alpha = 0;
+    layer.addChild(flash);
+    const bars = Array.from({ length: spec.count }, (_, i) => {
+      const bar = new Graphics().rect(0, -0.5, 1, 1).fill({ color: spec.colours[i % spec.colours.length], alpha: 1 });
+      bar.blendMode = 'add';
+      bar.visible = false;
+      layer.addChild(bar);
+      return bar;
+    });
+    // a few hard jumps: every bar to a new place and size, some hidden
+    const jump = () => {
+      for (const bar of bars) {
+        bar.visible = Math.random() < 0.7;
+        const x0 = RANDOM(-0.2, 0.7) * w;
+        bar.position.set(x0, RANDOM(0, 1) * h);
+        bar.scale.set(RANDOM(0.2, 0.9) * w, spec.height * h * RANDOM(0.3, 2.5));
+        bar.alpha = RANDOM(0.15, 0.55);
+      }
+    };
+    const steps = Math.max(3, Math.round(spec.seconds / 0.06));
+    const tl = gsap.timeline({ onComplete: () => layer.destroy({ children: true }) });
+    tl.to(flash, { alpha: 0.18, duration: 0.05 }).to(flash, { alpha: 0, duration: 0.35, ease: 'power2.out' });
+    for (let i = 0; i < steps; i++) tl.call(jump, [], i * 0.06);
+    tl.to(layer, { alpha: 0, duration: 0.12 }, steps * 0.06);
+  }
+
   /** Every frame: swings, breathing and flickering lights. */
   update(deltaMs: number): void {
     if (calm || !(this.visible || this.front.visible) || !this.live.length) return;
@@ -172,6 +210,8 @@ export class Props extends Container {
         l.swing += l.swingV * dt;
         l.view.rotation = p.swing * Math.sin(t * 0.9 + l.phase) + 0.12 * Math.tanh(l.swing);
       }
+      // a scan line: down over its parent, again and again
+      if (p.scan) l.view.y = (((t / p.scan + l.phase / (Math.PI * 2)) % 1) * 1.2 - 0.1) * l.span;
       let a = l.base;
       if (p.pulse) a *= 1 - p.pulse + p.pulse * (0.5 + 0.5 * Math.sin(t * 1.3 + l.phase));
       if (p.flicker) {

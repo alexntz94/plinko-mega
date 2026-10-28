@@ -291,6 +291,11 @@ const DISCO_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#ff2e93', '#19d3c5'
   debris: ['#ff2e93', '#19d3c5', '#ffc94a', '#f3ebdd'], words: ['GROOVY!', 'FUNKY!', 'DIG IT!'], bigWords: ['DISCO INFERNO!', "STAYIN' ALIVE!", 'DANCE TO DEATH!'],
   ink: '#ffffff', bigInk: '#ffc94a' };
 const DISCO_GLITTER = ['#ffffff', '#ff2e93', '#19d3c5', '#ffc94a'];
+/** a data packet in a corrupted arcade terminal: green bits and magenta glitches thrown out */
+const EXE_BLAST: typeof WAR_BLAST = { sparks: ['#ffffff', '#39ff14', '#ff1fa8', '#00e5ff'], smoke: ['#0b2a12', '#14361c', '#0a1a0e'],
+  debris: ['#39ff14', '#ff1fa8', '#00e5ff', '#e2ffe2'], words: ['HACKED!', 'CRIT HIT!', 'OVERCLOCK!'], bigWords: ['SYSTEM BREACH!', 'KERNEL PANIC!', 'ROOT ACCESS!'],
+  ink: '#e2ffe2', bigInk: '#39ff14' };
+const EXE_BITS = ['#39ff14', '#39ff14', '#9dff8a', '#ff1fa8', '#00e5ff'];
 /** a grenade among zombies: fire, blood spray and gore thrown out, splatters left behind */
 const ZOMBIE_BLAST: typeof WAR_BLAST = { sparks: ['#ff4a3a', '#b52c2c', '#ffb050', '#8a0f0f'], smoke: ['#3a2c2a', '#4a3a36', '#2a2224'],
   debris: ['#8a0f0f', '#b52c2c', '#5a0a0a', '#76a83b'], words: ['SPLAT!', 'BOOM!', 'GIBBED!'], bigWords: ['MASSACRE!', 'BLOODBATH!', 'OVERKILL!'],
@@ -966,12 +971,12 @@ export class Board extends Container {
             entered = true;
             if (pegs.decoy) {
               // a cluster decoy: it fizzles in its slot, it pays nothing
-              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : this.fx === 'candy' ? ['#f45c9a', '#8ad9ae'] : this.fx === 'shurda' ? ['#f0388c', '#ffd23f'] : this.fx === 'hell' ? ['#f57a1f', '#f2c14e'] : this.fx === 'disco' ? ['#ff2e93', '#19d3c5'] : ['#8b939b', '#ff8a1a'], 6, 160);
+              this.particles.burst(this.slotX(slot), slotTop, this.fx === 'lagoon' ? ['#d8fbf8', '#18c9c2'] : this.fx === 'pharaoh' ? ['#efd9a8', '#d9a441'] : this.fx === 'zombie' ? ['#b52c2c', '#5a0a0a'] : this.fx === 'neon' ? ['#ff3e9d', '#32e6f2'] : this.fx === 'candy' ? ['#f45c9a', '#8ad9ae'] : this.fx === 'shurda' ? ['#f0388c', '#ffd23f'] : this.fx === 'hell' ? ['#f57a1f', '#f2c14e'] : this.fx === 'disco' ? ['#ff2e93', '#19d3c5'] : this.fx === 'exe' ? ['#39ff14', '#ff1fa8'] : ['#8b939b', '#ff8a1a'], 6, 160);
               return;
             }
             this.slots[slot]?.hit();
             // the dance floor: the tiles either side light up after it, a wave running out from the landing
-            if (this.fx === 'disco' && this.flights.size < 12) {
+            if ((this.fx === 'disco' || this.fx === 'exe') && this.flights.size < 12) {
               for (const d of [1, 2]) for (const n of [slot - d, slot + d]) gsap.delayedCall(d * 0.07, () => this.slots[n]?.glow());
             }
             this.landingEffect(slot, prizeIndexOfSlot(rows, slot), gateBoost * mega);
@@ -1246,7 +1251,7 @@ export class Board extends Container {
   private explode(x: number, y: number, multiplier: number): void {
     const size = multiplier >= 10 ? 3 : multiplier >= 2 ? 2 : multiplier >= 1 ? 1 : 0;
     // a bomb: fire, smoke and debris; a reactor capsule: cyan-white sparks and a puff of vent steam, nothing thrown out
-    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : this.fx === 'candy' ? CANDY_BLAST : this.fx === 'shurda' ? SHURDA_BLAST : this.fx === 'hell' ? HELL_BLAST : this.fx === 'disco' ? DISCO_BLAST : WAR_BLAST;
+    const look = this.fx === 'reactor' ? REACTOR_BLAST : this.fx === 'lagoon' ? LAGOON_BLAST : this.fx === 'pharaoh' ? PHARAOH_BLAST : this.fx === 'zombie' ? ZOMBIE_BLAST : this.fx === 'neon' ? NEON_BLAST : this.fx === 'candy' ? CANDY_BLAST : this.fx === 'shurda' ? SHURDA_BLAST : this.fx === 'hell' ? HELL_BLAST : this.fx === 'disco' ? DISCO_BLAST : this.fx === 'exe' ? EXE_BLAST : WAR_BLAST;
     this.particles.burst(x, y, look.sparks, [6, 12, 22, 36][size], [150, 220, 320, 440][size]);
     // smoke (steam) rising out of the hole
     this.particles.burst(x, y - 6, look.smoke, [3, 6, 10, 16][size], [60, 90, 120, 160][size], -260);
@@ -1302,13 +1307,19 @@ export class Board extends Container {
     if (this.fx === 'disco' && Math.random() < 6 / Math.max(6, this.flights.size * 2)) {
       this.particles.sparks(ball.x + (Math.random() - 0.5) * radius, ball.y, DISCO_GLITTER[Math.floor(Math.random() * 4)], 1, radius * 1.4);
     }
+    // a data packet leaves a trail of bits: square pixels that hang in the air, flicker and go out
+    if (this.fx === 'exe' && Math.random() < 8 / Math.max(8, this.flights.size * 2)) {
+      const step = radius * 0.5;
+      this.particles.bit(Math.round((ball.x + (Math.random() - 0.5) * radius) / step) * step, Math.round(ball.y / step) * step,
+        EXE_BITS[Math.floor(Math.random() * EXE_BITS.length)], radius * (0.16 + 0.1 * Math.random()), 0.45);
+    }
     const context = heat > 0 ? HEAT[Math.min(heat, HEAT.length) - 1] : this.trailDot;
     if (!context) return;
     const dot = new Graphics(context);
     dot.blendMode = 'add';
     dot.position.copyFrom(ball.position);
     // a reactor capsule leaves a thin cyan streak (the capsule itself must stay the brightest thing)
-    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie' || this.fx === 'neon' || this.fx === 'candy' || this.fx === 'shurda' || this.fx === 'hell' || this.fx === 'disco';
+    const thin = this.fx === 'reactor' || this.fx === 'lagoon' || this.fx === 'pharaoh' || this.fx === 'zombie' || this.fx === 'neon' || this.fx === 'candy' || this.fx === 'shurda' || this.fx === 'hell' || this.fx === 'disco' || this.fx === 'exe';
     const size = radius * (thin ? 0.3 : 0.7 + 0.25 * heat);
     const life = thin ? 0.22 : 0.32 + 0.12 * heat;
     dot.scale.set(size);
@@ -1534,6 +1545,10 @@ export class Board extends Container {
       if (this.fx === 'hell' && !many) this.particles.burst(peg.x, peg.y - 3, ['#f57a1f', '#ffb347', '#ffe08a'], 3, 110, -160);
       // a chrome stud under a mirror ball: a little spray of glitter
       if (this.fx === 'disco' && !many) this.particles.burst(peg.x, peg.y - 3, DISCO_GLITTER, 3, 120, 260);
+      // a chrome stud under a data packet: a few bits knocked loose
+      if (this.fx === 'exe' && !many) for (let i = 0; i < 3; i++) {
+        this.particles.bit(peg.x + (Math.random() - 0.5) * 16, peg.y + (Math.random() - 0.5) * 12, EXE_BITS[i % EXE_BITS.length], 1.6, 0.35);
+      }
       gsap.fromTo(peg.scale, { x: 1.35, y: 1.35 }, { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)', overwrite: true });
     }
     if (flash) {

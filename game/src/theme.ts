@@ -46,8 +46,9 @@ export interface ThemeUi { style: 'flat' | 'glass' | 'ink'; ink: string; panel: 
  * a pearl (splashes of water, petals, a volcano for the top wins); pharaoh: a golden scarab (gold dust, sand, sunlight);
  * zombie: a grenade (explosions and blood: splatters left on the board, big wins splashing the screen); neon: a capsule
  * ball (neon sparkles); candy: a gumball (sprinkles and wrapped sweets); shurda: a sock ball (comic starbursts and confetti);
- * hell: an ember marble (gold sparks, embers and hellfire); disco: a mirror ball (glitter, stars and a dance floor) */
-export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda' | 'hell' | 'disco';
+ * hell: an ember marble (gold sparks, embers and hellfire); disco: a mirror ball (glitter, stars and a dance floor);
+ * exe: a data packet in a corrupted terminal (a trail of bits, glitches) */
+export type ThemeFx = 'standard' | 'war' | 'reactor' | 'lagoon' | 'pharaoh' | 'zombie' | 'neon' | 'candy' | 'shurda' | 'hell' | 'disco' | 'exe';
 /**
  * Plinko Mega's wheels: segment faces and label colours (taken in turn), the rim, the ink of the outlines, the title
  * colour (also the jackpot segments' face) and the gold wheel's own faces and rim; hub, pointer and gate: optional
@@ -202,6 +203,8 @@ export interface Prop {
   file: string | null; sheet: string | null; fps: number; at: [number, number]; anchor: [number, number];
   height: number; width: number | null; alpha: number; blend: 'normal' | 'add';
   swing: number; pulse: number; flicker: number; on: Prop[];
+  /** sweeps down over its parent from top to bottom again and again, taking this many seconds (a scan line); 0: stays */
+  scan: number;
   /** in front of the game (over the board and the controls), not behind it */
   front: boolean;
   /** a character filmed dancing (Disco Is Dead): its idle loop and its win clip, each an MP4 with the colour picture on
@@ -214,8 +217,8 @@ export interface Props {
   sheets: Record<string, { file: string; grid: [number, number]; skipLast: boolean }>;
   wide: Prop[]; tall: Prop[];
   /** a wall of fire for the big moments: how many bursts of `sheet` across the screen, how tall (a share of its height)
-   *  and how long each plays; null: none */
-  wipe: { sheet: string; count: number; height: number; seconds: number } | null;
+   *  and how long each plays; or (kind glitch) the screen glitching: bars of the colours torn across it; null: none */
+  wipe: { kind: 'fire' | 'glitch'; sheet: string; count: number; height: number; seconds: number; colours: string[] } | null;
 }
 export interface Theme {
   id: string;
@@ -480,13 +483,16 @@ function readProps(json: unknown): Props | null {
     return { file, sheet, fps: num(o.fps, 1, 60, 16), at, anchor, height: num(o.height, 0.001, 3, 0.1),
       width: typeof o.width === 'number' && o.width > 0 && o.width <= 3 ? o.width : null, alpha: num(o.alpha, 0, 1, 1),
       blend: o.blend === 'add' ? 'add' : 'normal', swing: num(o.swing, 0, 0.5, 0), pulse: num(o.pulse, 0, 1, 0),
-      flicker: num(o.flicker, 0, 1, 0), front: depth === 0 && o.front === true, actor: depth === 0 ? actorOf(o.actor) : null,
+      flicker: num(o.flicker, 0, 1, 0), scan: num(o.scan, 0, 60, 0), front: depth === 0 && o.front === true, actor: depth === 0 ? actorOf(o.actor) : null,
       on: depth < 2 && Array.isArray(o.on) ? o.on.map(c => prop(c, depth + 1)).filter((c): c is Prop => c !== null) : [] };
   };
   const list = (v: unknown) => (Array.isArray(v) ? v : []).map(x => prop(x, 0)).filter((x): x is Prop => x !== null);
   const w = (p.wipe ?? null) as Record<string, unknown> | null;
-  const wipe = w && typeof w.sheet === 'string' && sheets[w.sheet]
-    ? { sheet: w.sheet, count: Math.round(num(w.count, 1, 16, 6)), height: num(w.height, 0.05, 2, 0.5), seconds: num(w.seconds, 0.3, 4, 1.2) } : null;
+  const glitch = w?.kind === 'glitch';
+  const colours = Array.isArray(w?.colours) ? w.colours.filter((c): c is string => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)) : [];
+  const wipe = w && (glitch ? colours.length > 0 : typeof w.sheet === 'string' && sheets[w.sheet])
+    ? { kind: glitch ? 'glitch' as const : 'fire' as const, sheet: typeof w.sheet === 'string' ? w.sheet : '', count: Math.round(num(w.count, 1, 40, 6)),
+        height: num(w.height, 0.005, 2, 0.5), seconds: num(w.seconds, 0.2, 4, 1.2), colours } : null;
   return { sheets, wide: list(p.wide), tall: list(p.tall), wipe };
 }
 
@@ -595,7 +601,7 @@ function readBoard(json: unknown): BoardStyle {
     slotHang: readSlotHang(b.slotHang),
     fire: readFire(b.fire),
     bulbs: readBulbs(b.bulbs),
-    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' || b.fx === 'hell' || b.fx === 'disco' ? b.fx : 'standard',
+    fx: b.fx === 'war' || b.fx === 'reactor' || b.fx === 'lagoon' || b.fx === 'pharaoh' || b.fx === 'zombie' || b.fx === 'neon' || b.fx === 'candy' || b.fx === 'shurda' || b.fx === 'hell' || b.fx === 'disco' || b.fx === 'exe' ? b.fx : 'standard',
   };
 }
 

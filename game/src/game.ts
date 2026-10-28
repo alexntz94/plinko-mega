@@ -112,6 +112,9 @@ const HELL_STAMPS: Record<string, string> = { pair: 'DOUBLE DEALING', 'magnet-le
 /** Disco Is Dead's: Gold Record is heavy, Duet the pair, Bassline the magnet, Last Dance the meltdown. */
 const DISCO_NAMES: Record<string, string> = { heavy: 'GOLD RECORD', pair: 'DUET', 'magnet-left': 'BASS L', 'magnet-right': 'BASS R', meltdown: 'LAST DANCE' };
 const DISCO_STAMPS: Record<string, string> = { pair: 'DUET', 'magnet-left': 'BASSLINE', 'magnet-right': 'BASSLINE', meltdown: 'LAST DANCE' };
+/** PLINKO.exe's: Golden Packet is heavy, Fork Bomb the pair, Backdoor the magnet, System Crash the meltdown. */
+const EXE_NAMES: Record<string, string> = { heavy: 'GOLD PACKET', pair: 'FORK BOMB', 'magnet-left': 'BACKDOOR L', 'magnet-right': 'BACKDOOR R', meltdown: 'CRASH' };
+const EXE_STAMPS: Record<string, string> = { pair: 'FORK BOMB', 'magnet-left': 'BACKDOOR', 'magnet-right': 'BACKDOOR', meltdown: 'SYSTEM CRASH' };
 /** Zombie War's: Mega Charge is heavy, Split Fuse the pair, Horde Rush the magnet, Locker Raid the meltdown. */
 const ZOMBIE_NAMES: Record<string, string> = { heavy: 'MEGA CHARGE', pair: 'SPLIT FUSE', 'magnet-left': 'HORDE L', 'magnet-right': 'HORDE R', meltdown: 'RAID' };
 const ZOMBIE_STAMPS: Record<string, string> = { pair: 'SPLIT FUSE', 'magnet-left': 'HORDE RUSH', 'magnet-right': 'HORDE RUSH', meltdown: 'LOCKER RAID' };
@@ -269,11 +272,11 @@ export class Game extends Container {
     this.phoneTop = theme.console?.phoneTop ?? 418;
     const reactor = theme.board.fx === 'reactor', lagoon = theme.board.fx === 'lagoon', pharaoh = theme.board.fx === 'pharaoh';
     const zombie = theme.board.fx === 'zombie', neon = theme.board.fx === 'neon', candy = theme.board.fx === 'candy';
-    const shurda = theme.board.fx === 'shurda', hell = theme.board.fx === 'hell', disco = theme.board.fx === 'disco';
+    const shurda = theme.board.fx === 'shurda', hell = theme.board.fx === 'hell', disco = theme.board.fx === 'disco', exe = theme.board.fx === 'exe';
     this.powerNames = { ...POWER_NAMES, ...(reactor ? { heavy: 'OVERCHARGE' } : {}), ...(lagoon ? LAGOON_NAMES : {}), ...(pharaoh ? PHARAOH_NAMES : {}),
-      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}), ...(shurda ? SHURDA_NAMES : {}), ...(hell ? HELL_NAMES : {}), ...(disco ? DISCO_NAMES : {}) };
-    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}), ...(shurda ? SHURDA_STAMPS : {}), ...(hell ? HELL_STAMPS : {}), ...(disco ? DISCO_STAMPS : {}) };
-    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : shurda ? 'GOLDEN SOCK' : hell ? 'HELLFIRE MARK' : disco ? 'GOLD RECORD' : 'HEAVY SHELLS';
+      ...(zombie ? ZOMBIE_NAMES : {}), ...(neon ? NEON_NAMES : {}), ...(candy ? CANDY_NAMES : {}), ...(shurda ? SHURDA_NAMES : {}), ...(hell ? HELL_NAMES : {}), ...(disco ? DISCO_NAMES : {}), ...(exe ? EXE_NAMES : {}) };
+    this.powerStamps = { ...POWER_STAMPS, ...(lagoon ? LAGOON_STAMPS : {}), ...(pharaoh ? PHARAOH_STAMPS : {}), ...(zombie ? ZOMBIE_STAMPS : {}), ...(neon ? NEON_STAMPS : {}), ...(candy ? CANDY_STAMPS : {}), ...(shurda ? SHURDA_STAMPS : {}), ...(hell ? HELL_STAMPS : {}), ...(disco ? DISCO_STAMPS : {}), ...(exe ? EXE_STAMPS : {}) };
+    this.heavyName = reactor ? 'OVERCHARGE' : lagoon ? 'SUNBURST SURGE' : pharaoh ? 'SCARAB FORTUNE' : zombie ? 'MEGA CHARGE' : neon ? 'GOLDEN GACHA' : candy ? 'GOLDEN GLAZE' : shurda ? 'GOLDEN SOCK' : hell ? 'HELLFIRE MARK' : disco ? 'GOLD RECORD' : exe ? 'GOLDEN PACKET' : 'HEAVY SHELLS';
     this.bloody = zombie;
     const blasts = theme.board.fx !== 'standard';   // war and reactor: blasts (explosions, energy) instead of coins
     this.shower = blasts ? new BlastShower() : new CoinShower();
@@ -290,7 +293,7 @@ export class Game extends Container {
       { bezel: theme.wheel.bezel ? tex(theme.wheel.bezel) : null, glass: theme.wheel.glass ? tex(theme.wheel.glass) : null,
         explode: blasts, photo: photoRevolver(theme, tex), tesla: teslaRing(theme, tex), chests: chestPick(theme, tex), gacha: gachaPick(theme, tex),
         words: reactor ? ['SURGE!', 'OVERLOAD!'] : lagoon ? ['SPLASH!', 'TIDAL WAVE!'] : pharaoh ? ['GOLD!', "PHARAOH'S GOLD!"]
-          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : shurda ? ['SHURDA!', 'NICE SOCKS!'] : hell ? ['SOLD!', 'DEVIL OF A DEAL!'] : disco ? ['GROOVY!', 'DISCO INFERNO!'] : ['BOOM!', 'KABOOM!'] });
+          : zombie ? ['SPLAT!', 'BLOODBATH!'] : neon ? ['SUGOI!', 'JACKPOT!'] : candy ? ['SWEET!', 'SUGAR RUSH!'] : shurda ? ['SHURDA!', 'NICE SOCKS!'] : hell ? ['SOLD!', 'DEVIL OF A DEAL!'] : disco ? ['GROOVY!', 'DISCO INFERNO!'] : exe ? ['HACKED!', 'SYSTEM BREACH!'] : ['BOOM!', 'KABOOM!'] });
     this.ring = !!theme.wheel.tesla || !!theme.wheel.chests || !!theme.wheel.gacha;
     this.chestPick = !!theme.wheel.chests;
     // (the gacha, the jars and the socks play it too: the capsule, the jar, the sock holds the payout)
@@ -360,11 +363,11 @@ export class Game extends Container {
       if (this.bar instanceof ConsoleControls) this.bar.setArsenalName(set.title);
       this.table.addChild(this.arsenal);
     }
-    if (reactor || lagoon || pharaoh || zombie || neon || candy || shurda || hell || disco) {
+    if (reactor || lagoon || pharaoh || zombie || neon || candy || shurda || hell || disco || exe) {
       // Lagoon Drop's Volcano Vault is the same payout: the volcano's heat climbs instead of the core's pressure
       this.meltdown = new CoreMeltdown({ gold: theme.wheel.title, text: theme.text, rim: theme.wheel.rim,
-        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : shurda ? 'LAUNDRY DAY' : hell ? 'CLOSING SALE' : disco ? 'LAST DANCE' : 'CORE PRESSURE',
-        ...(hell ? { face: '#2a0a0e', zone: '#f2c14e' } : disco ? { face: '#1b0b33', zone: '#ff2e93' } : {}) });
+        title: lagoon ? 'VOLCANO HEAT' : pharaoh ? 'TOMB RAID' : shurda ? 'LAUNDRY DAY' : hell ? 'CLOSING SALE' : disco ? 'LAST DANCE' : exe ? 'SYSTEM CRASH' : 'CORE PRESSURE',
+        ...(hell ? { face: '#2a0a0e', zone: '#f2c14e' } : disco ? { face: '#1b0b33', zone: '#ff2e93' } : exe ? { face: '#07140c', zone: '#39ff14' } : {}) });
       this.table.addChild(this.meltdown);
     }
     if (theme.blast?.tank) {

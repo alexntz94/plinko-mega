@@ -1,0 +1,861 @@
+{
+  "name": "PLINKO.exe",
+  "title": "PLINKO.exe",
+  "background": "#040c06",
+  "accent": "#39ff14",
+  "text": "#e2ffe2",
+  "playText": "#040c06",
+  "retina": true,
+  "font": {
+    "family": "Jersey 10",
+    "file": "jersey10.woff2",
+    "weight": "400"
+  },
+  "board": {
+    "fx": "exe",
+    "peg": "item_peg.png",
+    "pegFlash": "#9dff8a",
+    "trail": "#39ff14",
+    "slotRadius": 3,
+    "slotArt": true,
+    "slots": [
+      {
+        "face": "#c4d6c8",
+        "text": "#040c06"
+      },
+      {
+        "face": "#00e5ff",
+        "text": "#040c06"
+      },
+      {
+        "face": "#39ff14",
+        "text": "#040c06"
+      },
+      {
+        "face": "#ff1fa8",
+        "text": "#ffffff"
+      },
+      {
+        "face": "#ffc94a",
+        "text": "#040c06"
+      }
+    ],
+    "fit": {
+      "8": {
+        "rowGap": 0.6222,
+        "x": 384,
+        "y": 145.8,
+        "spacing": 47.734,
+        "frame": "item_plinko.png",
+        "framePortrait": "item_plinko_p.png"
+      },
+      "9": {
+        "rowGap": 0.6059,
+        "x": 384,
+        "y": 149.01,
+        "spacing": 43.727,
+        "frame": "item_plinko_r9.png",
+        "framePortrait": "item_plinko_r9_p.png"
+      },
+      "10": {
+        "rowGap": 0.593,
+        "x": 384,
+        "y": 151.59,
+        "spacing": 40.322,
+        "frame": "item_plinko_r10.png",
+        "framePortrait": "item_plinko_r10_p.png"
+      },
+      "11": {
+        "rowGap": 0.5827,
+        "x": 384,
+        "y": 153.71,
+        "spacing": 37.397,
+        "frame": "item_plinko_r11.png",
+        "framePortrait": "item_plinko_r11_p.png"
+      },
+      "12": {
+        "rowGap": 0.5741,
+        "x": 384,
+        "y": 155.49,
+        "spacing": 34.861,
+        "frame": "item_plinko_r12.png",
+        "framePortrait": "item_plinko_r12_p.png"
+      },
+      "13": {
+        "rowGap": 0.5669,
+        "x": 384,
+        "y": 156.99,
+        "spacing": 32.641,
+        "frame": "item_plinko_r13.png",
+        "framePortrait": "item_plinko_r13_p.png"
+      },
+      "14": {
+        "rowGap": 0.5608,
+        "x": 384,
+        "y": 158.29,
+        "spacing": 30.684,
+        "frame": "item_plinko_r14.png",
+        "framePortrait": "item_plinko_r14_p.png"
+      }
+    },
+    "portraitSpan": 0.64,
+    "bulbs": {
+      "glow": "item_bulb.png",
+      "points": [
+        [
+          0.1406,
+          0.8368
+        ],
+        [
+          0.8587,
+          0.8366
+        ],
+        [
+          0.1517,
+          0.8129
+        ],
+        [
+          0.8476,
+          0.8129
+        ],
+        [
+          0.1623,
+          0.7895
+        ],
+        [
+          0.837,
+          0.7894
+        ],
+        [
+          0.1734,
+          0.7661
+        ],
+        [
+          0.8262,
+          0.7657
+        ],
+        [
+          0.1838,
+          0.7429
+        ],
+        [
+          0.8158,
+          0.7432
+        ],
+        [
+          0.1939,
+          0.7209
+        ],
+        [
+          0.8055,
+          0.7206
+        ],
+        [
+          0.2038,
+          0.6989
+        ],
+        [
+          0.7955,
+          0.6988
+        ],
+        [
+          0.2138,
+          0.6773
+        ],
+        [
+          0.7856,
+          0.6768
+        ],
+        [
+          0.2236,
+          0.6563
+        ],
+        [
+          0.776,
+          0.6556
+        ],
+        [
+          0.2332,
+          0.6349
+        ],
+        [
+          0.7662,
+          0.6346
+        ],
+        [
+          0.2429,
+          0.6142
+        ],
+        [
+          0.757,
+          0.6141
+        ],
+        [
+          0.2523,
+          0.5942
+        ],
+        [
+          0.7476,
+          0.5942
+        ],
+        [
+          0.2611,
+          0.5743
+        ],
+        [
+          0.7385,
+          0.5744
+        ],
+        [
+          0.2703,
+          0.5545
+        ],
+        [
+          0.7295,
+          0.5545
+        ],
+        [
+          0.2793,
+          0.5349
+        ],
+        [
+          0.7205,
+          0.535
+        ],
+        [
+          0.2879,
+          0.5156
+        ],
+        [
+          0.7119,
+          0.5159
+        ],
+        [
+          0.2965,
+          0.4966
+        ],
+        [
+          0.7029,
+          0.4966
+        ],
+        [
+          0.3051,
+          0.4778
+        ],
+        [
+          0.6945,
+          0.4777
+        ],
+        [
+          0.3137,
+          0.4591
+        ],
+        [
+          0.686,
+          0.4592
+        ],
+        [
+          0.3221,
+          0.4408
+        ],
+        [
+          0.6775,
+          0.4409
+        ],
+        [
+          0.3304,
+          0.4225
+        ],
+        [
+          0.6692,
+          0.4225
+        ],
+        [
+          0.3388,
+          0.4048
+        ],
+        [
+          0.6609,
+          0.4048
+        ],
+        [
+          0.3468,
+          0.3865
+        ],
+        [
+          0.6527,
+          0.3866
+        ],
+        [
+          0.3548,
+          0.369
+        ],
+        [
+          0.6447,
+          0.3691
+        ],
+        [
+          0.3627,
+          0.3513
+        ],
+        [
+          0.6367,
+          0.3512
+        ],
+        [
+          0.3708,
+          0.3342
+        ],
+        [
+          0.6287,
+          0.3343
+        ],
+        [
+          0.3785,
+          0.3169
+        ],
+        [
+          0.6209,
+          0.3168
+        ],
+        [
+          0.3861,
+          0.3
+        ],
+        [
+          0.613,
+          0.2996
+        ],
+        [
+          0.3941,
+          0.2827
+        ],
+        [
+          0.6054,
+          0.2827
+        ],
+        [
+          0.4018,
+          0.2659
+        ],
+        [
+          0.5976,
+          0.2661
+        ],
+        [
+          0.4095,
+          0.2494
+        ],
+        [
+          0.5899,
+          0.2494
+        ],
+        [
+          0.4172,
+          0.233
+        ],
+        [
+          0.5824,
+          0.2326
+        ],
+        [
+          0.4244,
+          0.2162
+        ],
+        [
+          0.5749,
+          0.2163
+        ],
+        [
+          0.4319,
+          0.2002
+        ],
+        [
+          0.5674,
+          0.2001
+        ],
+        [
+          0.4394,
+          0.184
+        ],
+        [
+          0.5599,
+          0.1839
+        ],
+        [
+          0.4467,
+          0.1678
+        ],
+        [
+          0.5526,
+          0.1678
+        ],
+        [
+          0.454,
+          0.1519
+        ],
+        [
+          0.5453,
+          0.1517
+        ],
+        [
+          0.4614,
+          0.1361
+        ],
+        [
+          0.5379,
+          0.1361
+        ]
+      ],
+      "size": 0.035,
+      "colours": [
+        "#39ff14",
+        "#9dff8a",
+        "#00e5ff",
+        "#ff1fa8"
+      ]
+    }
+  },
+  "wheel": {
+    "faces": [
+      "#07140c",
+      "#39ff14",
+      "#ff1fa8",
+      "#00e5ff",
+      "#ffc94a",
+      "#040c06"
+    ],
+    "text": [
+      "#e2ffe2",
+      "#040c06",
+      "#ffffff",
+      "#040c06",
+      "#040c06",
+      "#e2ffe2"
+    ],
+    "rim": "#b8c4bc",
+    "ink": "#040c06",
+    "title": "#39ff14",
+    "gold": {
+      "faces": [
+        "#ffc94a",
+        "#fff3c4",
+        "#39ff14",
+        "#07140c"
+      ],
+      "text": [
+        "#040c06",
+        "#040c06",
+        "#040c06",
+        "#e2ffe2"
+      ],
+      "rim": "#ffc94a"
+    },
+    "style": "chests",
+    "chests": {
+      "closed": "record_sealed.png",
+      "open": "record_broken.png",
+      "goldClosed": "record_gold.png",
+      "goldOpen": "record_broken.png",
+      "shelf": "record_shelf.png",
+      "glow": "record_glow.png",
+      "burst": "anim_spark.png",
+      "plank": 0.54,
+      "span": [
+        0.05,
+        0.95
+      ],
+      "tokens": {
+        "plain": "token_plain.png",
+        "MINI": "token_mini.png",
+        "MAJOR": "token_major.png",
+        "MEGA": "token_mega.png"
+      },
+      "pick": "PICK A DISK!"
+    }
+  },
+  "ambient": {
+    "colours": [
+      "#39ff14",
+      "#ff1fa8",
+      "#00e5ff"
+    ],
+    "rise": true
+  },
+  "ui": {
+    "style": "glass",
+    "ink": "#040c06",
+    "panel": "#07140c"
+  },
+  "sounds": [
+    "click",
+    "change",
+    "ball",
+    "hit",
+    "clack",
+    "drop",
+    "noScore",
+    "score",
+    "big",
+    "huge",
+    "golden",
+    "gate",
+    "riser",
+    "heart",
+    "coins",
+    "tick",
+    "spin",
+    "win",
+    "lose",
+    "bigWin",
+    "result",
+    "jackpot"
+  ],
+  "console": {
+    "drop": "console_drop.png",
+    "panel": "console_panel.png",
+    "key": "console_key.png",
+    "back": "console_back.png",
+    "rects": {
+      "left": [
+        62,
+        428,
+        272,
+        482
+      ],
+      "centre": [
+        352,
+        424,
+        416,
+        488
+      ],
+      "right": [
+        496,
+        428,
+        706,
+        482
+      ]
+    },
+    "inner": [
+      0.07,
+      0.16,
+      0.93,
+      0.84
+    ],
+    "bar": true,
+    "phoneTop": 500
+  },
+  "blast": {
+    "fire": "vfx_ring.png",
+    "dust": "vfx_haze.png",
+    "smoke": "vfx_haze.png",
+    "kinds": {
+      "small": "vfx_spark.png",
+      "impact": "vfx_spark.png",
+      "heavy": "vfx_ring.png",
+      "napalm": "vfx_ring.png",
+      "mushroom": "vfx_fountain.png",
+      "fireball": "vfx_glow.png"
+    },
+    "anchors": {
+      "small": [
+        0.5,
+        0.5
+      ],
+      "impact": [
+        0.5,
+        0.5
+      ],
+      "heavy": [
+        0.5,
+        0.5
+      ],
+      "napalm": [
+        0.5,
+        0.5
+      ],
+      "mushroom": [
+        0.5,
+        0.88
+      ],
+      "fireball": [
+        0.5,
+        0.5
+      ],
+      "arc": [
+        0.5,
+        0.5
+      ]
+    },
+    "sheets": {
+      "impact": "anim_spark.png",
+      "heavy": "anim_ring.png",
+      "mushroom": "anim_fountain.png",
+      "arc": "anim_glitter.png"
+    },
+    "grids": {
+      "impact": [
+        4,
+        4
+      ],
+      "heavy": [
+        4,
+        4
+      ],
+      "mushroom": [
+        4,
+        4
+      ],
+      "arc": [
+        4,
+        4
+      ]
+    }
+  },
+  "music": "music.mp3",
+  "props": {
+    "sheets": {
+      "glitter": {
+        "file": "anim_glitter.png",
+        "grid": [
+          4,
+          4
+        ]
+      }
+    },
+    "wide": [
+      {
+        "file": "actor_skull.png",
+        "actor": {
+          "idle": "actor_skull_idle.mp4",
+          "win": "actor_skull_win.mp4",
+          "part": [
+            0,
+            1
+          ]
+        },
+        "at": [
+          0.87,
+          0.985
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.66
+      },
+      {
+        "file": "prop_scan.png",
+        "at": [
+          0.5,
+          0
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "width": 1.1,
+        "height": 0.1,
+        "blend": "add",
+        "alpha": 0.22,
+        "scan": 7,
+        "front": false
+      },
+      {
+        "file": "prop_scan.png",
+        "at": [
+          0.5,
+          0
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "width": 1.1,
+        "height": 0.1,
+        "blend": "add",
+        "alpha": 0.12,
+        "scan": 11,
+        "front": false
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.1,
+          0.3
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.16,
+        "blend": "add",
+        "alpha": 0.8,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.08,
+          0.75
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.14,
+        "blend": "add",
+        "alpha": 0.6,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.5,
+          0.1
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.12,
+        "blend": "add",
+        "alpha": 0.5,
+        "front": true
+      }
+    ],
+    "tall": [
+      {
+        "file": "actor_skull.png",
+        "actor": {
+          "idle": "actor_skull_idle.mp4",
+          "win": "actor_skull_win.mp4",
+          "part": [
+            0,
+            1
+          ]
+        },
+        "at": [
+          0.76,
+          0.39
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "height": 0.25
+      },
+      {
+        "file": "prop_scan.png",
+        "at": [
+          0.5,
+          0
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "width": 1.1,
+        "height": 0.1,
+        "blend": "add",
+        "alpha": 0.2,
+        "scan": 6,
+        "front": false
+      },
+      {
+        "file": "prop_scan.png",
+        "at": [
+          0.5,
+          0
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "width": 1.1,
+        "height": 0.1,
+        "blend": "add",
+        "alpha": 0.1,
+        "scan": 9,
+        "front": false
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.18,
+          0.18
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.08,
+        "blend": "add",
+        "alpha": 0.8,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.82,
+          0.08
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.07,
+        "blend": "add",
+        "alpha": 0.8,
+        "front": true
+      },
+      {
+        "sheet": "glitter",
+        "fps": 10,
+        "at": [
+          0.5,
+          0.94
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "height": 0.09,
+        "blend": "add",
+        "alpha": 0.6,
+        "front": true
+      }
+    ],
+    "wipe": {
+      "kind": "glitch",
+      "colours": [
+        "#39ff14",
+        "#ff1fa8",
+        "#00e5ff",
+        "#e2ffe2"
+      ],
+      "count": 16,
+      "height": 0.025,
+      "seconds": 0.6
+    }
+  },
+  "video": {
+    "wide": "video.mp4",
+    "tall": "video_p.mp4"
+  },
+  "clips": {
+    "bonus": {
+      "wide": "clip_bonus.mp4",
+      "tall": "clip_bonus_p.mp4"
+    },
+    "win": {
+      "wide": "clip_win.mp4",
+      "tall": "clip_win_p.mp4"
+    }
+  }
+}

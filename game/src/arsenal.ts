@@ -111,6 +111,14 @@ const DISCO_CARDS: ArsenalCard[] = [
   { id: 'meltdown', name: 'LAST DANCE', text: 'The dance meter climbs after the drop: x0.5 to x20', ready: true },
 ];
 
+const EXE_CARDS: ArsenalCard[] = [
+  { id: 'heavy', name: 'GOLDEN PACKET', text: 'Every data packet goes gold: x2 to x10', ready: true },
+  { id: 'pair', name: 'FORK BOMB', text: 'Each packet forks in 2 - the better landing pays', ready: true },
+  { id: 'magnet', name: 'BACKDOOR', text: '70% of packets routed to your side: its keys pay x1.5', ready: true,
+    zones: [['magnet-left', 'LEFT'], ['magnet-right', 'RIGHT']] },
+  { id: 'meltdown', name: 'SYSTEM CRASH', text: 'The crash meter climbs after the drop: x0.5 to x20', ready: true },
+];
+
 /** Each theme's power-ups and what the panel (and its console key) is called. */
 export const ARSENALS: Record<string, { title: string; hint: string; cards: ArsenalCard[] }> = {
   'bombs-away': { title: 'ARSENAL', hint: 'Pick a power-up for your next drop', cards: WAR_CARDS },
@@ -123,6 +131,7 @@ export const ARSENALS: Record<string, { title: string; hint: string; cards: Arse
   'shurda-plinko': { title: 'SOCK BOX', hint: 'Pick a pair for your next drop', cards: SHURDA_CARDS },
   'hell-of-a-deal': { title: 'DEALS', hint: 'Strike a deal for your next drop', cards: HELL_CARDS },
   'disco-is-dead': { title: 'REQUESTS', hint: 'Request a track for your next drop', cards: DISCO_CARDS },
+  'plinko-exe': { title: 'EXPLOITS', hint: 'Run an exploit on your next drop', cards: EXE_CARDS },
 };
 
 interface CardView { card: ArsenalCard; root: Container; art: Sprite | NineSliceSprite; lit: Graphics; price: Text;

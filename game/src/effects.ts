@@ -12,7 +12,7 @@ const MAX_PARTICLES = 600;     // above this, new effects are skipped (100 balls
 const shapes = new Map<string, GraphicsContext>();
 
 /** One shared shape per colour and kind: particles are cheap copies of it. */
-type Kind = 'dot' | 'chip' | 'ring' | 'soft';
+type Kind = 'dot' | 'chip' | 'ring' | 'soft' | 'pixel';
 
 function shape(colour: string, kind: Kind): GraphicsContext {
   const key = kind + colour;
@@ -24,6 +24,7 @@ function shape(colour: string, kind: Kind): GraphicsContext {
     if (kind === 'soft') context.circle(0, 0, 1).fill({ color: colour, alpha: 0.2 }).circle(0, 0, 0.75).fill({ color: colour, alpha: 0.3 })
       .circle(0, 0, 0.5).fill({ color: colour, alpha: 0.45 });
     else if (kind === 'chip') context.rect(-1, -0.5, 2, 1).fill(colour);
+    else if (kind === 'pixel') context.rect(-1, -1, 2, 2).fill(colour);
     else context.circle(0, 0, 1).stroke({ color: colour, width: 0.12 });
     shapes.set(key, context);
   }
@@ -68,6 +69,18 @@ export class Particles extends Container {
     p.alpha = 0.6;
     gsap.to(p, { y: y - random(2, 6), alpha: 0, duration: life, ease: 'power1.in', onComplete: () => this.release(p) });
     gsap.to(p.scale, { x: size * 0.3, y: size * 0.3, duration: life });
+  }
+
+  /** A bit of data left behind (a packet's trail): a square pixel that hangs, flickers and goes out. */
+  bit(x: number, y: number, colour: string, size: number, life: number): void {
+    if (calm) return;
+    const p = this.spawn(colour, 'pixel', x, y, size);
+    if (!p) return;
+    p.blendMode = 'add';
+    gsap.timeline({ onComplete: () => this.release(p) })
+      .to(p, { alpha: 0.35, duration: life * 0.25, ease: 'steps(2)' })
+      .to(p, { alpha: 0.9, duration: life * 0.2, ease: 'steps(1)' })
+      .to(p, { alpha: 0, y: y + random(1, 4), duration: life * 0.55, ease: 'steps(3)' });
   }
 
   /** One spark spat out in a direction (radians), fading fast: a lit fuse. */

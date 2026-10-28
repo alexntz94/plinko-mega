@@ -1,5 +1,5 @@
 # Build the game (game/: TypeScript + PixiJS) with a pinned Node image; only the built files go into nginx.
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS game
+FROM node:26-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797 AS game
 WORKDIR /build
 COPY game/package.json game/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund

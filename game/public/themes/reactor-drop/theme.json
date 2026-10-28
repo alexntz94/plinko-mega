@@ -326,5 +326,15 @@
   "video": {
     "wide": "video.mp4",
     "tall": "video_p.mp4"
+  },
+  "clips": {
+    "bonus": {
+      "wide": "clip_bonus.mp4",
+      "tall": "clip_bonus_p.mp4"
+    },
+    "win": {
+      "wide": "clip_win.mp4",
+      "tall": "clip_win_p.mp4"
+    }
   }
 }
